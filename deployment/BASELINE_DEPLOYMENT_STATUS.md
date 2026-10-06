@@ -27,6 +27,7 @@ CVSchema đã được kiểm tra.
 | Base revision | `1b4199c4f36b0cef378bfb12390c18780c18af4c` |
 | Adapter ZIP SHA-256 | `274aeb95e78f5717b04af9fd0045e5215fd247533bd9572c73c73e8242f86b4b` |
 | Adapter weights SHA-256 | `8d68628e382593132010f20fb12cbb18d9477ca034c154811d109ec075a65f81` |
+| Hugging Face artifact revision | `398ce7961eac9b3ccd1661116f9287bf2b0b6b20` |
 | Parser | `cvpointer_output_parser_v1` |
 | Prompt contract | `cvpointer_prompt_v1` |
 | Decoding | greedy, `max_new_tokens=768` |

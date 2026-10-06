@@ -97,7 +97,7 @@ Nếu package GHCR private, cấp RunPod registry credential chỉ có quyền �
 | Key | Value |
 |---|---|
 | `ARTIFACT_REPO_ID` | `<hf-user>/klcn029-qwen-pointer-artifacts` |
-| `ARTIFACT_REVISION` | commit SHA của repo artifact hoặc `main` trong smoke đầu |
+| `ARTIFACT_REVISION` | `398ce7961eac9b3ccd1661116f9287bf2b0b6b20` |
 | `HF_TOKEN` | token Hugging Face read-only |
 | `PRELOAD_MODEL` | `1` |
 
