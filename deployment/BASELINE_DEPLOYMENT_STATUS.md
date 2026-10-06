@@ -43,10 +43,13 @@ CVSchema đã được kiểm tra.
   CSP và `X-Frame-Options` đều đạt.
 - Git staging dùng danh sách trắng; không có PDF, DOCX, notebook, ZIP model,
   SQLite, thư mục dữ liệu hoặc mẫu khóa API.
+- Adapter đã được upload vào private Hugging Face repo; API xác nhận đủ 13 tệp và
+  revision `398ce7961eac9b3ccd1661116f9287bf2b0b6b20`.
+- Mã triển khai đã được push lên private GitHub repo, branch `main`.
 
 ## Chưa thể xác nhận nếu chưa có cloud account
 
-- Docker image build thành công trên GitHub Actions.
+- Docker image build thành công bằng Runpod GitHub integration.
 - Qwen nạp thành công trên GPU RunPod và vượt smoke endpoint.
 - Render gọi RunPod, nhận job hoàn tất và vượt smoke đầu cuối.
 - Thời gian cold start, thời gian model, delay hàng đợi và chi phí mỗi CV.
