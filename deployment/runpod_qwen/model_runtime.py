@@ -14,6 +14,7 @@ MODEL_ID = "Qwen/Qwen3-4B-Instruct-2507"
 MODEL_REVISION = "1b4199c4f36b0cef378bfb12390c18780c18af4c"
 EXPECTED_ADAPTER_SHA256 = "8d68628e382593132010f20fb12cbb18d9477ca034c154811d109ec075a65f81"
 EXPECTED_CHAT_TEMPLATE_SHA256 = "40c21f34cf67d8c760ef72f8ad3ae5afad514299d4b06e91dd9a8d705af7b541"
+EXPECTED_ARTIFACT_REVISION = "398ce7961eac9b3ccd1661116f9287bf2b0b6b20"
 MAX_INPUT_TOKENS = 5120
 MAX_NEW_TOKENS = 768
 
@@ -36,7 +37,7 @@ class QwenPointerRuntime:
         if not torch.cuda.is_available():
             raise RuntimeError("CUDA GPU is required for the production worker")
         artifact_repo = os.environ["ARTIFACT_REPO_ID"]
-        artifact_revision = os.getenv("ARTIFACT_REVISION") or None
+        artifact_revision = os.getenv("ARTIFACT_REVISION", EXPECTED_ARTIFACT_REVISION).strip()
         hf_token = os.getenv("HF_TOKEN") or None
         artifact_root = Path(
             snapshot_download(

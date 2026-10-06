@@ -20,6 +20,9 @@ ARTIFACT_REVISION=<artifact commit SHA>
 HF_TOKEN=<read-only token>
 ```
 
+Nếu không đặt `ARTIFACT_REVISION`, worker dùng revision đã khóa
+`398ce7961eac9b3ccd1661116f9287bf2b0b6b20`.
+
 Input native text:
 
 ```json
