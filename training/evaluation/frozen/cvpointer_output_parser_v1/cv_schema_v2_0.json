@@ -1,0 +1,242 @@
+{
+  "$defs": {
+    "CVEducation": {
+      "additionalProperties": false,
+      "properties": {
+        "degree": {
+          "title": "Degree",
+          "type": "string"
+        },
+        "university": {
+          "title": "University",
+          "type": "string"
+        },
+        "gpa": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Gpa"
+        },
+        "year_graduated": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Year Graduated"
+        }
+      },
+      "required": [
+        "degree",
+        "university",
+        "gpa",
+        "year_graduated"
+      ],
+      "title": "CVEducation",
+      "type": "object"
+    },
+    "CVExperience": {
+      "additionalProperties": false,
+      "properties": {
+        "company": {
+          "title": "Company",
+          "type": "string"
+        },
+        "job_title": {
+          "title": "Job Title",
+          "type": "string"
+        },
+        "duration": {
+          "title": "Duration",
+          "type": "string"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        }
+      },
+      "required": [
+        "company",
+        "job_title",
+        "duration",
+        "description"
+      ],
+      "title": "CVExperience",
+      "type": "object"
+    },
+    "CVProject": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "role": {
+          "title": "Role",
+          "type": "string"
+        },
+        "technologies": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Technologies",
+          "type": "array"
+        },
+        "details": {
+          "title": "Details",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "role",
+        "technologies",
+        "details"
+      ],
+      "title": "CVProject",
+      "type": "object"
+    },
+    "CVSkills": {
+      "additionalProperties": false,
+      "properties": {
+        "hard_skills": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Hard Skills",
+          "type": "array"
+        },
+        "soft_skills": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Soft Skills",
+          "type": "array"
+        }
+      },
+      "required": [
+        "hard_skills",
+        "soft_skills"
+      ],
+      "title": "CVSkills",
+      "type": "object"
+    },
+    "PersonalInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "Always [MASKED]",
+          "enum": [
+            "[MASKED]"
+          ],
+          "title": "Name",
+          "type": "string"
+        },
+        "email": {
+          "description": "Always [MASKED]",
+          "enum": [
+            "[MASKED]"
+          ],
+          "title": "Email",
+          "type": "string"
+        },
+        "phone": {
+          "description": "Always [MASKED]",
+          "enum": [
+            "[MASKED]"
+          ],
+          "title": "Phone",
+          "type": "string"
+        },
+        "github_url": {
+          "title": "Github Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "email",
+        "phone",
+        "github_url"
+      ],
+      "title": "PersonalInfo",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "personal_info": {
+      "$ref": "#/$defs/PersonalInfo"
+    },
+    "summary": {
+      "title": "Summary",
+      "type": "string"
+    },
+    "skills": {
+      "$ref": "#/$defs/CVSkills"
+    },
+    "experience": {
+      "items": {
+        "$ref": "#/$defs/CVExperience"
+      },
+      "title": "Experience",
+      "type": "array"
+    },
+    "projects": {
+      "items": {
+        "$ref": "#/$defs/CVProject"
+      },
+      "title": "Projects",
+      "type": "array"
+    },
+    "education": {
+      "items": {
+        "$ref": "#/$defs/CVEducation"
+      },
+      "title": "Education",
+      "type": "array"
+    },
+    "certifications": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Certifications",
+      "type": "array"
+    },
+    "activities": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Activities",
+      "type": "array"
+    },
+    "awards": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Awards",
+      "type": "array"
+    }
+  },
+  "required": [
+    "personal_info",
+    "summary",
+    "skills",
+    "experience",
+    "projects",
+    "education",
+    "certifications",
+    "activities",
+    "awards"
+  ],
+  "title": "CVSchema",
+  "type": "object"
+}

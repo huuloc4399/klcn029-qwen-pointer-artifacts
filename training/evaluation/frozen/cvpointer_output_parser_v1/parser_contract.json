@@ -1,0 +1,12 @@
+{
+  "parser_version": "cvpointer_output_parser_v1",
+  "pointer_schema_version": "1.0",
+  "output_schema_version": "2.0",
+  "line_policy": "one-based non-empty stripped source lines",
+  "span_policy": "inclusive [start_line, end_line] or null",
+  "json_repair": false,
+  "truncated_output_repair": false,
+  "missing_field_imputation": false,
+  "reconstruction": "deterministic newline join",
+  "downstream_contract": "validated CVSchema 2.0 plus evidence sidecar"
+}

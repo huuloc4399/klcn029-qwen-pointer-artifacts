@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Chính sách dữ liệu · CV Insight{% endblock %}
+{% block content %}
+<section class="plain-page"><div class="container prose"><span class="eyebrow">PHIÊN BẢN {{ policy_version }}</span><h1>Chính sách dữ liệu nghiên cứu</h1><p class="lead">CV chứa dữ liệu cá nhân. Vì vậy quyền đánh giá và quyền đóng góp nghiên cứu được tách thành hai lựa chọn độc lập.</p>
+<h2>1. Khi chỉ sử dụng chức năng đánh giá</h2><p>PDF và JD được xử lý trong tệp tạm để tạo kết quả. Với PDF có lớp chữ, hệ thống che các mẫu tên và thông tin liên hệ nhận diện được trước khi gửi văn bản tới worker GPU RunPod. Với PDF ảnh cần OCR, bản PDF được gửi tạm thời tới RunPod nên có thể còn thông tin cá nhân trong hình ảnh. Hệ thống xóa tệp tạm sau khi hoàn tất hoặc khi tác vụ hết hạn và không thêm chúng vào kho nghiên cứu.</p>
+<h2>2. Khi tự nguyện đóng góp nghiên cứu</h2><p>Nhóm lưu bản PDF, JD đã cung cấp, metadata trích xuất và kết quả baseline. Mục đích là đánh giá và cải thiện các mô đun OCR, trích xuất, so khớp và gợi ý sửa CV của đề tài.</p>
+<h2>3. Thông tin không cần cung cấp</h2><p>Không cần đăng ký tài khoản, email hoặc số điện thoại. Mã người tham gia là tùy chọn. CV vẫn có thể chứa thông tin cá nhân do chính người tham gia đưa vào.</p>
+<h2>4. Rút dữ liệu</h2><p>Sau khi đóng góp, hệ thống cấp một mã rút dữ liệu. Nhập mã tại trang rút dữ liệu để xóa PDF, JD và kết quả liên quan.</p>
+<h2>5. Phạm vi truy cập và công bố</h2><p>Kho CV thô phải được giữ riêng tư, không đưa lên kho mã nguồn công khai. Render vận hành web và lưu tệp tạm trên vùng lưu trữ riêng; RunPod vận hành worker GPU. Khóa truy cập chỉ nằm ở phía máy chủ. Báo cáo chỉ dùng kết quả tổng hợp hoặc dữ liệu đã được che thông tin nhận dạng. Trước khi mở thu thập công khai, nhóm cần được giảng viên và đơn vị chủ trì duyệt nội dung đồng thuận, thời hạn lưu, nhà cung cấp hạ tầng và người có quyền truy cập.</p>
+<h2>6. Giới hạn của kết quả</h2><p>Điểm số là kết quả thử nghiệm của hệ thống, không phải quyết định tuyển dụng và không bảo đảm cơ hội việc làm.</p>
+<div class="page-actions"><a class="button primary" href="{{ url_for('index') }}#evaluate">Quay lại đánh giá CV</a><a class="button secondary" href="{{ url_for('withdraw') }}">Rút dữ liệu đã đóng góp</a></div></div></section>
+{% endblock %}

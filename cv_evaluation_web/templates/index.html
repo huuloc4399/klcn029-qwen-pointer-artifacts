@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Đánh giá CV theo JD · CV Insight{% endblock %}
+{% block content %}
+<section class="hero">
+  <div class="container hero-grid">
+    <div class="hero-copy">
+      <span class="eyebrow">ĐÁNH GIÁ CV DỰA TRÊN DỮ LIỆU</span>
+      <h1>Hiểu CV của bạn đang <em>phù hợp đến đâu</em> với công việc</h1>
+      <p>Tải CV và dán mô tả công việc. Hệ thống phân tích khả năng đọc của PDF, kỹ năng phù hợp, tác động thành tích và văn phong để đưa ra góp ý cụ thể.</p>
+      <div class="hero-actions"><a class="button primary" href="#evaluate">Đánh giá CV ngay</a><a class="button secondary" href="#how-it-works">Xem cách hoạt động</a></div>
+      <div class="trust-row"><span>✓ Không cần đăng ký</span><span>✓ Không lưu nếu chưa đồng ý</span><span>✓ Có quyền rút dữ liệu</span></div>
+    </div>
+    <div class="hero-visual" aria-label="Minh họa bảng đánh giá CV">
+      <div class="preview-card">
+        <div class="preview-head"><span class="mini-logo">CV</span><span><b>Hồ sơ ứng viên</b><small>Đã phân tích</small></span><span class="status-dot">Sẵn sàng</span></div>
+        <div class="preview-score"><div><strong>78</strong><small>/100</small></div><span>Phù hợp</span></div>
+        <div class="mini-bars"><label>Khả năng đọc ATS <progress value="17" max="20"></progress><b>17/20</b></label><label>Mức độ phù hợp JD <progress value="29" max="35"></progress><b>29/35</b></label><label>Tác động thành tích <progress value="20" max="30"></progress><b>20/30</b></label></div>
+        <div class="preview-tags"><span>Java</span><span>Spring Boot</span><span>SQL</span><span class="missing">AWS cần bổ sung</span></div>
+      </div>
+      <div class="float-card float-one">✓ Phát hiện kỹ năng phù hợp</div>
+      <div class="float-card float-two">3 góp ý có thể thực hiện</div>
+    </div>
+  </div>
+</section>
+
+<section class="evaluate-section" id="evaluate">
+  <div class="container narrow">
+    <div class="section-heading"><span class="eyebrow">BẮT ĐẦU TRONG 2 PHÚT</span><h2>Đánh giá CV theo vị trí bạn quan tâm</h2><p>CV được xử lý tạm thời. Chỉ những người chủ động chọn đóng góp nghiên cứu mới được lưu dữ liệu.</p></div>
+
+    {% if errors %}<div class="alert error" role="alert"><strong>Chưa thể đánh giá</strong><ul>{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul></div>{% endif %}
+
+    <form class="evaluation-form" action="{{ url_for('evaluate_upload') }}" method="post" enctype="multipart/form-data" id="evaluationForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-card">
+        <div class="step-title"><span>1</span><div><h3>Tải CV của bạn</h3><p>Chấp nhận PDF tối đa 8 MB và 12 trang.</p></div></div>
+        <label class="drop-zone" id="dropZone">
+          <input type="file" name="cv_file" id="cvFile" accept="application/pdf,.pdf" required>
+          <span class="upload-icon" aria-hidden="true">↑</span>
+          <strong>Kéo thả CV vào đây hoặc bấm để chọn tệp</strong>
+          <small id="fileName">PDF · tối đa 8 MB</small>
+        </label>
+        <div class="inline-fields">
+          <label>Ngôn ngữ CV<select name="language"><option value="auto">Tự động nhận diện</option><option value="vi">Tiếng Việt</option><option value="en">Tiếng Anh</option></select></label>
+          <label>Mã người tham gia <span class="optional">không bắt buộc</span><input type="text" name="participant_code" maxlength="80" placeholder="Ví dụ: SV001"></label>
+        </div>
+      </div>
+
+      <div class="form-card">
+        <div class="step-title"><span>2</span><div><h3>Dán mô tả công việc</h3><p>Giữ phần yêu cầu, trách nhiệm và kỹ năng để so khớp chính xác hơn.</p></div></div>
+        <label class="full-label">Nội dung JD<textarea name="jd_text" rows="11" minlength="80" maxlength="30000" required placeholder="Ví dụ: Junior Backend Developer&#10;Yêu cầu: Java, Spring Boot, SQL, REST API...&#10;Trách nhiệm: Xây dựng và kiểm thử API...">{{ form.get('jd_text', '') if form else '' }}</textarea></label>
+        <div class="char-hint"><span id="jdCount">0</span>/30.000 ký tự</div>
+      </div>
+
+      <div class="form-card consent-card">
+        <div class="step-title"><span>3</span><div><h3>Xác nhận sử dụng dữ liệu</h3><p>Hai lựa chọn dưới đây hoàn toàn tách biệt.</p></div></div>
+        <label class="check-row required-check"><input type="checkbox" name="consent_evaluation" value="yes" required><span><strong>Tôi đồng ý để hệ thống xử lý tạm thời CV và JD nhằm trả kết quả đánh giá.</strong><small>Render vận hành web và RunPod vận hành GPU/OCR. Nếu không chọn đóng góp nghiên cứu, tệp tạm sẽ bị xóa sau khi hoàn tất hoặc hết hạn xử lý.</small></span></label>
+        <label class="check-row research-check"><input type="checkbox" name="consent_research" value="yes"><span><strong>Tôi tự nguyện đóng góp CV, JD và kết quả cho nghiên cứu của nhóm.</strong><small>Không ảnh hưởng đến điểm đánh giá. Bạn sẽ nhận mã rút dữ liệu sau khi gửi và có thể yêu cầu xóa bất cứ lúc nào.</small></span></label>
+        <p class="privacy-note">Bằng việc tiếp tục, bạn xác nhận CV thuộc quyền sử dụng của mình. Xem <a href="{{ url_for('privacy') }}" target="_blank">chính sách dữ liệu nghiên cứu</a>.</p>
+      </div>
+
+      <button class="button primary submit-button" type="submit" id="submitButton"><span>Phân tích và đánh giá CV</span><small>GPU có thể cần 30 giây đến vài phút ở lần chạy đầu</small></button>
+    </form>
+  </div>
+</section>
+
+<section class="how-section" id="how-it-works">
+  <div class="container">
+    <div class="section-heading"><span class="eyebrow">MINH BẠCH TỪNG THÀNH PHẦN</span><h2>Điểm số được hình thành như thế nào?</h2></div>
+    <div class="feature-grid">
+      <article><span class="feature-number">20</span><h3>Khả năng đọc ATS</h3><p>Kiểm tra lớp văn bản, phần chính, số trang và tín hiệu bố cục nhiều cột trực tiếp từ PDF.</p></article>
+      <article><span class="feature-number">30</span><h3>Tác động thành tích</h3><p>Phát hiện kết quả định lượng, quy mô và các mô tả thể hiện đóng góp cụ thể.</p></article>
+      <article><span class="feature-number">35</span><h3>Phù hợp với JD</h3><p>Đối chiếu kỹ năng trong CV với kỹ năng được nhận diện trong mô tả công việc.</p></article>
+      <article><span class="feature-number">15</span><h3>Văn phong chủ động</h3><p>Đánh giá động từ hành động và cảnh báo các cụm mô tả bị động, thiếu kết quả.</p></article>
+    </div>
+    <div class="research-banner"><div><span class="eyebrow">ĐÓNG GÓP NGHIÊN CỨU</span><h3>Mỗi CV tự nguyện giúp mô hình hiểu hồ sơ Việt Nam tốt hơn</h3><p>Hệ thống đếm {{ stats.distinct_cvs }} CV khác nhau đã được đồng ý lưu. Nhóm chỉ sử dụng dữ liệu theo phạm vi được thông báo.</p></div><a class="button secondary" href="{{ url_for('privacy') }}">Tìm hiểu về dữ liệu</a></div>
+  </div>
+</section>
+{% endblock %}

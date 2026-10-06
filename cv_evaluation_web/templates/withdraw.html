@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block title %}Rút dữ liệu · CV Insight{% endblock %}
+{% block content %}
+<section class="plain-page"><div class="container withdraw-wrap"><div class="section-heading"><span class="eyebrow">QUYỀN CỦA NGƯỜI THAM GIA</span><h1>Rút CV khỏi tập nghiên cứu</h1><p>Nhập mã được cấp ở trang kết quả. Hệ thống sẽ xóa CV, JD và kết quả liên quan.</p></div>{% if message %}<div class="alert {{ 'success' if success else 'error' }}"><strong>{{ message }}</strong></div>{% endif %}<form class="withdraw-form" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label>Mã rút dữ liệu<input type="text" name="withdrawal_code" autocomplete="off" required placeholder="Dán mã của bạn"></label><button class="button danger" type="submit">Xóa dữ liệu đã đóng góp</button></form><p class="method-note">Thao tác xóa không thể hoàn tác. Nếu đã mất mã, nhóm không thể xác định hồ sơ nào thuộc về bạn mà không thu thêm dữ liệu nhận dạng.</p></div></section>
+{% endblock %}

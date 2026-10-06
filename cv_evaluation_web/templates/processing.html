@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Đang phân tích CV · CV Insight{% endblock %}
+{% block scripts %}{% if not missing %}<script src="{{ url_for('static', filename='job.js') }}" defer></script>{% endif %}{% endblock %}
+{% block content %}
+<section class="processing-page">
+  <div class="container processing-wrap">
+    {% if missing %}
+      <div class="processing-card"><span class="processing-icon failed">!</span><h1>Không tìm thấy tác vụ</h1><p>Liên kết đã hết hạn hoặc mã tác vụ không hợp lệ.</p><a class="button primary" href="{{ url_for('index') }}#evaluate">Đánh giá lại</a></div>
+    {% else %}
+      <div class="processing-card" id="jobMonitor" data-status-url="{{ url_for('job_status', token=token) }}">
+        <span class="spinner" aria-hidden="true"></span>
+        <span class="eyebrow">PIPELINE QWEN POINTER P0</span>
+        <h1>Hệ thống đang phân tích CV</h1>
+        <p id="jobMessage">Đang gửi tác vụ đến GPU. Lần chạy đầu có thể cần thêm thời gian để tải model.</p>
+        <div class="pipeline-steps">
+          <span class="active">1. Đọc PDF/OCR</span><span>2. Qwen trích xuất</span><span>3. Parser v1</span><span>4. So khớp JD</span>
+        </div>
+        <div class="alert error hidden" id="jobError" role="alert"></div>
+        <small>Bạn có thể giữ trang này mở. Kết quả tạm thời chỉ tồn tại trong 24 giờ.</small>
+      </div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

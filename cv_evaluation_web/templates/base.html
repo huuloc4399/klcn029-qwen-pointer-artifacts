@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Đánh giá mức độ phù hợp CV với mô tả công việc và góp ý cải thiện có căn cứ.">
+  <title>{% block title %}CV Insight{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <script src="{{ url_for('static', filename='app.js') }}" defer></script>
+  {% block scripts %}{% endblock %}
+</head>
+<body>
+  <header class="site-header">
+    <div class="container nav-wrap">
+      <a class="brand" href="{{ url_for('index') }}" aria-label="CV Insight - Trang chủ">
+        <span class="brand-icon">CV</span>
+        <span><strong>CV Insight</strong><small>KLCN029 Research</small></span>
+      </a>
+      <nav aria-label="Điều hướng chính">
+        <a href="{{ url_for('index') }}#evaluate">Đánh giá CV</a>
+        <a href="{{ url_for('index') }}#how-it-works">Cách hoạt động</a>
+        <a href="{{ url_for('privacy') }}">Quyền riêng tư</a>
+        <a class="nav-cta" href="{{ url_for('index') }}#evaluate">Kiểm tra CV miễn phí</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>{% block content %}{% endblock %}</main>
+
+  <footer class="site-footer">
+    <div class="container footer-grid">
+      <div>
+        <div class="brand footer-brand"><span class="brand-icon">CV</span><span><strong>CV Insight</strong><small>Đề tài nghiên cứu KLCN029</small></span></div>
+        <p>Công cụ thử nghiệm hỗ trợ người dùng xem mức độ phù hợp giữa CV và JD.</p>
+      </div>
+      <div><strong>Nghiên cứu</strong><a href="{{ url_for('privacy') }}">Chính sách dữ liệu</a><a href="{{ url_for('withdraw') }}">Rút dữ liệu đã đóng góp</a></div>
+      <div><strong>Lưu ý</strong><p>Kết quả mang tính tham khảo và không thay thế quyết định của nhà tuyển dụng.</p></div>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,271 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://klcn029.local/schemas/cv_pointer_schema_v1.json",
+  "title": "CVPointerSchema",
+  "type": "object",
+  "additionalProperties": false,
+  "$defs": {
+    "PersonalInfo": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "enum": [
+            "[MASKED]"
+          ]
+        },
+        "email": {
+          "type": "string",
+          "enum": [
+            "[MASKED]"
+          ]
+        },
+        "phone": {
+          "type": "string",
+          "enum": [
+            "[MASKED]"
+          ]
+        },
+        "github_url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "email",
+        "phone",
+        "github_url"
+      ]
+    },
+    "CVSkills": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "hard_skills": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "soft_skills": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "hard_skills",
+        "soft_skills"
+      ]
+    },
+    "CVExperiencePointer": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "company": {
+          "type": "string"
+        },
+        "job_title": {
+          "type": "string"
+        },
+        "duration": {
+          "type": "string"
+        },
+        "description_span": {
+          "anyOf": [
+            {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              ],
+              "items": false,
+              "minItems": 2,
+              "maxItems": 2
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "company",
+        "job_title",
+        "duration",
+        "description_span"
+      ]
+    },
+    "CVProjectPointer": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "technologies": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "details_span": {
+          "anyOf": [
+            {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              ],
+              "items": false,
+              "minItems": 2,
+              "maxItems": 2
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "role",
+        "technologies",
+        "details_span"
+      ]
+    },
+    "CVEducation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "degree": {
+          "type": "string"
+        },
+        "university": {
+          "type": "string"
+        },
+        "gpa": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "year_graduated": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "degree",
+        "university",
+        "gpa",
+        "year_graduated"
+      ]
+    }
+  },
+  "properties": {
+    "personal_info": {
+      "$ref": "#/$defs/PersonalInfo"
+    },
+    "summary_span": {
+      "anyOf": [
+        {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "integer",
+              "minimum": 1
+            },
+            {
+              "type": "integer",
+              "minimum": 1
+            }
+          ],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "skills": {
+      "$ref": "#/$defs/CVSkills"
+    },
+    "experience": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/CVExperiencePointer"
+      }
+    },
+    "projects": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/CVProjectPointer"
+      }
+    },
+    "education": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/CVEducation"
+      }
+    },
+    "certifications": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "activities": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "awards": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "personal_info",
+    "summary_span",
+    "skills",
+    "experience",
+    "projects",
+    "education",
+    "certifications",
+    "activities",
+    "awards"
+  ]
+}

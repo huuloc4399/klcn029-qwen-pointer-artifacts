@@ -1,0 +1,37 @@
+# Personal CVs and generated corpora
+CV_EN_PDF/
+CV_VN_PDF/
+corpus_v2/
+annotation/data/
+annotation_app/data/
+baseline_extraction/data/tmp*/
+baseline_extraction/data/
+baseline_extraction/outputs/
+training/data/
+training/audits/
+training/evaluation/results/
+
+# Secrets and local runtime state
+*.key
+.secrets/
+.env
+.env.*
+!.env.example
+cv_evaluation_web/data/*
+!cv_evaluation_web/data/.gitignore
+
+# Large model artifacts and generated results
+training/*.zip
+training/colab/*.zip
+experiments/ocr/model_cache/
+experiments/ocr/.venv/
+*.safetensors
+*.pth
+
+# Python/editor state
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.idea/
+.vscode/
+tmp/

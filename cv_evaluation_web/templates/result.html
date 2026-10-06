@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Kết quả đánh giá · CV Insight{% endblock %}
+{% block content %}
+<section class="result-hero">
+  <div class="container result-heading"><div><span class="eyebrow">KẾT QUẢ ĐÁNH GIÁ</span><h1>CV của bạn đang ở mức <em>{{ result.verdict }}</em></h1><p>Điểm được tính bằng baseline có thể tái lập. Hãy dùng các nhận xét như danh sách kiểm tra, không xem đây là quyết định tuyển dụng.</p></div><a class="button secondary" href="{{ url_for('index') }}#evaluate">Đánh giá CV khác</a></div>
+</section>
+
+<section class="result-section">
+  <div class="container result-grid">
+    <aside class="score-panel">
+      <div class="score-circle"><strong>{{ result.total_score|round|int }}</strong><span>/100</span></div>
+      <h2>{{ result.verdict }}</h2>
+      <p>{{ (result.must_have_coverage * 100)|round|int }}% độ phủ kỹ năng nhận diện trong JD</p>
+      <div class="score-breakdown">
+        {% set labels = {'ats': ('Khả năng đọc ATS', 20), 'impact': ('Tác động thành tích', 30), 'semantic': ('Phù hợp JD', 35), 'tone': ('Văn phong', 15)} %}
+        {% for key, value in result.scores.items() %}<label><span><b>{{ labels[key][0] }}</b><small>{{ value }}/{{ labels[key][1] }}</small></span><progress value="{{ value }}" max="{{ labels[key][1] }}"></progress><em>{{ result.score_notes[key] }}</em></label>{% endfor %}
+      </div>
+    </aside>
+
+    <div class="result-content">
+      {% if pipeline %}<section class="result-card compact-card pipeline-proof"><div><h2>Pipeline đã xác minh</h2><p>{{ pipeline.model }} · {{ pipeline.parser }} · CVSchema {{ pipeline.cv_schema_version }}</p>{% if pipeline.model_runtime_seconds is not none %}<p>{{ pipeline.input_tokens }} token đầu vào · {{ pipeline.generated_tokens }} token sinh · {{ pipeline.model_runtime_seconds }} giây chạy model{% if pipeline.document_route %} · tuyến {{ pipeline.document_route }}{% endif %}</p>{% endif %}{% if pipeline.ocr_quality_warning %}<p class="warning-text">CV tiếng Việt đã đi qua OCR dự phòng; nên kiểm tra lại nội dung bị nhận dạng sai.</p>{% endif %}</div></section>{% endif %}
+      {% if result.extraction.needs_ocr %}<div class="alert warning"><strong>PDF cần OCR bổ sung</strong><p>Lớp chữ của một hoặc nhiều trang chưa đầy đủ. Kết quả hiện tại có thể bỏ sót nội dung và cần chạy qua bộ định tuyến OCR của đề tài.</p></div>{% endif %}
+
+      <section class="result-card"><div class="card-title"><span class="title-icon good">✓</span><div><h2>Điểm mạnh đang thể hiện</h2><p>Những tín hiệu tích cực được tìm thấy trực tiếp trong CV.</p></div></div><ul class="insight-list good-list">{% for item in result.strengths %}<li>{{ item }}</li>{% endfor %}</ul></section>
+
+      <section class="result-card"><div class="card-title"><span class="title-icon improve">↗</span><div><h2>Ưu tiên cải thiện</h2><p>Các việc có thể kiểm tra và chỉnh sửa ngay.</p></div></div><ol class="improvement-list">{% for item in result.improvements %}<li><span>{{ loop.index }}</span><p>{{ item }}</p></li>{% endfor %}</ol></section>
+
+      <section class="result-card"><div class="card-title"><span class="title-icon">≋</span><div><h2>Đối chiếu kỹ năng</h2><p>Kỹ năng được nhận diện bằng từ điển baseline v1.</p></div></div><div class="skill-columns"><div><h3>Đã khớp</h3><div class="tag-list">{% for skill in result.matched_skills %}<span class="tag matched">{{ skill }}</span>{% else %}<small>Chưa tìm thấy kỹ năng trùng khớp.</small>{% endfor %}</div></div><div><h3>JD có nhưng CV chưa thấy</h3><div class="tag-list">{% for skill in result.missing_skills %}<span class="tag missing">{{ skill }}</span>{% else %}<small>Không còn kỹ năng nhận diện bị thiếu.</small>{% endfor %}</div></div></div><p class="method-note">Không thêm kỹ năng chỉ để tăng điểm. Mọi kỹ năng nên có minh chứng trong dự án hoặc kinh nghiệm.</p></section>
+
+      <section class="result-card compact-card"><div><h2>Thông tin trích xuất PDF</h2><p>{{ result.extraction.page_count }} trang · {{ result.extraction.character_count }} ký tự · {{ result.extraction.native_text_pages }} trang có lớp chữ · phương pháp: {{ result.method }}</p></div></section>
+
+      {% if research_consent %}
+      <section class="receipt-card"><span class="receipt-icon">♡</span><div><h2>Cảm ơn bạn đã đóng góp cho nghiên cứu</h2><p>Hãy lưu mã dưới đây. Đây là cách duy nhất để yêu cầu xóa dữ liệu đã đóng góp.</p><code>{{ research_receipt.withdrawal_code }}</code><small>Mã hồ sơ nghiên cứu: {{ research_receipt.submission_id }}</small></div></section>
+      {% else %}
+      <section class="privacy-result"><strong>CV không được lưu vào tập nghiên cứu.</strong><span>Tệp tạm đã bị xóa sau khi kết quả này được tạo.</span></section>
+      {% endif %}
+    </div>
+  </div>
+</section>
+{% endblock %}

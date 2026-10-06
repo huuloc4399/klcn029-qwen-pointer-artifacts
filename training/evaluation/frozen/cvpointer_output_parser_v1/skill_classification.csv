@@ -1,0 +1,60 @@
+﻿skill,classification,occurrences,reviewed
+.NET,hard,100,yes
+.NET 6,hard,94,yes
+.NET 7,hard,89,yes
+Agile Scrum,hard,524,yes
+"Android Development (Java, Kotlin)",hard,58,yes
+Ansible,hard,194,yes
+ASP.NET,hard,98,yes
+ASP.NET 4.5+,hard,103,yes
+Avalonia,hard,65,yes
+Azure,hard,161,yes
+Blazor,hard,69,yes
+C,hard,126,yes
+C#,hard,76,yes
+C++,hard,172,yes
+"CI/CD (Gitlab, Jenkins)",hard,521,yes
+Communication,soft,527,yes
+Confluence,hard,525,yes
+CSS,hard,80,yes
+Cyber Security,hard,58,yes
+Delphi,hard,61,yes
+Docker,hard,505,yes
+Docker Swarm,hard,145,yes
+Drupal,hard,48,yes
+Flutter,hard,59,yes
+Gitlab,hard,535,yes
+Golang,hard,203,yes
+Haskell,hard,126,yes
+Html,hard,90,yes
+"iOS Development (Swift, Objective-C)",hard,67,yes
+Java,hard,166,yes
+JavaScript,hard,141,yes
+Jira,hard,527,yes
+Kotlin,hard,70,yes
+Laravel,hard,44,yes
+Linux,hard,536,yes
+Microsoft SQL,hard,183,yes
+MySQL,hard,238,yes
+Nginx,hard,235,yes
+NoSql,hard,221,yes
+Perl,hard,114,yes
+Photoshop,hard,59,yes
+PHP,hard,44,yes
+Postgresql,hard,233,yes
+Python,hard,319,yes
+React,hard,88,yes
+Ruby,hard,107,yes
+Rust,hard,110,yes
+Scala,hard,166,yes
+Spring,hard,98,yes
+Sql,hard,372,yes
+Swift,hard,58,yes
+Traefik,hard,145,yes
+TypeScript,hard,138,yes
+Unity,hard,45,yes
+Vue.js,hard,84,yes
+WCF,hard,101,yes
+Windows Forms,hard,45,yes
+WPF,hard,45,yes
+Xamarin/MAUI,hard,65,yes

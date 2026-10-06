@@ -1,0 +1,27 @@
+{
+  "status": "FROZEN",
+  "parser_version": "cvpointer_output_parser_v1",
+  "frozen_at_utc": "2026-10-03",
+  "parser_contract_sha256": "a8d875e18f281c152718b7263a9c3a8cbf30c2046e1731fe9a3f080ceeedb38a",
+  "source_sha256": {
+    "pointer_parser.py": "43df8c6971a7c30d37a593930ed3c6ab34605f3187173a88e374b2af9627940e",
+    "parser.py": "67950be62e4fd6abba5ec24fe87d32f8a27042086f4612f960129904c1cbb0e5",
+    "metrics.py": "7610c68dea2727bdf232c5e05577b501dd6a2095d17747fc71aedd5f629fed56",
+    "validation_evaluator.py": "e41dd5e7d798b5dd6561f680cb815e967ded496aa450e6d651d05c8eacc520ae",
+    "schema.py": "15f30db15ae4e97a29ee49c16ce7459fa0c7df509015d56747e6a3c618ff0bdb",
+    "cv_schema_v2_0.json": "fb730dae8d8199f95ae2785e2ae398dde7007fd2682c0cf9786baa1f7afe20ca",
+    "cv_pointer_schema_v1.json": "d86a01d3dcc6680c61c8d707a54262e8364bdfb3c10a11d01e12d77f34062a2c",
+    "skill_classification.csv": "f473a3de9adb01381ec743e5018db1ca27d7d7a656cc52a0fce275693b52f5d2"
+  },
+  "validation_result": {
+    "eval_id": "8f7f05439755108e933f79e6d01fea2133648697056c81c29d041181236ce23b",
+    "validation_sha256": "d0b8525b4b1ad9624cbc0db35a26fdca9cf749134e0db3ada843444724abae45",
+    "raw_zip_sha256": "92ba0db68f102595fe93a706fdf599d4c0c5ac9ad2d64ae29876998894bdce81",
+    "evaluation_summary_sha256": "28d899755559c8e21eb8b9d0d3a4ff7fb17b29f993bffcc7d2ddf6a05e997217",
+    "recoverable_json": "75/75",
+    "cvschema_valid": "75/75",
+    "non_null_span_exact": "440/440",
+    "field_micro_f1": 0.9964378238341969
+  },
+  "change_policy": "Do not modify this directory. Any parser/schema/policy/metric change requires a new version and prevents a direct locked-test comparison."
+}
