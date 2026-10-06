@@ -77,7 +77,10 @@ git status
 ```
 
 Không dùng `git add -A` trong lần commit đầu. Kiểm tra danh sách rồi mới commit và push.
-Workflow `.github/workflows/runpod-worker.yml` build image:
+
+Phương án chính dùng **Runpod GitHub integration**: Runpod đọc private repo, build Dockerfile
+và giữ image trong registry riêng. Không cần public mã nguồn hoặc cấp GitHub package token.
+Workflow `.github/workflows/runpod-worker.yml` chỉ là phương án GHCR dự phòng, chạy thủ công:
 
 ```text
 ghcr.io/<github-user>/klcn029-qwen-pointer:<commit-sha>
@@ -85,24 +88,28 @@ ghcr.io/<github-user>/klcn029-qwen-pointer:<commit-sha>
 
 Nếu package GHCR private, cấp RunPod registry credential chỉ có quyền đọc package.
 
-## 5. Tạo RunPod Serverless endpoint
+## 5. Tạo Runpod Serverless endpoint từ GitHub
 
-1. Chọn **New Serverless Endpoint** và custom worker image ở bước 4.
-2. GPU: lớp 16 GB trở lên; đặt `max workers = 1` cho pilot.
-3. Flex workers: `0 -> 1`; active workers `0` để scale-to-zero.
-4. Container disk: ít nhất 20 GB.
-5. Gắn network volume tại `/runpod-volume` để cache Qwen và PaddleOCR, giảm cold start.
-6. Environment variables:
+1. Vào **Runpod Settings → Connections → GitHub → Connect**.
+2. Chỉ cấp quyền cho repo `huuloc4399/klcn029-qwen-pointer-artifacts`.
+3. Chọn **Serverless → New Endpoint → Import Git Repository**.
+4. Chọn branch `main`; Dockerfile path là `deployment/runpod_qwen/Dockerfile`.
+5. Endpoint type: **Queue**. GPU: lớp 16 GB trở lên; `max workers = 1`.
+6. Active workers `0` để scale-to-zero; idle timeout 5 giây.
+7. Container disk: ít nhất 20 GB. Network volume tại `/runpod-volume` là tùy chọn cho
+   pilot, nhưng giúp cache Qwen và PaddleOCR qua cold start.
+8. Environment variables:
 
 | Key | Value |
 |---|---|
-| `ARTIFACT_REPO_ID` | `<hf-user>/klcn029-qwen-pointer-artifacts` |
+| `ARTIFACT_REPO_ID` | `huuloc4399/klcn029-qwen-pointer-artifacts` |
 | `ARTIFACT_REVISION` | `398ce7961eac9b3ccd1661116f9287bf2b0b6b20` |
 | `HF_TOKEN` | token Hugging Face read-only |
 | `PRELOAD_MODEL` | `1` |
 
-7. Đặt execution timeout ít nhất 900 giây.
-8. Tạo RunPod API key dành riêng cho endpoint, lưu lại `endpoint ID`.
+9. Đặt execution timeout 900 giây.
+10. Deploy và đợi tab **Builds** chuyển sang `Completed`.
+11. Tạo Runpod API key dành riêng cho endpoint, lưu lại `endpoint ID`.
 
 Chạy kiểm tra trực tiếp endpoint bằng CV tổng hợp trước khi nối Render:
 

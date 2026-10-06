@@ -2,13 +2,6 @@ name: Build RunPod worker
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - "deployment/runpod_qwen/**"
-      - "training/evaluation/frozen/cvpointer_output_parser_v1/**"
-      - "baseline_extraction/schema.py"
-      - "baseline_extraction/privacy.py"
-      - ".github/workflows/runpod-worker.yml"
 
 permissions:
   contents: read
