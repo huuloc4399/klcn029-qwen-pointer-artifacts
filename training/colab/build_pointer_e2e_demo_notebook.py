@@ -206,6 +206,7 @@ from training.evaluation.pointer_parser import POINTER_PARSER_VERSION, parse_poi
 from training.evaluation.deployment_policy import (
     DEPLOYMENT_ACCEPTANCE_POLICY_VERSION,
     assess_pointer_result,
+    normalized_cvschema_for_deployment,
 )
 try:
     import pymupdf
@@ -271,15 +272,16 @@ parse_result = parse_pointer_output(raw_output, normalized_source)
 parse_payload = parse_result.to_dict()
 deployment_decision = assess_pointer_result(parse_result)
 deployment_payload = deployment_decision.to_dict()
+deployment_cvschema = normalized_cvschema_for_deployment(parse_result, deployment_decision)
 print(json.dumps({{"status": parse_result.status, "deployment_acceptance": deployment_payload, "input_tokens": input_tokens, "generated_tokens": generated_tokens, "runtime_seconds": runtime_seconds, "issues": parse_payload["issues"]}}, ensure_ascii=False, indent=2))
 if deployment_decision.accepted:
-    print(json.dumps(parse_result.reconstructed_cvschema, ensure_ascii=False, indent=2))
+    print(json.dumps(deployment_cvschema, ensure_ascii=False, indent=2))
 ''')
 
     set_source(cells[8], r'''#@title 8. Matching CV–JD, lưu theo consent và tải bundle
 if len(JD_TEXT.strip()) < 80:
     raise RuntimeError("JD_TEXT phải có ít nhất 80 ký tự")
-if not deployment_decision.accepted or parse_result.reconstructed_cvschema is None:
+if not deployment_decision.accepted or deployment_cvschema is None:
     raise RuntimeError("Pointer output không vượt chính sách triển khai; xem issues ở cell 7")
 
 native_pages = sum(item["route"] == "native_text" for item in routing_log)
@@ -291,7 +293,7 @@ document = DocumentAnalysis(
 )
 deterministic_evaluation = evaluate(
     document, JD_TEXT.strip(), language=resolved_language,
-    cv_schema=parse_result.reconstructed_cvschema,
+    cv_schema=deployment_cvschema,
     method="Qwen Pointer P0 + Parser v1 + real-CV acceptance v2 + deterministic matching baseline v1",
 ).to_dict()
 if MATCHING_STRATEGY not in MATCHING_STRATEGIES:
@@ -307,7 +309,7 @@ else:
         raise RuntimeError("Thiếu Colab Secret GROQ_API_KEY cho matching M1/M2/M3")
     evaluation = evaluate_with_strategy(
         strategy=MATCHING_STRATEGY,
-        cv_schema=parse_result.reconstructed_cvschema,
+        cv_schema=deployment_cvschema,
         jd_text=JD_TEXT.strip(),
         deterministic_result=deterministic_evaluation,
         api_key=groq_api_key,
@@ -336,7 +338,7 @@ manifest = {
     "consent_version": CONSENT_VERSION if RESEARCH_CONSENT else None,
 }
 for name, value in {
-    "cvschema2.json": parse_result.reconstructed_cvschema,
+    "cvschema2.json": deployment_cvschema,
     "evidence.json": parse_result.evidence,
     "parse_result.json": parse_payload,
     "deployment_acceptance.json": deployment_payload,
@@ -409,7 +411,8 @@ files.download(str(bundle_path))
     set_source(cells[9], """
 ## Cách đọc và vận hành
 
-- Chỉ dùng kết quả khi cell 7 báo `status = success`.
+- Dùng kết quả khi cell 7 báo policy triển khai `accepted=true`; trạng thái Parser v1
+  có thể là `needs_review` vì Parser được đóng băng theo baseline.
 - `cvschema2.json` và `evidence.json` là đầu ra mô đun trích xuất.
 - `evaluation.json` là đầu ra matching riêng, không phải chức năng của model trích xuất.
 - Khi `RESEARCH_CONSENT=False`, PDF bị xóa khỏi runtime sau khi tạo bundle và không lưu Drive.

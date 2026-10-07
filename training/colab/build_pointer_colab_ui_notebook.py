@@ -82,6 +82,16 @@ diện. Đây là UI nội bộ Colab, không tạo public URL.
         1,
     )
     set_source(cells[5], model_cell)
+    cells.insert(5, {
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "#@title 4.1. Cập nhật bitsandbytes trước khi nạp model\n",
+            "%pip install -q -U \"bitsandbytes>=0.46.1\"\n",
+        ],
+    })
 
     ocr_source = "".join(original[4]["source"])
     upload_block = '''print("Chọn đúng một CV định dạng PDF.")

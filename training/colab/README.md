@@ -87,11 +87,11 @@ giao diện phải hiện tên và kích thước màu xanh trước khi bấm *
 tệp bên cạnh chỉ là phương án phụ cho trình duyệt hỗ trợ đầy đủ ipywidgets.
 
 Parser v1 vẫn được giữ nguyên để bảo toàn benchmark. Với CV thật, notebook áp dụng thêm
-`real_cv_soft_skills_v2_2026-10-07`: nếu pointer schema, span, CVSchema và evidence đều
-hợp lệ, và lỗi duy nhất của Parser v1 là `disallowed_soft_skills`, pipeline tiếp tục với
-cảnh báo. Những soft skill có bằng chứng như Teamwork, Leadership, Problem solving hoặc
-Adaptability được giữ theo hướng dẫn gán nhãn CV thật. JSON/span/schema lỗi, trùng hard và
-soft skill, hoặc `Communication` nằm trong hard skill vẫn bị chặn. Bundle ghi riêng
+`real_cv_skills_v3_2026-10-07`: nếu pointer schema, span, CVSchema và evidence đều hợp lệ,
+pipeline tiếp tục với cảnh báo khi Parser v1 chỉ vướng allowlist soft skill tổng hợp cũ.
+Nếu một cụm rõ ràng là soft skill xuất hiện đồng thời ở hard và soft, policy giữ cụm đó ở
+`soft_skills` và loại bản trùng khỏi `hard_skills`. Trùng lặp kỹ năng kỹ thuật, lỗi
+JSON/span/schema hoặc `Communication` chỉ nằm trong hard skill vẫn bị chặn. Bundle ghi riêng
 `deployment_acceptance.json` để không nhầm quyết định triển khai với kết quả Parser v1.
 
 Giao diện có bốn chế độ matching:

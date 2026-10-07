@@ -40,8 +40,10 @@ def main() -> None:
         "CONSENT_VERSION", "consent.json", "submission_index.jsonl", "withdrawal_code",
         "WITHDRAWAL_CODE_TO_DELETE", "Đã xóa hồ sơ nghiên cứu và dòng chỉ mục",
         '"PyMuPDF==1.26.7"', "import pymupdf",
+        '"bitsandbytes>=0.46.1"',
         "colab_upload_button", "files.upload()", "selected_pdf", "form.add_class(\"cv-form\")",
-        "deployment_decision", "real_cv_soft_skills_expanded", "deployment_acceptance.json",
+        "deployment_decision", "real_cv_soft_skills_expanded", "real_cv_skills_normalized",
+        "deployment_acceptance.json", "deployment_cvschema",
         "matching_widget", "zero_shot_m1", "few_shot_m2", "rag_m3",
         "external_matching_consent_widget", "GROQ_API_KEY",
     ]
