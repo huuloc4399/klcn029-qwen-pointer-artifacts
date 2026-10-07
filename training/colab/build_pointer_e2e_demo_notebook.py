@@ -378,8 +378,19 @@ if WITHDRAWAL_CODE_TO_DELETE.strip():
             matches.append(receipt_path.parent)
     if len(matches) != 1:
         raise RuntimeError("Không tìm thấy duy nhất một hồ sơ cho mã rút dữ liệu")
+    withdrawn_submission_id = matches[0].name
     shutil.rmtree(matches[0])
-    print("Đã xóa hồ sơ nghiên cứu:", matches[0].name)
+    index_path = RESULT_ROOT / "submission_index.jsonl"
+    if index_path.is_file():
+        retained = []
+        for line in index_path.read_text(encoding="utf-8").splitlines():
+            row = json.loads(line)
+            if row.get("submission_id") != withdrawn_submission_id:
+                retained.append(json.dumps(row, ensure_ascii=False))
+        temporary_index = index_path.with_suffix(".jsonl.tmp")
+        temporary_index.write_text(("\\n".join(retained) + "\\n") if retained else "", encoding="utf-8")
+        os.replace(temporary_index, index_path)
+    print("Đã xóa hồ sơ nghiên cứu và dòng chỉ mục:", withdrawn_submission_id)
 else:
     print("Để trống nếu không có yêu cầu rút dữ liệu.")
 '''.splitlines(keepends=True),

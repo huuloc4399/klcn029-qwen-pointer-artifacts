@@ -38,6 +38,7 @@ def main() -> None:
         "OCR_PIPELINE_SOURCE", "EXTRACTION_PIPELINE_SOURCE", "EVALUATION_PIPELINE_SOURCE",
         "cvpointer_output_parser_v1", "RESEARCH_CONSENT", "files.download",
         "CONSENT_VERSION", "consent.json", "submission_index.jsonl", "withdrawal_code",
+        "WITHDRAWAL_CODE_TO_DELETE", "Đã xóa hồ sơ nghiên cứu và dòng chỉ mục",
     ]
     missing = [item for item in required if item not in joined]
     if missing:

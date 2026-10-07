@@ -76,6 +76,8 @@ Khi checkbox đóng góp nghiên cứu được bật, mỗi hồ sơ được l
 để nhóm thống kê số CV đã thu thập. Giao diện hiển thị mã rút dữ liệu cần gửi lại ứng viên.
 Khi checkbox tắt, notebook không sao chép PDF/JD vào Drive. Hồ sơ đã consent vẫn được lưu
 cùng `failure.json` nếu OCR/model/parser lỗi, để nhóm có thể phân tích ca thất bại thực tế.
+Khi ứng viên yêu cầu rút dữ liệu, nhập mã họ đã nhận vào cell quản trị số 7; notebook xóa
+cả thư mục hồ sơ và dòng tương ứng trong chỉ mục.
 
 Giao diện này chỉ hiện trong phiên Colab của người vận hành. Nó không tạo URL công khai
 cho ứng viên và không chạy khi runtime đã đóng.

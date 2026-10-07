@@ -306,11 +306,20 @@ form = widgets.VBox([
 display(form)
 '''
     cells.append({"cell_type": "code", "execution_count": None, "metadata": {}, "outputs": [], "source": ui_code.splitlines(keepends=True)})
+    withdrawal_cell = copy.deepcopy(original[10])
+    withdrawal_source = "".join(withdrawal_cell["source"]).replace(
+        "#@title 9. Rút dữ liệu đã đóng góp (chỉ chạy khi có yêu cầu)",
+        "#@title 7. Quản trị: rút dữ liệu đã đóng góp (chỉ chạy khi có yêu cầu)",
+        1,
+    )
+    set_source(withdrawal_cell, withdrawal_source)
+    cells.append(withdrawal_cell)
     cells.append({"cell_type": "markdown", "metadata": {}, "source": """## Lưu ý
 
 - Giao diện chỉ tồn tại trong runtime Colab đang mở.
 - Khi runtime ngắt, chạy lại cell 1–6; adapter trên Drive hoặc Hugging Face không mất.
 - Không bật consent nếu ứng viên chỉ yêu cầu đánh giá và không đóng góp nghiên cứu.
+- Cell 7 chỉ dành cho người vận hành khi ứng viên yêu cầu rút dữ liệu bằng mã đã nhận.
 - Không dùng điểm này như quyết định tuyển dụng.
 """.splitlines(keepends=True)})
 
