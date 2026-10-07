@@ -280,14 +280,22 @@ def _on_run(_button):
         exec(OCR_PIPELINE_SOURCE, ns, ns); progress.value = 1
         status_widget.value = "<b>2/4</b> Qwen đang trích xuất Pointer JSON..."
         exec(EXTRACTION_PIPELINE_SOURCE, ns, ns); progress.value = 2
-        if ns["parse_result"].status != "success":
+        deployment_decision = ns["deployment_decision"]
+        if not deployment_decision.accepted:
             issues = ns["parse_payload"].get("issues", [])
-            raise RuntimeError("Parser v1 từ chối output: " + json.dumps(issues, ensure_ascii=False))
+            raise RuntimeError("Chính sách triển khai từ chối output: " + json.dumps(issues, ensure_ascii=False))
         status_widget.value = "<b>3/4</b> Đang so khớp CV với JD..."
         ns.update({{"JD_TEXT": jd_text, "RESEARCH_CONSENT": consent_widget.value, "PARTICIPANT_CODE": participant_widget.value}})
         exec(EVALUATION_PIPELINE_SOURCE, ns, ns); progress.value = 3
         evaluation = ns["evaluation"]
         receipt = ns.get("research_receipt")
+        policy_warning_html = ""
+        if deployment_decision.warnings:
+            policy_warning_html = (
+                "<div style='background:#fff8e6;color:#6f4d00;padding:12px;border-radius:9px'><b>Cảnh báo Parser v1:</b> "
+                + html.escape(" ".join(deployment_decision.warnings))
+                + "<br><small>Output được tiếp tục theo chính sách soft skill CV thật; Parser v1 đóng băng không bị sửa.</small></div>"
+            )
         receipt_html = ""
         if receipt:
             receipt_html = f"""<div class='score-card'><b>Đã lưu hồ sơ nghiên cứu vào Google Drive.</b>
@@ -303,7 +311,8 @@ def _on_run(_button):
         <h3>Kỹ năng đã khớp</h3><div>{{_tags(evaluation['matched_skills'])}}</div>
         <h3>Kỹ năng JD chưa thấy</h3><div>{{_tags(evaluation['missing_skills'], True)}}</div>
         <h3>Ưu tiên cải thiện</h3><ol>{{improvements}}</ol>
-        <p><b>Pipeline:</b> Qwen Pointer P0 · Parser v1 · CVSchema 2.0</p>{{receipt_html}}
+        {{policy_warning_html}}
+        <p><b>Pipeline:</b> Qwen Pointer P0 · Parser v1 ({{html.escape(ns['parse_result'].status)}}) · {{html.escape(deployment_decision.mode)}} · CVSchema 2.0</p>{{receipt_html}}
         <p>Bundle: <code>{{html.escape(str(ns['bundle_path']))}}</code></p></div>"""
         with result_output:
             display(HTML(result_html))

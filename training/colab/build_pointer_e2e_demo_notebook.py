@@ -174,6 +174,7 @@ print({"adapter": str(ADAPTER_DIR), "weights_verified": True, "manifest_sha256":
         "baseline_extraction/schema.py": source("training/evaluation/frozen/cvpointer_output_parser_v1/schema.py"),
         "training/evaluation/parser.py": source("training/evaluation/frozen/cvpointer_output_parser_v1/parser.py"),
         "training/evaluation/pointer_parser.py": source("training/evaluation/frozen/cvpointer_output_parser_v1/pointer_parser.py"),
+        "training/evaluation/deployment_policy.py": source("training/evaluation/deployment_policy.py"),
         "services/pdf_extractor.py": source("cv_evaluation_web/services/pdf_extractor.py"),
         "services/evaluator.py": source("cv_evaluation_web/services/evaluator.py"),
     }
@@ -199,6 +200,10 @@ for relative, expected in EXPECTED_SOURCE_HASHES.items():
 sys.path.insert(0, str(parser_runtime))
 
 from training.evaluation.pointer_parser import POINTER_PARSER_VERSION, parse_pointer_output
+from training.evaluation.deployment_policy import (
+    DEPLOYMENT_ACCEPTANCE_POLICY_VERSION,
+    assess_pointer_result,
+)
 try:
     import pymupdf
 except ModuleNotFoundError as exc:
@@ -207,7 +212,7 @@ from services.pdf_extractor import DocumentAnalysis
 from services.evaluator import evaluate
 if POINTER_PARSER_VERSION != "cvpointer_output_parser_v1":
     raise RuntimeError(f"Sai parser version: {{POINTER_PARSER_VERSION}}")
-print({{"parser": POINTER_PARSER_VERSION, "runtime_sources_verified": True}})
+print({{"parser": POINTER_PARSER_VERSION, "deployment_policy": DEPLOYMENT_ACCEPTANCE_POLICY_VERSION, "runtime_sources_verified": True}})
 ''')
 
     set_source(cells[6], r'''#@title 6. Nạp Qwen 4-bit và adapter (chỉ chạy một lần mỗi runtime)
@@ -260,16 +265,18 @@ raw_output = tokenizer.decode(new_ids, skip_special_tokens=True).strip()
 generated_tokens = int(new_ids.numel())
 parse_result = parse_pointer_output(raw_output, normalized_source)
 parse_payload = parse_result.to_dict()
-print(json.dumps({{"status": parse_result.status, "input_tokens": input_tokens, "generated_tokens": generated_tokens, "runtime_seconds": runtime_seconds, "issues": parse_payload["issues"]}}, ensure_ascii=False, indent=2))
-if parse_result.status == "success":
+deployment_decision = assess_pointer_result(parse_result)
+deployment_payload = deployment_decision.to_dict()
+print(json.dumps({{"status": parse_result.status, "deployment_acceptance": deployment_payload, "input_tokens": input_tokens, "generated_tokens": generated_tokens, "runtime_seconds": runtime_seconds, "issues": parse_payload["issues"]}}, ensure_ascii=False, indent=2))
+if deployment_decision.accepted:
     print(json.dumps(parse_result.reconstructed_cvschema, ensure_ascii=False, indent=2))
 ''')
 
     set_source(cells[8], r'''#@title 8. Matching CV–JD, lưu theo consent và tải bundle
 if len(JD_TEXT.strip()) < 80:
     raise RuntimeError("JD_TEXT phải có ít nhất 80 ký tự")
-if parse_result.status != "success" or parse_result.reconstructed_cvschema is None:
-    raise RuntimeError("Pointer output chưa vượt Parser v1; xem issues ở cell 7")
+if not deployment_decision.accepted or parse_result.reconstructed_cvschema is None:
+    raise RuntimeError("Pointer output không vượt chính sách triển khai; xem issues ở cell 7")
 
 native_pages = sum(item["route"] == "native_text" for item in routing_log)
 needs_ocr = any(item["route"].startswith("ocr_") for item in routing_log)
@@ -281,7 +288,7 @@ document = DocumentAnalysis(
 evaluation = evaluate(
     document, JD_TEXT.strip(), language=resolved_language,
     cv_schema=parse_result.reconstructed_cvschema,
-    method="Qwen Pointer P0 + Parser v1 + deterministic matching baseline v1",
+    method="Qwen Pointer P0 + Parser v1 + real-CV acceptance v2 + deterministic matching baseline v1",
 ).to_dict()
 
 timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
@@ -295,6 +302,7 @@ manifest = {
     "model": {"id": MODEL_ID, "revision": MODEL_REVISION, "adapter_model_sha256": EXPECTED_ADAPTER_MODEL_SHA256},
     "generation": {"do_sample": False, "max_new_tokens": MAX_NEW_TOKENS, "input_tokens": input_tokens, "generated_tokens": generated_tokens, "runtime_seconds": runtime_seconds},
     "parser": {"version": POINTER_PARSER_VERSION, "status": parse_result.status},
+    "deployment_acceptance": deployment_payload,
     "research_consent": bool(RESEARCH_CONSENT),
     "consent_version": CONSENT_VERSION if RESEARCH_CONSENT else None,
 }
@@ -302,6 +310,7 @@ for name, value in {
     "cvschema2.json": parse_result.reconstructed_cvschema,
     "evidence.json": parse_result.evidence,
     "parse_result.json": parse_payload,
+    "deployment_acceptance.json": deployment_payload,
     "evaluation.json": evaluation,
     "routing_log.json": routing_log,
     "manifest.json": manifest,

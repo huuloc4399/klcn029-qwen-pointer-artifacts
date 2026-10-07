@@ -41,6 +41,7 @@ def main() -> None:
         "WITHDRAWAL_CODE_TO_DELETE", "Đã xóa hồ sơ nghiên cứu và dòng chỉ mục",
         '"PyMuPDF==1.26.7"', "import pymupdf",
         "colab_upload_button", "files.upload()", "selected_pdf", "form.add_class(\"cv-form\")",
+        "deployment_decision", "real_cv_soft_skills_expanded", "deployment_acceptance.json",
     ]
     missing = [item for item in required if item not in joined]
     if missing:

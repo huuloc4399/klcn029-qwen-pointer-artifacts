@@ -86,6 +86,14 @@ Trong cell 6, dùng nút xanh **Tải CV PDF** làm cách tải chính. Khi tệ
 giao diện phải hiện tên và kích thước màu xanh trước khi bấm **Đánh giá CV**. Widget tải
 tệp bên cạnh chỉ là phương án phụ cho trình duyệt hỗ trợ đầy đủ ipywidgets.
 
+Parser v1 vẫn được giữ nguyên để bảo toàn benchmark. Với CV thật, notebook áp dụng thêm
+`real_cv_soft_skills_v2_2026-10-07`: nếu pointer schema, span, CVSchema và evidence đều
+hợp lệ, và lỗi duy nhất của Parser v1 là `disallowed_soft_skills`, pipeline tiếp tục với
+cảnh báo. Những soft skill có bằng chứng như Teamwork, Leadership, Problem solving hoặc
+Adaptability được giữ theo hướng dẫn gán nhãn CV thật. JSON/span/schema lỗi, trùng hard và
+soft skill, hoặc `Communication` nằm trong hard skill vẫn bị chặn. Bundle ghi riêng
+`deployment_acceptance.json` để không nhầm quyết định triển khai với kết quả Parser v1.
+
 Nếu cell 4 từng báo `ModuleNotFoundError: No module named 'pymupdf'`, mở lại notebook mới
 nhất và chạy lại cell 1. Cell này cài riêng `PyMuPDF==1.26.7` rồi import kiểm tra ngay;
 chỉ tiếp tục khi nó in được phiên bản PyMuPDF. Nếu Colab yêu cầu restart runtime, restart

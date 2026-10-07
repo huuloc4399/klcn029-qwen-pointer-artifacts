@@ -16,11 +16,15 @@ Người vận hành mở Colab T4
   -> upload một CV PDF
   -> PDF text / OCR EN / OCR VI hybrid
   -> Qwen3-4B + Pointer Stage 2 adapter
-  -> frozen Parser v1 -> CVSchema 2.0 + evidence
+  -> frozen Parser v1 -> real-CV acceptance v2 -> CVSchema 2.0 + evidence
   -> deterministic matching baseline
   -> tải ZIP kết quả
   -> chỉ lưu PDF/JD vào Drive khi consent=true
 ```
+
+Lớp acceptance không sửa Parser v1. Nó chỉ cho phép tiếp tục khi lỗi duy nhất là allowlist
+soft skill cũ từ dữ liệu synthetic, trong khi cấu trúc, span, CVSchema và evidence đều hợp
+lệ. Quyết định này được lưu riêng để báo cáo benchmark vẫn dùng đúng Parser v1 đóng băng.
 
 Notebook giao diện chính:
 
