@@ -40,6 +40,7 @@ def main() -> None:
         "CONSENT_VERSION", "consent.json", "submission_index.jsonl", "withdrawal_code",
         "WITHDRAWAL_CODE_TO_DELETE", "Đã xóa hồ sơ nghiên cứu và dòng chỉ mục",
         '"PyMuPDF==1.26.7"', "import pymupdf",
+        "colab_upload_button", "files.upload()", "selected_pdf", "form.add_class(\"cv-form\")",
     ]
     missing = [item for item in required if item not in joined]
     if missing:

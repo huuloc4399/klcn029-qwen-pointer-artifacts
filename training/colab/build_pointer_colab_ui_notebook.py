@@ -129,6 +129,7 @@ for name, content in {{"ocr": OCR_PIPELINE_SOURCE, "extraction": EXTRACTION_PIPE
 display(HTML("""
 <style>
 .cv-shell {{font-family:Arial,sans-serif;background:#f4f8f6;border:1px solid #dce9e2;border-radius:18px;overflow:hidden;margin:8px 0 18px}}
+.cv-shell, .cv-card {{color:#173a2c}}
 .cv-nav {{background:#087b4b;color:white;padding:16px 24px;display:flex;justify-content:space-between;align-items:center}}
 .cv-brand {{font-size:22px;font-weight:800}} .cv-nav small {{opacity:.86}}
 .cv-hero {{padding:28px 28px 10px}} .cv-hero h2 {{font-size:30px;margin:0;color:#14372a}}
@@ -137,22 +138,36 @@ display(HTML("""
 .score-card {{background:#effaf4;border-left:5px solid #0aa160;padding:18px;border-radius:12px;margin:12px 0}}
 .score-card strong {{font-size:36px;color:#087b4b}} .tag {{display:inline-block;padding:5px 10px;margin:3px;border-radius:14px;background:#e7f6ee;color:#087b4b}}
 .tag.missing {{background:#fff0e7;color:#a54c16}} .error-card {{background:#fff0f0;color:#9e1c1c;padding:16px;border-radius:10px}}
+.cv-form {{background:#f7fbf9;color:#173a2c}}
+.cv-form .widget-label, .cv-form label, .cv-form .widget-html-content {{color:#173a2c !important}}
+.cv-form textarea, .cv-form input, .cv-form select {{background:#ffffff !important;color:#162c23 !important;border-color:#a9c9ba !important}}
+.cv-form .widget-button {{background:#087b4b !important;color:#ffffff !important;border-color:#07673f !important;font-weight:700}}
+.cv-form .widget-button:disabled {{background:#9bbcaf !important;color:#f4f7f5 !important}}
+.cv-form .widget-progress .progress {{background:#dbece4 !important}}
 </style>
 <div class="cv-shell"><div class="cv-nav"><div class="cv-brand">CV Insight</div><small>KLCN029 · Colab baseline</small></div>
 <div class="cv-hero"><h2>Đánh giá CV theo mô tả công việc</h2><p>Qwen Pointer Stage 2 trích xuất CVSchema 2.0; Parser v1 kiểm tra bằng chứng; mô đun matching tính điểm riêng.</p></div></div>
 """))
 
-upload_widget = widgets.FileUpload(accept=".pdf", multiple=False, description="Chọn CV PDF")
+selected_pdf = {{}}
+upload_widget = widgets.FileUpload(accept=".pdf", multiple=False, description="Cách phụ: widget")
+colab_upload_button = widgets.Button(description="Tải CV PDF", icon="upload", button_style="success", layout=widgets.Layout(width="180px", height="40px"))
+upload_status_widget = widgets.HTML("<span style='color:#5b6f66'>Chưa chọn tệp. Hãy dùng nút <b>Tải CV PDF</b>.</span>")
+upload_console = widgets.Output(layout=widgets.Layout(max_height="90px", overflow="auto"))
 jd_widget = widgets.Textarea(placeholder="Dán JD tối thiểu 80 ký tự...", description="JD", layout=widgets.Layout(width="100%", height="180px"), style={{"description_width": "60px"}})
 language_widget = widgets.Dropdown(options=[("Tự động", "auto"), ("Tiếng Việt", "vi"), ("English", "en")], value="auto", description="Ngôn ngữ")
 participant_widget = widgets.Text(placeholder="Ví dụ U001; không nhập họ tên/email", description="Mã ứng viên")
 consent_widget = widgets.Checkbox(value=False, description="Ứng viên đồng ý đóng góp CV cho nghiên cứu", indent=False)
 run_button = widgets.Button(description="Đánh giá CV", button_style="success", icon="check", layout=widgets.Layout(width="180px", height="44px"))
+run_button.disabled = True
 progress = widgets.IntProgress(value=0, min=0, max=4, description="Tiến trình", bar_style="success", layout=widgets.Layout(width="100%"))
 status_widget = widgets.HTML("<span style='color:#597066'>Model đã sẵn sàng. Hãy chọn PDF và nhập JD.</span>")
 result_output = widgets.Output()
 
 def _uploaded_file(widget):
+    if selected_pdf:
+        name, content = next(iter(selected_pdf.items()))
+        return str(name), bytes(content)
     value = widget.value
     if not value:
         raise ValueError("Hãy chọn một CV PDF")
@@ -166,6 +181,37 @@ def _uploaded_file(widget):
     if not str(name).lower().endswith(".pdf"):
         raise ValueError("Chỉ chấp nhận tệp PDF")
     return str(name), bytes(content)
+
+def _on_colab_upload(_button):
+    selected_pdf.clear()
+    run_button.disabled = True
+    upload_status_widget.value = "<span style='color:#5b6f66'>Đang mở hộp chọn tệp...</span>"
+    with upload_console:
+        clear_output()
+        uploaded = files.upload()
+    pdf_names = [name for name in uploaded if str(name).lower().endswith(".pdf")]
+    if len(uploaded) != 1 or len(pdf_names) != 1:
+        upload_status_widget.value = "<b style='color:#a12626'>Cần tải đúng một tệp PDF.</b>"
+        return
+    name = pdf_names[0]
+    selected_pdf[name] = bytes(uploaded[name])
+    size_mb = len(selected_pdf[name]) / (1024 * 1024)
+    upload_status_widget.value = f"<b style='color:#087b4b'>Đã nhận: {{html.escape(name)}} ({{size_mb:.2f}} MB)</b>"
+    run_button.disabled = False
+
+def _on_widget_upload(change):
+    selected_pdf.clear()
+    try:
+        name, content = _uploaded_file(upload_widget)
+    except Exception:
+        return
+    selected_pdf.clear(); selected_pdf[name] = content
+    size_mb = len(content) / (1024 * 1024)
+    upload_status_widget.value = f"<b style='color:#087b4b'>Đã nhận: {{html.escape(name)}} ({{size_mb:.2f}} MB)</b>"
+    run_button.disabled = False
+
+colab_upload_button.on_click(_on_colab_upload)
+upload_widget.observe(_on_widget_upload, names="value")
 
 def _tags(values, missing=False):
     css = "tag missing" if missing else "tag"
@@ -297,7 +343,8 @@ def _on_run(_button):
 run_button.on_click(_on_run)
 form = widgets.VBox([
     widgets.HTML("<div class='cv-card'><h3>1. Hồ sơ và JD</h3></div>"),
-    upload_widget, jd_widget,
+    widgets.HBox([colab_upload_button, upload_widget]), upload_status_widget, upload_console,
+    jd_widget,
     widgets.HBox([language_widget, participant_widget]),
     widgets.HTML("""<div style='background:#fff8e6;border-left:4px solid #d59b15;padding:12px;margin:8px 0'>
     <b>Đồng thuận đóng góp dữ liệu nghiên cứu</b><br>
@@ -307,6 +354,7 @@ form = widgets.VBox([
     </div>"""),
     consent_widget, run_button, progress, status_widget, result_output,
 ], layout=widgets.Layout(border="1px solid #dce9e2", padding="22px", width="100%"))
+form.add_class("cv-form")
 display(form)
 '''
     cells.append({"cell_type": "code", "execution_count": None, "metadata": {}, "outputs": [], "source": ui_code.splitlines(keepends=True)})
