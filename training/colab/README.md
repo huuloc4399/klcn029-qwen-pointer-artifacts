@@ -70,6 +70,13 @@
 5. Giao diện hiển thị điểm, kết luận, kỹ năng khớp/thiếu và gợi ý; bundle JSON/ZIP được
    tải xuống sau khi hoàn tất. Có thể đổi PDF/JD và bấm lại mà không nạp lại Qwen.
 
+Khi checkbox đóng góp nghiên cứu được bật, mỗi hồ sơ được lưu vào
+`MyDrive/KLCN029/pointer_e2e_demo/submissions/<submission_id>/`, gồm PDF gốc, JD,
+`consent.json`, receipt và toàn bộ kết quả baseline. `submission_index.jsonl` là chỉ mục
+để nhóm thống kê số CV đã thu thập. Giao diện hiển thị mã rút dữ liệu cần gửi lại ứng viên.
+Khi checkbox tắt, notebook không sao chép PDF/JD vào Drive. Hồ sơ đã consent vẫn được lưu
+cùng `failure.json` nếu OCR/model/parser lỗi, để nhóm có thể phân tích ca thất bại thực tế.
+
 Giao diện này chỉ hiện trong phiên Colab của người vận hành. Nó không tạo URL công khai
 cho ứng viên và không chạy khi runtime đã đóng.
 

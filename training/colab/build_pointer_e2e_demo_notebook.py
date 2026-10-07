@@ -73,6 +73,7 @@ theo, giữ model ở cell 6 và chạy lại cell 2, 4, 7, 8.
 ARTIFACT_REPO_ID = "huuloc4399/klcn029-qwen-pointer-artifacts"
 ARTIFACT_REVISION = "398ce7961eac9b3ccd1661116f9287bf2b0b6b20"
 EXPECTED_ADAPTER_MODEL_SHA256 = "8d68628e382593132010f20fb12cbb18d9477ca034c154811d109ec075a65f81"
+CONSENT_VERSION = "research_cv_collection_v1_2026-10-07"
 if len(JD_TEXT.strip()) < 80:
     print("LƯU Ý: Hãy nhập JD_TEXT ít nhất 80 ký tự trước khi chạy cell 8.")
 """
@@ -281,6 +282,7 @@ manifest = {
     "generation": {"do_sample": False, "max_new_tokens": MAX_NEW_TOKENS, "input_tokens": input_tokens, "generated_tokens": generated_tokens, "runtime_seconds": runtime_seconds},
     "parser": {"version": POINTER_PARSER_VERSION, "status": parse_result.status},
     "research_consent": bool(RESEARCH_CONSENT),
+    "consent_version": CONSENT_VERSION if RESEARCH_CONSENT else None,
 }
 for name, value in {
     "cvschema2.json": parse_result.reconstructed_cvschema,
@@ -299,14 +301,52 @@ if RESEARCH_CONSENT:
     import secrets
     submission_id = secrets.token_hex(12)
     withdrawal_code = secrets.token_urlsafe(18)
+    consented_at_utc = datetime.now(timezone.utc).isoformat()
     target = RESULT_ROOT / "submissions" / submission_id
     target.mkdir(parents=True, exist_ok=False)
     shutil.copy2(PDF_PATH, target / "cv.pdf")
     (target / "jd.txt").write_text(JD_TEXT.strip(), encoding="utf-8")
     shutil.copytree(local_output, target / "result")
-    receipt = {"submission_id": submission_id, "participant_code": PARTICIPANT_CODE[:80], "withdrawal_hash": hashlib.sha256(withdrawal_code.encode()).hexdigest()}
+    consent_record = {
+        "consent_version": CONSENT_VERSION,
+        "granted": True,
+        "consented_at_utc": consented_at_utc,
+        "purpose": "Đánh giá baseline đầu cuối và xây dựng tập CV thật cho nghiên cứu KLCN029",
+        "retained_data": ["cv.pdf", "jd.txt", "result/"],
+        "participant_code": PARTICIPANT_CODE.strip()[:80],
+        "original_filename": original_name,
+        "pdf_sha256": pdf_sha256,
+        "jd_sha256": hashlib.sha256(JD_TEXT.strip().encode("utf-8")).hexdigest(),
+    }
+    (target / "consent.json").write_text(json.dumps(consent_record, ensure_ascii=False, indent=2), encoding="utf-8")
+    receipt = {
+        "submission_id": submission_id,
+        "participant_code": PARTICIPANT_CODE.strip()[:80],
+        "consent_version": CONSENT_VERSION,
+        "withdrawal_hash": hashlib.sha256(withdrawal_code.encode()).hexdigest(),
+    }
     (target / "receipt.json").write_text(json.dumps(receipt, ensure_ascii=False, indent=2), encoding="utf-8")
-    research_receipt = {"submission_id": submission_id, "withdrawal_code": withdrawal_code}
+    index_entry = {
+        "submission_id": submission_id,
+        "participant_code": PARTICIPANT_CODE.strip()[:80],
+        "consented_at_utc": consented_at_utc,
+        "consent_version": CONSENT_VERSION,
+        "pdf_sha256": pdf_sha256,
+        "language": resolved_language,
+        "pages": len(pages),
+        "pipeline_status": "success",
+        "parser_status": parse_result.status,
+        "total_score": evaluation["total_score"],
+    }
+    RESULT_ROOT.mkdir(parents=True, exist_ok=True)
+    with (RESULT_ROOT / "submission_index.jsonl").open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(index_entry, ensure_ascii=False) + "\n")
+    research_receipt = {
+        "submission_id": submission_id,
+        "withdrawal_code": withdrawal_code,
+        "drive_path": str(target),
+        "consent_version": CONSENT_VERSION,
+    }
 
 bundle_path = Path(shutil.make_archive(str(LOCAL_ROOT / f"pointer_e2e_{run_id}"), "zip", local_output))
 PDF_PATH.unlink(missing_ok=True)

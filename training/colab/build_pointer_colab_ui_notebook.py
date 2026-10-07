@@ -141,8 +141,8 @@ display(HTML("""
 upload_widget = widgets.FileUpload(accept=".pdf", multiple=False, description="Chọn CV PDF")
 jd_widget = widgets.Textarea(placeholder="Dán JD tối thiểu 80 ký tự...", description="JD", layout=widgets.Layout(width="100%", height="180px"), style={{"description_width": "60px"}})
 language_widget = widgets.Dropdown(options=[("Tự động", "auto"), ("Tiếng Việt", "vi"), ("English", "en")], value="auto", description="Ngôn ngữ")
-participant_widget = widgets.Text(placeholder="Tùy chọn", description="Mã ứng viên")
-consent_widget = widgets.Checkbox(value=False, description="Tự nguyện lưu CV/JD cho nghiên cứu")
+participant_widget = widgets.Text(placeholder="Ví dụ U001; không nhập họ tên/email", description="Mã ứng viên")
+consent_widget = widgets.Checkbox(value=False, description="Ứng viên đồng ý đóng góp CV cho nghiên cứu", indent=False)
 run_button = widgets.Button(description="Đánh giá CV", button_style="success", icon="check", layout=widgets.Layout(width="180px", height="44px"))
 progress = widgets.IntProgress(value=0, min=0, max=4, description="Tiến trình", bar_style="success", layout=widgets.Layout(width="100%"))
 status_widget = widgets.HTML("<span style='color:#597066'>Model đã sẵn sàng. Hãy chọn PDF và nhập JD.</span>")
@@ -167,8 +167,56 @@ def _tags(values, missing=False):
     css = "tag missing" if missing else "tag"
     return "".join(f"<span class='{{css}}'>{{html.escape(str(value))}}</span>" for value in values) or "<small>Không có</small>"
 
+def _save_failed_research_submission(filename, pdf_bytes, jd_text, participant_code, language, exc, stage):
+    import secrets
+    submission_id = secrets.token_hex(12)
+    withdrawal_code = secrets.token_urlsafe(18)
+    consented_at_utc = datetime.now(timezone.utc).isoformat()
+    target = RESULT_ROOT / "submissions" / submission_id
+    target.mkdir(parents=True, exist_ok=False)
+    (target / "cv.pdf").write_bytes(pdf_bytes)
+    (target / "jd.txt").write_text(jd_text, encoding="utf-8")
+    pdf_hash = hashlib.sha256(pdf_bytes).hexdigest()
+    consent_record = {{
+        "consent_version": CONSENT_VERSION, "granted": True,
+        "consented_at_utc": consented_at_utc,
+        "purpose": "Đánh giá baseline đầu cuối và xây dựng tập CV thật cho nghiên cứu KLCN029",
+        "retained_data": ["cv.pdf", "jd.txt", "failure.json"],
+        "participant_code": participant_code.strip()[:80],
+        "original_filename": filename, "pdf_sha256": pdf_hash,
+        "jd_sha256": hashlib.sha256(jd_text.encode("utf-8")).hexdigest(),
+    }}
+    (target / "consent.json").write_text(json.dumps(consent_record, ensure_ascii=False, indent=2), encoding="utf-8")
+    failure = {{
+        "status": "failed", "stage": int(stage),
+        "error_type": type(exc).__name__, "error": str(exc),
+        "failed_at_utc": datetime.now(timezone.utc).isoformat(),
+    }}
+    (target / "failure.json").write_text(json.dumps(failure, ensure_ascii=False, indent=2), encoding="utf-8")
+    receipt = {{
+        "submission_id": submission_id,
+        "participant_code": participant_code.strip()[:80],
+        "consent_version": CONSENT_VERSION,
+        "withdrawal_hash": hashlib.sha256(withdrawal_code.encode()).hexdigest(),
+    }}
+    (target / "receipt.json").write_text(json.dumps(receipt, ensure_ascii=False, indent=2), encoding="utf-8")
+    index_entry = {{
+        "submission_id": submission_id, "participant_code": participant_code.strip()[:80],
+        "consented_at_utc": consented_at_utc, "consent_version": CONSENT_VERSION,
+        "pdf_sha256": pdf_hash, "language": language, "pipeline_status": "failed",
+        "failed_stage": int(stage),
+    }}
+    RESULT_ROOT.mkdir(parents=True, exist_ok=True)
+    with (RESULT_ROOT / "submission_index.jsonl").open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(index_entry, ensure_ascii=False) + "\\n")
+    return {{
+        "submission_id": submission_id, "withdrawal_code": withdrawal_code,
+        "drive_path": str(target), "consent_version": CONSENT_VERSION,
+    }}
+
 def _on_run(_button):
     run_button.disabled = True; progress.value = 0
+    filename = None; pdf_bytes = None; jd_text = ""; ns = None
     with result_output:
         clear_output()
     try:
@@ -192,7 +240,13 @@ def _on_run(_button):
         receipt = ns.get("research_receipt")
         receipt_html = ""
         if receipt:
-            receipt_html = f"<p><b>Mã rút dữ liệu:</b> <code>{{html.escape(receipt['withdrawal_code'])}}</code></p>"
+            receipt_html = f"""<div class='score-card'><b>Đã lưu hồ sơ nghiên cứu vào Google Drive.</b>
+            <p>Mã hồ sơ: <code>{{html.escape(receipt['submission_id'])}}</code><br>
+            Mã rút dữ liệu: <code>{{html.escape(receipt['withdrawal_code'])}}</code><br>
+            Thư mục: <code>{{html.escape(receipt['drive_path'])}}</code></p>
+            <small>Hãy gửi mã rút dữ liệu cho ứng viên và lưu mã này ngoài thư mục nghiên cứu.</small></div>"""
+        else:
+            receipt_html = "<p><b>Không lưu nghiên cứu:</b> PDF/JD không được sao chép vào Drive và PDF tạm đã bị xóa.</p>"
         improvements = "".join(f"<li>{{html.escape(str(item))}}</li>" for item in evaluation["improvements"])
         result_html = f"""
         <div class='cv-card'><h2>Kết quả đánh giá</h2><div class='score-card'><strong>{{evaluation['total_score']:.0f}}/100</strong><h3>{{html.escape(evaluation['verdict'])}}</h3></div>
@@ -208,9 +262,32 @@ def _on_run(_button):
         files.download(str(ns["bundle_path"]))
     except Exception as exc:
         status_widget.value = "<b style='color:#a12626'>Không thể hoàn tất.</b>"
+        existing_receipt = ns.get("research_receipt") if ns else None
+        failed_receipt = existing_receipt
+        save_error = None
+        if consent_widget.value and filename and pdf_bytes is not None and len(jd_text) >= 80 and not existing_receipt:
+            try:
+                failed_receipt = _save_failed_research_submission(
+                    filename, pdf_bytes, jd_text, participant_widget.value,
+                    language_widget.value, exc, progress.value,
+                )
+            except Exception as storage_exc:
+                save_error = storage_exc
+        receipt_error_html = ""
+        if failed_receipt:
+            receipt_error_html = f"""<hr><b>CV vẫn được lưu vì đã có đồng thuận nghiên cứu.</b><br>
+            Mã hồ sơ: <code>{{html.escape(failed_receipt['submission_id'])}}</code><br>
+            Mã rút dữ liệu: <code>{{html.escape(failed_receipt['withdrawal_code'])}}</code><br>
+            Thư mục: <code>{{html.escape(failed_receipt['drive_path'])}}</code>"""
+        elif save_error:
+            receipt_error_html = f"<hr><b>Lưu nghiên cứu cũng thất bại:</b> {{html.escape(str(save_error))}}"
         with result_output:
-            clear_output(); display(HTML(f"<div class='error-card'><b>Lỗi:</b> {{html.escape(str(exc))}}</div>"))
+            clear_output(); display(HTML(f"<div class='error-card'><b>Lỗi baseline:</b> {{html.escape(str(exc))}}{{receipt_error_html}}</div>"))
     finally:
+        if ns:
+            temporary_pdf = ns.get("PDF_PATH")
+            if temporary_pdf:
+                Path(temporary_pdf).unlink(missing_ok=True)
         run_button.disabled = False
 
 run_button.on_click(_on_run)
@@ -218,6 +295,12 @@ form = widgets.VBox([
     widgets.HTML("<div class='cv-card'><h3>1. Hồ sơ và JD</h3></div>"),
     upload_widget, jd_widget,
     widgets.HBox([language_widget, participant_widget]),
+    widgets.HTML("""<div style='background:#fff8e6;border-left:4px solid #d59b15;padding:12px;margin:8px 0'>
+    <b>Đồng thuận đóng góp dữ liệu nghiên cứu</b><br>
+    Chỉ đánh dấu khi ứng viên đã được thông báo rằng PDF gốc, JD và kết quả baseline sẽ
+    được lưu trong Google Drive của nhóm cho nghiên cứu KLCN029. Hệ thống cấp mã rút dữ
+    liệu sau khi lưu. Bỏ trống nếu ứng viên chỉ muốn nhận kết quả đánh giá.
+    </div>"""),
     consent_widget, run_button, progress, status_widget, result_output,
 ], layout=widgets.Layout(border="1px solid #dce9e2", padding="22px", width="100%"))
 display(form)
@@ -226,7 +309,7 @@ display(form)
     cells.append({"cell_type": "markdown", "metadata": {}, "source": """## Lưu ý
 
 - Giao diện chỉ tồn tại trong runtime Colab đang mở.
-- Khi runtime ngắt, chạy lại cell 1–7; adapter trên Drive hoặc Hugging Face không mất.
+- Khi runtime ngắt, chạy lại cell 1–6; adapter trên Drive hoặc Hugging Face không mất.
 - Không bật consent nếu ứng viên chỉ yêu cầu đánh giá và không đóng góp nghiên cứu.
 - Không dùng điểm này như quyết định tuyển dụng.
 """.splitlines(keepends=True)})

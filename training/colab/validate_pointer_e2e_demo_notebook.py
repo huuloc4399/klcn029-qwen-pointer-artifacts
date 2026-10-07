@@ -26,6 +26,10 @@ def main() -> None:
         "parse_pointer_output(raw_output, normalized_source)",
         "deterministic matching baseline v1",
         "RESEARCH_CONSENT",
+        "CONSENT_VERSION",
+        "consent.json",
+        "submission_index.jsonl",
+        '"pipeline_status": "success"',
         "WITHDRAWAL_CODE_TO_DELETE",
     ]
     missing = [value for value in required if value not in joined]

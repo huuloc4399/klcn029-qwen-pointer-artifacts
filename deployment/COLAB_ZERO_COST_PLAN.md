@@ -55,6 +55,25 @@ training/colab/Qwen3_Pointer_EndToEnd_CV_JD_Demo_Colab.ipynb
 6. Chỉ dùng kết quả khi giao diện báo hoàn tất. Colab tải ZIP chứa CVSchema, evidence,
    kết quả matching, routing log và manifest.
 
+Khi consent được bật, notebook lưu bản nghiên cứu tại:
+
+```text
+MyDrive/KLCN029/pointer_e2e_demo/
+├── submission_index.jsonl
+└── submissions/<submission_id>/
+    ├── cv.pdf
+    ├── jd.txt
+    ├── consent.json
+    ├── receipt.json
+    └── result/
+```
+
+`consent.json` ghi phiên bản đồng thuận, thời điểm, mục đích, hash PDF/JD và dữ liệu được
+giữ lại. Giao diện trả mã rút dữ liệu cho ứng viên; Drive chỉ lưu hash của mã này. Nếu
+consent tắt, PDF/JD không được sao chép vào thư mục nghiên cứu. Nếu baseline lỗi sau khi
+đã nhận một PDF/JD hợp lệ, hồ sơ có consent vẫn được giữ cùng `failure.json`; nhờ đó nhóm
+không làm mất các trường hợp thật mà OCR, model hoặc parser chưa xử lý được.
+
 Khi thử CV tiếp theo trong cùng runtime, thay PDF/JD ngay trên giao diện và bấm lại; không
 cần nạp lại model. Notebook tuyến tính vẫn được giữ để truy vết lỗi từng công đoạn.
 
