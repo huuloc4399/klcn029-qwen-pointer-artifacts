@@ -2,6 +2,9 @@
 
 ## Tệp sử dụng
 
+- `Qwen3_Pointer_Colab_UI_Demo.ipynb`: giao diện CV Insight chạy trực tiếp trong Colab;
+  người vận hành tải PDF, dán JD, chọn EN/VI, bấm đánh giá và tải bundle kết quả mà không
+  phải sửa biến trong các cell.
 - `Qwen3_Pointer_EndToEnd_CV_JD_Demo_Colab.ipynb`: baseline có người vận hành, chạy một
   CV + JD từ OCR đến Pointer Stage 2, frozen Parser v1, matching và ZIP kết quả; đây là
   phương án miễn phí thay cho deployment 24/7.
@@ -38,6 +41,8 @@
 - `build_base_model_validation_notebook.py`: nguồn sinh notebook raw baseline Qwen gốc.
 - `build_locked_test_notebooks.py`: nguồn sinh hai notebook test khóa.
 - `build_single_cv_demo_notebook.py`: nguồn sinh notebook chạy thử một CV.
+- `build_pointer_colab_ui_notebook.py`: sinh notebook giao diện từ pipeline đầu cuối đã
+  khóa, đồng thời gắn hash cho ba đoạn OCR, extraction và evaluation nhúng trong UI.
 - `package_colab_data.py`: đóng gói lại dữ liệu sau khi kiểm tra hash.
 - `package_pointer_data.py`: kiểm tra và đóng gói xác định dataset Hybrid Pointer v1.
 - `validate_colab_notebook.py`: kiểm tra cấu trúc và các hàng rào chống data leakage.
@@ -51,6 +56,22 @@
   chiến lược retry, raw-only và việc không đưa gold/raw output cũ vào prompt.
 - `validate_single_cv_demo_notebook.py`: kiểm tra cú pháp và cấu hình khóa của notebook
   chạy thử một CV.
+- `validate_pointer_colab_ui_notebook.py`: kiểm tra thành phần giao diện, cú pháp và việc
+  notebook không mở Gradio/tunnel/public web service.
+
+## Chạy giao diện CV Insight trong Colab
+
+1. Mở `Qwen3_Pointer_Colab_UI_Demo.ipynb`, chọn **Runtime > Change runtime type > T4 GPU**.
+2. Tạo Colab Secret `HF_TOKEN` có quyền đọc repo private và bật quyền truy cập notebook.
+3. Chạy lần lượt cell 1–6. Nếu pip yêu cầu khởi động lại runtime, khởi động lại rồi chạy
+   tiếp từ cell 2.
+4. Trong giao diện: chọn một PDF, dán JD ít nhất 80 ký tự, chọn ngôn ngữ và bấm
+   **Đánh giá CV**. Giữ consent tắt nếu ứng viên không đồng ý đóng góp dữ liệu nghiên cứu.
+5. Giao diện hiển thị điểm, kết luận, kỹ năng khớp/thiếu và gợi ý; bundle JSON/ZIP được
+   tải xuống sau khi hoàn tất. Có thể đổi PDF/JD và bấm lại mà không nạp lại Qwen.
+
+Giao diện này chỉ hiện trong phiên Colab của người vận hành. Nó không tạo URL công khai
+cho ứng viên và không chạy khi runtime đã đóng.
 
 ## Chạy thử riêng một CV
 
@@ -304,6 +325,8 @@ python training/colab/build_pointer_validation_raw_notebook.py
 python training/colab/build_pointer_real80_raw_notebook.py
 python training/colab/build_pointer_real80_retry_notebook.py
 python training/colab/build_pointer_locked_test_raw_notebook.py
+python training/colab/build_pointer_e2e_demo_notebook.py
+python training/colab/build_pointer_colab_ui_notebook.py
 python training/colab/validate_colab_notebook.py
 python training/colab/validate_pointer_stage2_notebook.py
 python training/colab/validate_validation_evaluation_notebook.py
@@ -313,6 +336,8 @@ python training/colab/validate_pointer_validation_raw_notebook.py
 python training/colab/validate_pointer_real80_raw_notebook.py
 python training/colab/validate_pointer_real80_retry_notebook.py
 python training/colab/validate_pointer_locked_test_raw_notebook.py
+python training/colab/validate_pointer_e2e_demo_notebook.py
+python training/colab/validate_pointer_colab_ui_notebook.py
 python training/colab/package_colab_data.py
 ```
 

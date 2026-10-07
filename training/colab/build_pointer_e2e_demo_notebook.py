@@ -269,7 +269,7 @@ evaluation = evaluate(
     method="Qwen Pointer P0 + Parser v1 + deterministic matching baseline v1",
 ).to_dict()
 
-timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
 safe_stem = re.sub(r"[^A-Za-z0-9_.-]+", "_", Path(original_name).stem)[:60] or "cv"
 run_id = f"{timestamp}_{safe_stem}"
 local_output = LOCAL_ROOT / "output" / run_id

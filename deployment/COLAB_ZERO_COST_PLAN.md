@@ -22,7 +22,13 @@ Người vận hành mở Colab T4
   -> chỉ lưu PDF/JD vào Drive khi consent=true
 ```
 
-Notebook chính:
+Notebook giao diện chính:
+
+```text
+training/colab/Qwen3_Pointer_Colab_UI_Demo.ipynb
+```
+
+Notebook tuyến tính dùng để kiểm tra từng bước và làm nguồn cho giao diện:
 
 ```text
 training/colab/Qwen3_Pointer_EndToEnd_CV_JD_Demo_Colab.ipynb
@@ -40,16 +46,17 @@ training/colab/Qwen3_Pointer_EndToEnd_CV_JD_Demo_Colab.ipynb
 
 ## Cách chạy một CV
 
-1. Mở notebook và chạy cell 1.
+1. Mở notebook giao diện và chạy cell 1.
 2. Nếu pip yêu cầu restart, restart runtime rồi chạy lại từ cell 2.
-3. Ở cell 2 nhập `JD_TEXT`, chọn `LANGUAGE`; giữ `RESEARCH_CONSENT=False` khi chỉ demo.
-4. Chạy cell 3–6 để xác minh adapter, OCR/parser và nạp model.
-5. Cell 4 yêu cầu upload đúng một PDF.
-6. Chạy cell 7–8. Chỉ dùng kết quả khi parser báo `status=success`.
-7. Colab tải ZIP chứa CVSchema, evidence, kết quả matching, routing log và manifest.
+3. Chạy cell 2–5 để xác minh adapter, Parser v1 và nạp model.
+4. Chạy cell 6 để mở giao diện CV Insight.
+5. Chọn đúng một PDF, dán JD ít nhất 80 ký tự, chọn ngôn ngữ và consent rồi bấm
+   **Đánh giá CV**.
+6. Chỉ dùng kết quả khi giao diện báo hoàn tất. Colab tải ZIP chứa CVSchema, evidence,
+   kết quả matching, routing log và manifest.
 
-Khi thử CV tiếp theo trong cùng runtime, chạy lại cell 2, 4, 7 và 8; không cần nạp lại model
-ở cell 6 nếu cấu hình không đổi.
+Khi thử CV tiếp theo trong cùng runtime, thay PDF/JD ngay trên giao diện và bấm lại; không
+cần nạp lại model. Notebook tuyến tính vẫn được giữ để truy vết lỗi từng công đoạn.
 
 ## Thu thập CV tự nguyện không cần server model
 
