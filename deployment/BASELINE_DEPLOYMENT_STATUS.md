@@ -2,6 +2,10 @@
 
 Ngày khóa: 06/10/2026
 
+> Cập nhật 07/10/2026: đường triển khai cloud đang tạm dừng do không có ngân sách.
+> Baseline hoạt động hiện tại chuyển sang notebook Colab có người vận hành, xem
+> `deployment/COLAB_ZERO_COST_PLAN.md`.
+
 ## Phạm vi đã hoàn thành
 
 ```text
