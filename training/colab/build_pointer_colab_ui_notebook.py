@@ -42,7 +42,11 @@ Chạy cell 1–5 để chuẩn bị T4, adapter, Parser v1 và Qwen. Sau đó c
 diện. Đây là UI nội bộ Colab, không tạo public URL.
 """)
 
-    install = "".join(cells[1]["source"]).rstrip() + ' "ipywidgets>=8.1,<9"\n'
+    install = "".join(cells[1]["source"]).replace(
+        '"numpy==2.3.5"',
+        '"numpy==2.3.5" "ipywidgets>=8.1,<9"',
+        1,
+    )
     set_source(cells[1], install)
 
     config = "".join(cells[2]["source"])

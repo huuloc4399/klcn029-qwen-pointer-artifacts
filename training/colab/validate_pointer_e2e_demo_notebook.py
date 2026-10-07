@@ -22,6 +22,8 @@ def main() -> None:
         "8d68628e382593132010f20fb12cbb18d9477ca034c154811d109ec075a65f81",
         "MAX_INPUT_TOKENS = 5120",
         "MAX_NEW_TOKENS = 768",
+        '"PyMuPDF==1.26.7"',
+        "import pymupdf",
         "do_sample=False",
         "parse_pointer_output(raw_output, normalized_source)",
         "deterministic matching baseline v1",

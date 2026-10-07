@@ -39,6 +39,7 @@ def main() -> None:
         "cvpointer_output_parser_v1", "RESEARCH_CONSENT", "files.download",
         "CONSENT_VERSION", "consent.json", "submission_index.jsonl", "withdrawal_code",
         "WITHDRAWAL_CODE_TO_DELETE", "Đã xóa hồ sơ nghiên cứu và dòng chỉ mục",
+        '"PyMuPDF==1.26.7"', "import pymupdf",
     ]
     missing = [item for item in required if item not in joined]
     if missing:

@@ -50,7 +50,17 @@ theo, giữ model ở cell 6 và chạy lại cell 2, 4, 7, 8.
 """)
 
     install = """#@title 1. Cài đúng phiên bản thư viện
-%pip install -q --upgrade "transformers==5.17.0" "peft==0.21.0" "accelerate==1.15.0" "bitsandbytes==0.50.2" "huggingface_hub==1.32.0" "tokenizers==0.23.2" "sentencepiece==0.2.1" "pydantic>=2.11,<3" "pymupdf==1.26.7" "paddleocr==3.7.0" "paddlepaddle==3.3.1" "vietocr==0.3.13" "setuptools==80.9.0" "Pillow==10.2.0" "numpy==2.3.5"
+%pip install -q --upgrade "transformers==5.17.0" "peft==0.21.0" "accelerate==1.15.0" "bitsandbytes==0.50.2" "huggingface_hub==1.32.0" "tokenizers==0.23.2" "sentencepiece==0.2.1" "pydantic>=2.11,<3" "paddleocr==3.7.0" "paddlepaddle==3.3.1" "vietocr==0.3.13" "setuptools==80.9.0" "Pillow==10.2.0" "numpy==2.3.5"
+
+# Cài riêng để lỗi resolver của nhóm OCR/model không làm PyMuPDF bị bỏ qua.
+import importlib, subprocess, sys
+subprocess.check_call([
+    sys.executable, "-m", "pip", "install", "-q", "--upgrade", "--no-cache-dir",
+    "PyMuPDF==1.26.7",
+])
+importlib.invalidate_caches()
+import pymupdf
+print({"pymupdf": getattr(pymupdf, "__version__", getattr(pymupdf, "VersionBind", "unknown")), "python": sys.version.split()[0]})
 """
     set_source(cells[1], install)
 
@@ -189,6 +199,10 @@ for relative, expected in EXPECTED_SOURCE_HASHES.items():
 sys.path.insert(0, str(parser_runtime))
 
 from training.evaluation.pointer_parser import POINTER_PARSER_VERSION, parse_pointer_output
+try:
+    import pymupdf
+except ModuleNotFoundError as exc:
+    raise RuntimeError("Thiếu PyMuPDF. Hãy chạy lại cell 1; nếu Colab yêu cầu restart thì restart runtime rồi chạy lại cell 1–4.") from exc
 from services.pdf_extractor import DocumentAnalysis
 from services.evaluator import evaluate
 if POINTER_PARSER_VERSION != "cvpointer_output_parser_v1":

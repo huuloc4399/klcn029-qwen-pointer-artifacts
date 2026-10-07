@@ -82,6 +82,11 @@ cả thư mục hồ sơ và dòng tương ứng trong chỉ mục.
 Giao diện này chỉ hiện trong phiên Colab của người vận hành. Nó không tạo URL công khai
 cho ứng viên và không chạy khi runtime đã đóng.
 
+Nếu cell 4 từng báo `ModuleNotFoundError: No module named 'pymupdf'`, mở lại notebook mới
+nhất và chạy lại cell 1. Cell này cài riêng `PyMuPDF==1.26.7` rồi import kiểm tra ngay;
+chỉ tiếp tục khi nó in được phiên bản PyMuPDF. Nếu Colab yêu cầu restart runtime, restart
+rồi chạy lại cell 1–4.
+
 ## Chạy thử riêng một CV
 
 Ưu tiên notebook mới `Qwen3_Pointer_EndToEnd_CV_JD_Demo_Colab.ipynb`, vì notebook này
