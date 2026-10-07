@@ -26,6 +26,11 @@ Lớp acceptance không sửa Parser v1. Nó chỉ cho phép tiếp tục khi l�
 soft skill cũ từ dữ liệu synthetic, trong khi cấu trúc, span, CVSchema và evidence đều hợp
 lệ. Quyết định này được lưu riêng để báo cáo benchmark vẫn dùng đúng Parser v1 đóng băng.
 
+Matching mặc định là B1 deterministic. Giao diện cũng cho phép chọn M1 zero-shot, M2
+few-shot và M3 RAG thử nghiệm qua Groq Qwen 3.8 27B. Ba chế độ API chỉ chạy khi có
+`GROQ_API_KEY` trong Colab Secrets và người vận hành bật đồng thuận gửi CVSchema đã bỏ
+`personal_info` cùng JD đến Groq. Điểm ATS vẫn do bộ phân tích PDF deterministic cung cấp.
+
 Notebook giao diện chính:
 
 ```text

@@ -56,6 +56,8 @@ diện. Đây là UI nội bộ Colab, không tạo public URL.
         'JD_TEXT = "" #@param {type:"string"}\n',
         'RESEARCH_CONSENT = False #@param {type:"boolean"}\n',
         'PARTICIPANT_CODE = "" #@param {type:"string"}\n',
+        'MATCHING_STRATEGY = "deterministic_b1" #@param ["deterministic_b1", "zero_shot_m1", "few_shot_m2", "rag_m3"]\n',
+        'EXTERNAL_MATCHING_CONSENT = False #@param {type:"boolean"}\n',
     ):
         config = config.replace(line, "")
     config = config.replace(
@@ -157,6 +159,21 @@ upload_console = widgets.Output(layout=widgets.Layout(max_height="90px", overflo
 jd_widget = widgets.Textarea(placeholder="Dán JD tối thiểu 80 ký tự...", description="JD", layout=widgets.Layout(width="100%", height="180px"), style={{"description_width": "60px"}})
 language_widget = widgets.Dropdown(options=[("Tự động", "auto"), ("Tiếng Việt", "vi"), ("English", "en")], value="auto", description="Ngôn ngữ")
 participant_widget = widgets.Text(placeholder="Ví dụ U001; không nhập họ tên/email", description="Mã ứng viên")
+matching_widget = widgets.Dropdown(
+    options=[
+        ("B1 · Deterministic baseline", "deterministic_b1"),
+        ("M1 · Zero-shot — Groq Qwen 3.8", "zero_shot_m1"),
+        ("M2 · Few-shot — Groq Qwen 3.8", "few_shot_m2"),
+        ("M3 · RAG thử nghiệm — Groq Qwen 3.8", "rag_m3"),
+    ],
+    value="deterministic_b1", description="Matching",
+    layout=widgets.Layout(width="520px"), style={{"description_width": "80px"}},
+)
+external_matching_consent_widget = widgets.Checkbox(
+    value=False,
+    description="Cho phép gửi CVSchema đã bỏ thông tin liên hệ và JD đến Groq khi chọn M1/M2/M3",
+    indent=False,
+)
 consent_widget = widgets.Checkbox(value=False, description="Ứng viên đồng ý đóng góp CV cho nghiên cứu", indent=False)
 run_button = widgets.Button(description="Đánh giá CV", button_style="success", icon="check", layout=widgets.Layout(width="180px", height="44px"))
 run_button.disabled = True
@@ -274,6 +291,8 @@ def _on_run(_button):
         jd_text = jd_widget.value.strip()
         if len(jd_text) < 80:
             raise ValueError("JD cần ít nhất 80 ký tự")
+        if matching_widget.value != "deterministic_b1" and not external_matching_consent_widget.value:
+            raise ValueError("Hãy xác nhận đồng thuận API ngoài trước khi chạy M1, M2 hoặc M3")
         status_widget.value = "<b>1/4</b> Đang đọc PDF và OCR..."
         ns = dict(globals())
         ns.update({{"UI_FILENAME": filename, "UI_PDF_BYTES": pdf_bytes, "UI_LANGUAGE": language_widget.value}})
@@ -285,7 +304,13 @@ def _on_run(_button):
             issues = ns["parse_payload"].get("issues", [])
             raise RuntimeError("Chính sách triển khai từ chối output: " + json.dumps(issues, ensure_ascii=False))
         status_widget.value = "<b>3/4</b> Đang so khớp CV với JD..."
-        ns.update({{"JD_TEXT": jd_text, "RESEARCH_CONSENT": consent_widget.value, "PARTICIPANT_CODE": participant_widget.value}})
+        ns.update({{
+            "JD_TEXT": jd_text,
+            "RESEARCH_CONSENT": consent_widget.value,
+            "PARTICIPANT_CODE": participant_widget.value,
+            "MATCHING_STRATEGY": matching_widget.value,
+            "EXTERNAL_MATCHING_CONSENT": external_matching_consent_widget.value,
+        }})
         exec(EVALUATION_PIPELINE_SOURCE, ns, ns); progress.value = 3
         evaluation = ns["evaluation"]
         receipt = ns.get("research_receipt")
@@ -306,13 +331,20 @@ def _on_run(_button):
         else:
             receipt_html = "<p><b>Không lưu nghiên cứu:</b> PDF/JD không được sao chép vào Drive và PDF tạm đã bị xóa.</p>"
         improvements = "".join(f"<li>{{html.escape(str(item))}}</li>" for item in evaluation["improvements"])
+        matching_details_html = f"<p><b>Matching:</b> {{html.escape(evaluation['method'])}}</p>"
+        if evaluation.get("provider"):
+            matching_details_html += f"<p><b>API:</b> {{html.escape(evaluation['provider'])}} · {{html.escape(evaluation['model'])}} · {{evaluation.get('latency_seconds', 0):.2f}} giây</p>"
+        if evaluation.get("retrieved_sources"):
+            source_names = ", ".join(item["id"] for item in evaluation["retrieved_sources"])
+            matching_details_html += f"<p><b>RAG retrieval:</b> {{html.escape(source_names)}}</p>"
         result_html = f"""
         <div class='cv-card'><h2>Kết quả đánh giá</h2><div class='score-card'><strong>{{evaluation['total_score']:.0f}}/100</strong><h3>{{html.escape(evaluation['verdict'])}}</h3></div>
         <h3>Kỹ năng đã khớp</h3><div>{{_tags(evaluation['matched_skills'])}}</div>
         <h3>Kỹ năng JD chưa thấy</h3><div>{{_tags(evaluation['missing_skills'], True)}}</div>
         <h3>Ưu tiên cải thiện</h3><ol>{{improvements}}</ol>
         {{policy_warning_html}}
-        <p><b>Pipeline:</b> Qwen Pointer P0 · Parser v1 ({{html.escape(ns['parse_result'].status)}}) · {{html.escape(deployment_decision.mode)}} · CVSchema 2.0</p>{{receipt_html}}
+        <p><b>Pipeline:</b> Qwen Pointer P0 · Parser v1 ({{html.escape(ns['parse_result'].status)}}) · {{html.escape(deployment_decision.mode)}} · CVSchema 2.0</p>
+        {{matching_details_html}}{{receipt_html}}
         <p>Bundle: <code>{{html.escape(str(ns['bundle_path']))}}</code></p></div>"""
         with result_output:
             display(HTML(result_html))
@@ -341,7 +373,7 @@ def _on_run(_button):
         elif save_error:
             receipt_error_html = f"<hr><b>Lưu nghiên cứu cũng thất bại:</b> {{html.escape(str(save_error))}}"
         with result_output:
-            clear_output(); display(HTML(f"<div class='error-card'><b>Lỗi baseline:</b> {{html.escape(str(exc))}}{{receipt_error_html}}</div>"))
+            clear_output(); display(HTML(f"<div class='error-card'><b>Lỗi pipeline:</b> {{html.escape(str(exc))}}{{receipt_error_html}}</div>"))
     finally:
         if ns:
             temporary_pdf = ns.get("PDF_PATH")
@@ -355,6 +387,10 @@ form = widgets.VBox([
     widgets.HBox([colab_upload_button, upload_widget]), upload_status_widget, upload_console,
     jd_widget,
     widgets.HBox([language_widget, participant_widget]),
+    widgets.HTML("<div style='margin-top:12px'><b style='color:#173a2c'>2. Chọn chiến lược matching</b></div>"),
+    matching_widget,
+    widgets.HTML("<small style='color:#465f54'>B1 chạy hoàn toàn trong Colab. M1/M2/M3 gọi Groq và cần Colab Secret GROQ_API_KEY.</small>"),
+    external_matching_consent_widget,
     widgets.HTML("""<div style='background:#fff8e6;border-left:4px solid #d59b15;padding:12px;margin:8px 0'>
     <b>Đồng thuận đóng góp dữ liệu nghiên cứu</b><br>
     Chỉ đánh dấu khi ứng viên đã được thông báo rằng PDF gốc, JD và kết quả baseline sẽ

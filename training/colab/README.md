@@ -94,6 +94,18 @@ Adaptability được giữ theo hướng dẫn gán nhãn CV thật. JSON/span/
 soft skill, hoặc `Communication` nằm trong hard skill vẫn bị chặn. Bundle ghi riêng
 `deployment_acceptance.json` để không nhầm quyết định triển khai với kết quả Parser v1.
 
+Giao diện có bốn chế độ matching:
+
+- `B1 deterministic`: baseline mặc định, chạy hoàn toàn trong Colab và tái lập được;
+- `M1 zero-shot`: một lời gọi Groq Qwen 3.8 27B, không có ví dụ;
+- `M2 few-shot`: cùng model với các ví dụ chấm điểm cố định;
+- `M3 RAG`: truy xuất rubric nội bộ rồi đưa ngữ cảnh đã truy xuất vào cùng model.
+
+M1–M3 cần Colab Secret `GROQ_API_KEY` và checkbox đồng thuận API ngoài. Payload gửi đi
+không chứa `personal_info`, nhưng vẫn có nội dung nghề nghiệp, học vấn, dự án và JD. B1
+không gọi dịch vụ ngoài. M3 ghi `retrieved_sources` và gắn nguồn là
+`internal_project_rubric`; chưa được trình bày như trích dẫn học thuật đã kiểm chứng.
+
 Nếu cell 4 từng báo `ModuleNotFoundError: No module named 'pymupdf'`, mở lại notebook mới
 nhất và chạy lại cell 1. Cell này cài riêng `PyMuPDF==1.26.7` rồi import kiểm tra ngay;
 chỉ tiếp tục khi nó in được phiên bản PyMuPDF. Nếu Colab yêu cầu restart runtime, restart

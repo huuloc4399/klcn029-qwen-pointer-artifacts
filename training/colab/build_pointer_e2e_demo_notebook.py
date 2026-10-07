@@ -50,7 +50,7 @@ theo, giữ model ở cell 6 và chạy lại cell 2, 4, 7, 8.
 """)
 
     install = """#@title 1. Cài đúng phiên bản thư viện
-%pip install -q --upgrade "transformers==5.17.0" "peft==0.21.0" "accelerate==1.15.0" "bitsandbytes==0.50.2" "huggingface_hub==1.32.0" "tokenizers==0.23.2" "sentencepiece==0.2.1" "pydantic>=2.11,<3" "paddleocr==3.7.0" "paddlepaddle==3.3.1" "vietocr==0.3.13" "setuptools==80.9.0" "Pillow==10.2.0" "numpy==2.3.5"
+%pip install -q --upgrade "transformers==5.17.0" "peft==0.21.0" "accelerate==1.15.0" "bitsandbytes==0.50.2" "huggingface_hub==1.32.0" "tokenizers==0.23.2" "sentencepiece==0.2.1" "pydantic>=2.11,<3" "requests>=2.32,<3" "paddleocr==3.7.0" "paddlepaddle==3.3.1" "vietocr==0.3.13" "setuptools==80.9.0" "Pillow==10.2.0" "numpy==2.3.5"
 
 # Cài riêng để lỗi resolver của nhóm OCR/model không làm PyMuPDF bị bỏ qua.
 import importlib, subprocess, sys
@@ -69,7 +69,9 @@ print({"pymupdf": getattr(pymupdf, "__version__", getattr(pymupdf, "VersionBind"
         'SAVE_RESULT_TO_DRIVE = True #@param {type:"boolean"}',
         'JD_TEXT = "" #@param {type:"string"}\n'
         'RESEARCH_CONSENT = False #@param {type:"boolean"}\n'
-        'PARTICIPANT_CODE = "" #@param {type:"string"}',
+        'PARTICIPANT_CODE = "" #@param {type:"string"}\n'
+        'MATCHING_STRATEGY = "deterministic_b1" #@param ["deterministic_b1", "zero_shot_m1", "few_shot_m2", "rag_m3"]\n'
+        'EXTERNAL_MATCHING_CONSENT = False #@param {type:"boolean"}',
     )
     config = config.replace('MAX_NEW_TOKENS = 1280', 'MAX_NEW_TOKENS = 768\nMAX_INPUT_TOKENS = 5120\nMAX_PDF_PAGES = 12')
     config = config.replace(
@@ -177,6 +179,7 @@ print({"adapter": str(ADAPTER_DIR), "weights_verified": True, "manifest_sha256":
         "training/evaluation/deployment_policy.py": source("training/evaluation/deployment_policy.py"),
         "services/pdf_extractor.py": source("cv_evaluation_web/services/pdf_extractor.py"),
         "services/evaluator.py": source("cv_evaluation_web/services/evaluator.py"),
+        "services/llm_matching.py": source("cv_evaluation_web/services/llm_matching.py"),
     }
     hashes = {name: sha(value) for name, value in runtime_sources.items()}
     set_source(cells[5], f'''#@title 5. Nạp frozen Parser v1 và matching baseline
@@ -210,6 +213,7 @@ except ModuleNotFoundError as exc:
     raise RuntimeError("Thiếu PyMuPDF. Hãy chạy lại cell 1; nếu Colab yêu cầu restart thì restart runtime rồi chạy lại cell 1–4.") from exc
 from services.pdf_extractor import DocumentAnalysis
 from services.evaluator import evaluate
+from services.llm_matching import MATCHING_STRATEGIES, evaluate_with_strategy
 if POINTER_PARSER_VERSION != "cvpointer_output_parser_v1":
     raise RuntimeError(f"Sai parser version: {{POINTER_PARSER_VERSION}}")
 print({{"parser": POINTER_PARSER_VERSION, "deployment_policy": DEPLOYMENT_ACCEPTANCE_POLICY_VERSION, "runtime_sources_verified": True}})
@@ -285,11 +289,29 @@ document = DocumentAnalysis(
     character_count=len(normalized_source), block_count=0,
     likely_multi_column=False, needs_ocr=needs_ocr,
 )
-evaluation = evaluate(
+deterministic_evaluation = evaluate(
     document, JD_TEXT.strip(), language=resolved_language,
     cv_schema=parse_result.reconstructed_cvschema,
     method="Qwen Pointer P0 + Parser v1 + real-CV acceptance v2 + deterministic matching baseline v1",
 ).to_dict()
+if MATCHING_STRATEGY not in MATCHING_STRATEGIES:
+    raise RuntimeError(f"Matching strategy không hợp lệ: {MATCHING_STRATEGY}")
+if MATCHING_STRATEGY == "deterministic_b1":
+    evaluation = deterministic_evaluation
+else:
+    if not EXTERNAL_MATCHING_CONSENT:
+        raise RuntimeError("M1/M2/M3 gửi CVSchema đã bỏ thông tin liên hệ và JD đến Groq; cần bật đồng thuận API ngoài.")
+    from google.colab import userdata
+    groq_api_key = userdata.get("GROQ_API_KEY")
+    if not groq_api_key:
+        raise RuntimeError("Thiếu Colab Secret GROQ_API_KEY cho matching M1/M2/M3")
+    evaluation = evaluate_with_strategy(
+        strategy=MATCHING_STRATEGY,
+        cv_schema=parse_result.reconstructed_cvschema,
+        jd_text=JD_TEXT.strip(),
+        deterministic_result=deterministic_evaluation,
+        api_key=groq_api_key,
+    )
 
 timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
 safe_stem = re.sub(r"[^A-Za-z0-9_.-]+", "_", Path(original_name).stem)[:60] or "cv"
@@ -303,7 +325,14 @@ manifest = {
     "generation": {"do_sample": False, "max_new_tokens": MAX_NEW_TOKENS, "input_tokens": input_tokens, "generated_tokens": generated_tokens, "runtime_seconds": runtime_seconds},
     "parser": {"version": POINTER_PARSER_VERSION, "status": parse_result.status},
     "deployment_acceptance": deployment_payload,
+    "matching": {
+        "strategy": MATCHING_STRATEGY,
+        "method": evaluation["method"],
+        "external_provider": evaluation.get("provider"),
+        "external_model": evaluation.get("model"),
+    },
     "research_consent": bool(RESEARCH_CONSENT),
+    "external_matching_consent": bool(EXTERNAL_MATCHING_CONSENT),
     "consent_version": CONSENT_VERSION if RESEARCH_CONSENT else None,
 }
 for name, value in {

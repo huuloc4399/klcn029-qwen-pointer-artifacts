@@ -42,6 +42,8 @@ def main() -> None:
         '"PyMuPDF==1.26.7"', "import pymupdf",
         "colab_upload_button", "files.upload()", "selected_pdf", "form.add_class(\"cv-form\")",
         "deployment_decision", "real_cv_soft_skills_expanded", "deployment_acceptance.json",
+        "matching_widget", "zero_shot_m1", "few_shot_m2", "rag_m3",
+        "external_matching_consent_widget", "GROQ_API_KEY",
     ]
     missing = [item for item in required if item not in joined]
     if missing:
