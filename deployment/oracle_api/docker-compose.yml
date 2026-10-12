@@ -1,0 +1,39 @@
+# Extraction API + Caddy (automatic HTTPS) on one Oracle Always Free Ampere A1 VM.
+# Guide: deployment/DEPLOY_FREE_ORACLE_RENDER.md. Secrets live in .env next to this file.
+services:
+  api:
+    build:
+      context: .
+      args:
+        WITH_OCR: "${WITH_OCR:-1}"
+    image: klcn029-cv-api:local
+    env_file: .env
+    volumes:
+      - api_cache:/data
+    expose:
+      - "7860"
+    # Keep the VM responsive for SSH: the model needs ~4 GB, OCR another ~3 GB.
+    mem_limit: 10g
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+
+  caddy:
+    image: caddy:2.10.2
+    depends_on: [api]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      API_DOMAIN: "${API_DOMAIN:?set API_DOMAIN in .env}"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+
+volumes:
+  api_cache:
+  caddy_data:
+  caddy_config:

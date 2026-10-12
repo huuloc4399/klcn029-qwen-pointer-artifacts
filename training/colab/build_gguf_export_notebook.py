@@ -54,7 +54,8 @@ thường); sau đó chạy tiếp từ cell 2 đến cell 7. Không dùng "Run 
 3. Upload `training/colab/artifacts/gguf_fidelity_bundle_v1.zip` (mã runtime của Space, Parser v1
    đóng băng và 20 CV validation tổng hợp kèm output P0 đã đo).
 4. Tải adapter đã khóa, kiểm tra hash, chat template và prompt ChatML của Space.
-5. Gộp LoRA vào base FP16 → GGUF F16 → lượng tử hóa. Config/tokenizer lấy nguyên bản từ repo Qwen
+5. Gộp LoRA vào base theo từng tensor (FP32 rồi lưu FP16, mỗi lúc chỉ một shard trong RAM để vừa
+   12.7 GB của Colab) → GGUF F16 → lượng tử hóa. Config/tokenizer lấy nguyên bản từ repo Qwen
    ở revision đã khóa; tên tensor sau gộp phải trùng base.
 6. **Cổng độ trung thực**: chạy GGUF bằng đúng `LlamaPointerRuntime` của Space trên N CV validation,
    so CVSchema hợp lệ và Field Micro F1 với output P0 (NF4 + LoRA trên Colab GPU).
@@ -65,7 +66,7 @@ Kết quả ở bước 6 là kiểm tra độ lệch do gộp/lượng tử hó
 
 CELLS = [
     f"""#@title 1. Cài thư viện (bản mới nhất) + build llama-cpp-python, rồi tự khởi động lại (~15–20 phút)
-import json, os, subprocess, sys
+import json, os, subprocess, sys, time
 from pathlib import Path
 
 LLAMA_CPP_PYTHON_TAG = "{LLAMA_CPP_PYTHON_TAG}"
@@ -113,7 +114,8 @@ else:
     }}
     READY.write_text(json.dumps(report, indent=2))
     print(json.dumps(report, indent=2))
-    print("Cài đặt xong. Runtime sẽ khởi động lại để nạp thư viện mới — sau đó chạy tiếp từ cell 2.")
+    print("Cài đặt xong. Runtime sẽ khởi động lại để nạp thư viện mới — sau đó chạy tiếp từ cell 2.", flush=True)
+    time.sleep(3)  # let Colab deliver the report before the kernel is killed
     os.kill(os.getpid(), 9)
 """,
     f"""#@title 2. Cấu hình
@@ -206,11 +208,10 @@ for record in records:
         raise RuntimeError("render_chatml của Space khác chat template của tokenizer")
 print("Prompt ChatML của Space khớp tokenizer cho", len(records), "CV")
 """,
-    """#@title 5. Gộp LoRA (FP16) -> GGUF F16 -> lượng tử hóa
+    """#@title 5. Gộp LoRA (từng tensor, FP16) -> GGUF F16 -> lượng tử hóa
 import torch
-from peft import PeftModel
 from safetensors import safe_open
-from transformers import AutoModelForCausalLM
+from safetensors.torch import save_file
 
 def tensor_names(folder):
     names = set()
@@ -224,16 +225,49 @@ base_dir = Path(snapshot_download(MODEL_ID, revision=MODEL_REVISION, token=HF_TO
 merged_dir = WORK / "merged_fp16"
 if not (merged_dir / "MERGE_DONE.json").exists():
     shutil.rmtree(merged_dir, ignore_errors=True)
+    merged_dir.mkdir(parents=True)
     started = time.perf_counter()
-    base = AutoModelForCausalLM.from_pretrained(str(base_dir), dtype=torch.float16, trust_remote_code=False)
-    merged = PeftModel.from_pretrained(base, str(adapter_dir), is_trainable=False).merge_and_unload()
-    merged.save_pretrained(merged_dir, safe_serialization=True, max_shard_size="2GB")
-    del base, merged
-    gc.collect()
+    # Loading the whole FP16 model through transformers exceeds Colab's 12.7 GB RAM, so the plain
+    # LoRA delta W + (alpha / r) * B @ A is applied tensor by tensor, one base shard in memory at a time.
+    adapter_config = json.loads((adapter_dir / "adapter_config.json").read_text())
+    unsupported = [key for key in ("use_dora", "use_rslora", "fan_in_fan_out", "modules_to_save",
+                                   "rank_pattern", "alpha_pattern") if adapter_config.get(key)]
+    if unsupported:
+        raise RuntimeError(f"Adapter dùng tùy chọn LoRA mà phép gộp từng tensor không hỗ trợ: {unsupported}")
+    scale = adapter_config["lora_alpha"] / adapter_config["r"]
+    lora = {}
+    with safe_open(str(adapter_dir / "adapter_model.safetensors"), framework="pt") as handle:
+        for key in handle.keys():
+            module, _, part = key.rpartition(".lora_")
+            if not module.startswith("base_model.model.") or part not in ("A.weight", "B.weight"):
+                raise RuntimeError(f"Tensor adapter không hỗ trợ: {key}")
+            lora.setdefault(module.removeprefix("base_model.model.") + ".weight", {})[part[0]] = handle.get_tensor(key)
+    merged_tensors = 0
+    for shard in sorted(base_dir.glob("*.safetensors")):
+        tensors = {}
+        with safe_open(str(shard), framework="pt") as handle:
+            metadata = handle.metadata() or {"format": "pt"}
+            for name in handle.keys():
+                weight = handle.get_tensor(name)
+                pair = lora.pop(name, None)
+                if pair is not None:
+                    weight = weight.float().addmm_(pair["B"].float(), pair["A"].float(), alpha=scale)
+                    merged_tensors += 1
+                weight = weight.to(torch.float16)
+                if not torch.isfinite(weight).all():
+                    raise RuntimeError(f"Giá trị không hữu hạn sau khi đổi sang FP16: {name}")
+                tensors[name] = weight
+        save_file(tensors, str(merged_dir / shard.name), metadata=metadata)
+        del tensors
+        gc.collect()
+        print("Đã gộp", shard.name, flush=True)
+    if lora:
+        raise RuntimeError(f"LoRA không khớp tensor base nào: {sorted(lora)[:5]}")
     # The converter runs llama.cpp's pinned transformers 4.57, so config and tokenizer files come
     # verbatim from the pinned Qwen snapshot instead of being re-serialized by transformers 5.
+    # Shard names and tensor names are unchanged, so the base index applies as is.
     for name in ("config.json", "generation_config.json", "tokenizer.json", "tokenizer_config.json",
-                 "vocab.json", "merges.txt"):
+                 "vocab.json", "merges.txt", "model.safetensors.index.json"):
         if (base_dir / name).exists():
             shutil.copy2(base_dir / name, merged_dir / name)
     base_names, merged_names = tensor_names(base_dir), tensor_names(merged_dir)
@@ -241,7 +275,7 @@ if not (merged_dir / "MERGE_DONE.json").exists():
         raise RuntimeError(f"Tên tensor sau gộp khác base: thiếu {sorted(base_names - merged_names)[:5]}, "
                            f"thừa {sorted(merged_names - base_names)[:5]}")
     (merged_dir / "MERGE_DONE.json").write_text(json.dumps({
-        "tensors": len(merged_names), "seconds": round(time.perf_counter() - started, 1)}))
+        "tensors": len(merged_names), "lora_merged": merged_tensors, "seconds": round(time.perf_counter() - started, 1)}))
 print(json.loads((merged_dir / "MERGE_DONE.json").read_text()))
 
 f16_path = WORK / "qwen3-4b-pointer-stage2-f16.gguf"
@@ -324,7 +358,7 @@ export_manifest = {
     "created_at_unix": int(time.time()),
     "base_model": {"id": MODEL_ID, "revision": MODEL_REVISION},
     "adapter": {"repo_id": ARTIFACT_REPO_ID, "revision": ARTIFACT_REVISION, "adapter_model_sha256": EXPECTED_ADAPTER_MODEL_SHA256},
-    "merge": {"dtype": "float16", "method": "peft merge_and_unload", "config_and_tokenizer": "verbatim from base revision"},
+    "merge": {"dtype": "float16", "method": "per-tensor W + (alpha/r)*B@A in float32, saved float16", "config_and_tokenizer": "verbatim from base revision"},
     "llama_cpp_python": LLAMA_CPP_PYTHON_TAG,
     "environment": ENV_REPORT,
     "quantization": QUANT,

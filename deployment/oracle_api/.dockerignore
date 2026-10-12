@@ -1,0 +1,7 @@
+# Keep secrets and VM-only files out of the API image.
+.env
+.env.*
+Caddyfile
+docker-compose.yml
+setup_vm.sh
+gguf_fidelity_bundle_v1.zip

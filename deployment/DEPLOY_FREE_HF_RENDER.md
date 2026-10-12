@@ -1,5 +1,10 @@
 # Triển khai thử nghiệm miễn phí: API trên Hugging Face Spaces, web trên Render
 
+> **Cập nhật 12/10/2026:** tài khoản Hugging Face miễn phí không còn tạo được Docker Space trên CPU basic
+> (lỗi `402 Payment Required`, cần gói PRO). API miễn phí chuyển sang Oracle Cloud Always Free:
+> `deployment/DEPLOY_FREE_ORACLE_RENDER.md`. Tài liệu này vẫn đúng nếu dùng gói HF PRO. Bước 1 (xuất
+> GGUF bằng Colab), mục 6 (kiểm tra đầu cuối) và phần web trên Render dùng chung cho cả hai phương án.
+
 Ngày soạn: 12/10/2026. Phương án này thay cho Render + RunPod (cần ngân sách) và cho Colab có
 người vận hành (không chạy như dịch vụ). Mọi thành phần dùng gói miễn phí.
 
@@ -41,8 +46,12 @@ khai, và nhóm đã chốt không dùng tunnel (`deployment/COLAB_ZERO_COST_PLA
 - Số đo benchmark (P0, GOLD40) là của Qwen NF4 + LoRA trên GPU. Bản triển khai dùng GGUF đã gộp và
   lượng tử hóa. Notebook xuất model chỉ upload khi GGUF qua cổng độ trung thực: CVSchema hợp lệ không
   ít hơn P0, và Field Micro F1 giảm không quá 1 điểm trên N CV validation tổng hợp.
-- Mỗi CV mất vài phút trên 2 vCPU (thời gian thật lấy từ bước 6 của notebook) và API xử lý tuần tự
-  từng CV. Phù hợp để thử nghiệm với nhóm nhỏ, không phải dịch vụ đông người dùng.
+- Mỗi CV mất khoảng 5–7 phút trên 2 vCPU và API xử lý tuần tự từng CV. Phù hợp để thử nghiệm với nhóm
+  nhỏ, không phải dịch vụ đông người dùng. Số đo của bản Q4_K_M đã xuất (Colab CPU, 2 thread, 10 CV
+  tổng hợp): trung bình 331 giây/CV sau CV đầu, chậm nhất 441 giây, trung bình 374 token sinh ra. Hàng
+  đợi đầy 8 CV cần khoảng 45 phút, vẫn trong hạn 1 giờ của job.
+- Cổng độ trung thực của bản Q4_K_M: 10/10 CVSchema hợp lệ (P0: 10/10), Field Micro F1 0,997549 bằng
+  P0 (giảm 0,0 điểm), 9/10 CV có output pointer trùng hoàn toàn P0.
 - Bản miễn phí không lưu CV cho nghiên cứu (`CV_WEB_RESEARCH_ENABLED=0`), vì Render free không có ổ
   đĩa lâu dài. Muốn thu thập dữ liệu tự nguyện thì tiếp tục dùng luồng Colab + Drive.
 - Matching hiện dùng deterministic baseline v1 trên web. Các chế độ M1/M2/M3 qua Groq mới có trong
@@ -97,8 +106,15 @@ $env:GGUF_REVISION = "<từ cell 7>"; $env:GGUF_SHA256 = "<từ cell 7>"
 python deployment/hf_space_api/build_space.py --push <hf-username>/klcn029-cv-api --configure
 ```
 
-Space tự build Docker. Lần đầu mất khoảng 20–30 phút vì phải biên dịch llama.cpp và cài OCR. Khi tab
-Logs báo `Model ready`, kiểm tra:
+Space tự build Docker. Lần đầu mất khoảng 20–30 phút vì phải biên dịch llama.cpp và cài OCR.
+
+Có thể chạy bước này trong lúc Colab còn đang xuất GGUF: bỏ bốn biến `GGUF_*`, chạy lệnh trên để Space
+build trước. Khi đó API vẫn khởi động, `/health` báo `"model": "error"` với danh sách biến còn thiếu.
+Khi cell 7 xong, đặt bốn biến `GGUF_*` rồi chạy lại đúng lệnh trên. Mã không đổi nên không có commit
+mới; việc đặt biến làm Space khởi động lại và tải GGUF. Cũng có thể dán bốn biến vào Settings →
+Variables của Space rồi bấm Restart.
+
+Khi tab Logs báo `Model ready`, kiểm tra:
 
 ```powershell
 $env:EXTRACTION_API_URL = "https://<hf-username>-klcn029-cv-api.hf.space"

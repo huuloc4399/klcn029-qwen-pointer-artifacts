@@ -1,0 +1,10 @@
+# Caddy obtains and renews the Let's Encrypt certificate for API_DOMAIN automatically.
+# Without a domain of your own, use <public-ip-with-dashes>.sslip.io (e.g. 129-146-10-20.sslip.io).
+{$API_DOMAIN} {
+	encode gzip
+	# pdf_base64 is capped at 11.5 MB by the API.
+	request_body {
+		max_size 16MB
+	}
+	reverse_proxy api:7860
+}
