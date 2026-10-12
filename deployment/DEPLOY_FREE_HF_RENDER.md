@@ -74,7 +74,10 @@ Nếu Space để private, cần thêm một token read cho web (`EXTRACTION_HF_
 
 2. Mở `training/colab/Qwen3_Pointer_GGUF_Export_Colab.ipynb` trên Colab, chọn runtime CPU, thêm Secret
    `HF_TOKEN` (write).
-3. Chạy lần lượt cell 1–7. Ở cell 3, upload `training/colab/artifacts/gguf_fidelity_bundle_v1.zip`.
+3. Chạy cell 1. Cell này cài bản mới nhất của thư viện vào môi trường chính, cài thư viện cho script
+   chuyển đổi của llama.cpp vào môi trường riêng `/content/convert-venv`, rồi tự khởi động lại runtime.
+   Colab sẽ báo phiên bị ngắt, đó là bình thường. Sau đó chạy lần lượt cell 2–7. Ở cell 3, upload
+   `training/colab/artifacts/gguf_fidelity_bundle_v1.zip`.
 4. Ở cell 6, ghi lại `fidelity` (F1, số CV hợp lệ, số giây mỗi CV). Nếu không qua cổng, đổi `QUANT`
    sang `Q5_K_M` hoặc `Q6_K` rồi chạy lại từ cell 2; bước gộp LoRA không phải chạy lại.
 5. Cell 7 upload GGUF cùng manifest rồi in bốn dòng `GGUF_REPO_ID`, `GGUF_FILENAME`, `GGUF_REVISION`,
