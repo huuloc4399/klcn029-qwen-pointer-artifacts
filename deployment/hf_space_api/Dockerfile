@@ -17,6 +17,7 @@ ENV PYTHONUNBUFFERED=1 \
     HF_HOME=/tmp/hf \
     MODEL_CACHE_DIR=/tmp/models \
     PADDLE_PDX_CACHE_HOME=/tmp/paddlex \
+    FEEDBACK_DIR=/tmp/feedback \
     OMP_NUM_THREADS=2
 RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 libgl1 libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*

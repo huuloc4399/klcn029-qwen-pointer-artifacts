@@ -151,6 +151,9 @@ Nếu build lỗi ở bước OCR, có thể build tạm không có OCR bằng c
 5. Gửi CV khi Space đang ngủ: web báo "Máy chủ trích xuất đang khởi động…". Thử lại sau vài phút.
 6. Trang chủ không còn ô "đóng góp nghiên cứu"; thư mục `/tmp/cv-web-data/submissions` trên Render
    không có tệp nào.
+7. Gửi hai CV liên tiếp từ hai tab: tab thứ hai hiện "còn 1 CV trước bạn" kèm thời gian dự kiến.
+8. Ở trang kết quả, chọn số sao, gửi góp ý có một email giả: web báo "Cảm ơn bạn đã đánh giá";
+   `/v1/feedback/summary` tăng thêm 1; tải lại trang rồi gửi lần nữa thì web báo đã đánh giá rồi.
 
 ## 7. Vận hành
 

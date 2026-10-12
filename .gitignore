@@ -24,6 +24,8 @@ training/evaluation/results/
 !.env.example
 cv_evaluation_web/data/*
 !cv_evaluation_web/data/.gitignore
+# Satisfaction ratings copied from the API host contain free-text comments.
+feedback*.jsonl
 
 # Large model artifacts and generated results
 training/*.zip

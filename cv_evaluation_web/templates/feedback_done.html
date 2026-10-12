@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}Đánh giá kết quả · CV Insight{% endblock %}
+{% block content %}
+<section class="plain-page"><div class="container prose withdraw-wrap"><span class="eyebrow">ĐÁNH GIÁ MỨC ĐỘ HÀI LÒNG</span><h1>{% if success %}Đã ghi nhận{% else %}Chưa gửi được{% endif %}</h1>
+<div class="alert {{ 'success' if success else 'error' }}" role="status">{{ message }}</div>
+{% if not success %}<p>Dùng nút Quay lại của trình duyệt để trở về trang kết quả và gửi lại.</p>{% endif %}
+<div class="page-actions"><a class="button primary" href="{{ url_for('index') }}#evaluate">Đánh giá CV khác</a></div></div></section>
+{% endblock %}

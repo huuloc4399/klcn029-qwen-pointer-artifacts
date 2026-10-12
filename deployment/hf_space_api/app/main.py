@@ -1,7 +1,10 @@
 """FastAPI service exposing the Colab extraction pipeline as an asynchronous job API.
 
 POST /v1/jobs        submit {language, source_text | pdf_base64}; returns {id, status}
-GET  /v1/jobs/{id}   RunPod-compatible status with output when COMPLETED
+GET  /v1/jobs/{id}   RunPod-compatible status with output when COMPLETED, plus queue position
+                     and ETA while waiting
+POST /v1/feedback    store one satisfaction rating forwarded by the web app
+GET  /v1/feedback/summary  rating count, mean and distribution
 GET  /health         public liveness and model state (no CV data)
 
 Every /v1 route requires the X-API-Key header to equal the API_KEY Space secret.
@@ -15,12 +18,14 @@ import os
 import re
 import threading
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any, Callable, Literal
 
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, model_validator
 
+from .feedback import DuplicateFeedbackError, FeedbackStore
 from .jobs import JobQueue, QueueFullError
 from .ocr import OCREngines
 from .pipeline import API_VERSION, Runtime, process_request, verify_runtime_sources
@@ -45,6 +50,30 @@ class JobRequest(BaseModel):
         return self
 
 
+class FeedbackContext(BaseModel):
+    """Non-identifying facts about the rated result; never CV or JD content."""
+
+    model_config = {"extra": "forbid"}
+
+    pipeline_mode: str | None = Field(default=None, max_length=32)
+    language: str | None = Field(default=None, max_length=8)
+    total_score: float | None = Field(default=None, ge=0, le=100)
+    verdict: str | None = Field(default=None, max_length=60)
+    method: str | None = Field(default=None, max_length=200)
+    document_route: str | None = Field(default=None, max_length=60)
+    ocr_quality_warning: bool | None = None
+    generated_tokens: int | None = Field(default=None, ge=0)
+    model_runtime_seconds: float | None = Field(default=None, ge=0)
+
+
+class FeedbackRequest(BaseModel):
+    id: str = Field(pattern=r"^[0-9a-f]{32}$")
+    rating: int = Field(ge=1, le=5)
+    comment: str = Field(default="", max_length=1000)
+    created_at: str | None = Field(default=None, max_length=40)
+    context: FeedbackContext = Field(default_factory=FeedbackContext)
+
+
 class ModelState:
     def __init__(self) -> None:
         self.status = "loading"
@@ -53,7 +82,8 @@ class ModelState:
 
 
 def create_app(runtime_factory: Callable[[], Runtime] | None = None, *,
-               verify_sources: bool = True, max_pending: int | None = None) -> FastAPI:
+               verify_sources: bool = True, max_pending: int | None = None,
+               feedback_dir: str | Path | None = None) -> FastAPI:
     if verify_sources:
         verify_runtime_sources()
     state = ModelState()
@@ -62,7 +92,9 @@ def create_app(runtime_factory: Callable[[], Runtime] | None = None, *,
         lambda payload: process_request(payload, state.runtime, engines),
         max_pending=max_pending or int(os.getenv("MAX_PENDING_JOBS", "8")),
         ttl_seconds=int(os.getenv("JOB_TTL_SECONDS", "3600")),
+        default_job_seconds=float(os.getenv("JOB_SECONDS_ESTIMATE", "330")),
     )
+    feedback = FeedbackStore(feedback_dir or os.getenv("FEEDBACK_DIR", "/data/feedback"))
 
     def load_model() -> None:
         try:
@@ -109,6 +141,7 @@ def create_app(runtime_factory: Callable[[], Runtime] | None = None, *,
             "model": state.status,
             "model_error": state.error,
             "pending_jobs": jobs.pending,
+            "job_seconds_estimate": round(jobs.estimate_seconds()),
             "threads": getattr(runtime, "threads", None),
             "gguf": getattr(runtime, "artifact", None),
         }
@@ -121,14 +154,29 @@ def create_app(runtime_factory: Callable[[], Runtime] | None = None, *,
             job = jobs.submit(request.model_dump(exclude_none=True))
         except QueueFullError as exc:
             return JSONResponse(status_code=429, content={"detail": str(exc)})
-        return {"id": job.id, "status": job.status, "model": state.status}
+        return {**jobs.public(job), "model": state.status}
 
     @app.get("/v1/jobs/{job_id}", dependencies=[Depends(require_key)])
     def status(job_id: str) -> dict[str, Any]:
         job = jobs.get(job_id) if JOB_ID.match(job_id) else None
         if job is None:
             raise HTTPException(status_code=404, detail="Job not found or expired")
-        return job.public()
+        return jobs.public(job)
+
+    @app.post("/v1/feedback", status_code=201, dependencies=[Depends(require_key)])
+    def add_feedback(request: FeedbackRequest) -> dict[str, Any]:
+        try:
+            stored = feedback.add(request.model_dump())
+        except DuplicateFeedbackError as exc:
+            return JSONResponse(status_code=409, content={"detail": str(exc)})
+        except OSError:
+            LOGGER.exception("Feedback store is not writable")
+            raise HTTPException(status_code=503, detail="Máy chủ chưa lưu được đánh giá.")
+        return {"id": stored["id"], "status": "stored"}
+
+    @app.get("/v1/feedback/summary", dependencies=[Depends(require_key)])
+    def feedback_summary() -> dict[str, Any]:
+        return feedback.summary()
 
     return app
 

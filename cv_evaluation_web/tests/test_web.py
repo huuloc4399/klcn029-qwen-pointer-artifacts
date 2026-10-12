@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import json
+import re
 import shutil
 import sys
 import unittest
@@ -93,6 +94,13 @@ Bachelor of Software Engineering
     return payload
 
 
+def feedback_context(body: str) -> str:
+    """Signed context token from the rating form on a result page."""
+    match = re.search(r'name="context" value="([^"]+)"', body)
+    assert match, "result page has no rating form"
+    return match.group(1)
+
+
 class WebFlowTests(unittest.TestCase):
     def setUp(self):
         self.tempdir = ROOT / "cv_evaluation_web" / "data" / ".qa" / uuid.uuid4().hex
@@ -145,6 +153,40 @@ class WebFlowTests(unittest.TestCase):
         withdrawn = self.client.post("/withdraw", data={"withdrawal_code": code})
         self.assertIn("đã được xóa", withdrawn.get_data(as_text=True))
         self.assertEqual(list((self.tempdir / "submissions").glob("*/cv.pdf")), [])
+
+    def test_local_feedback_is_stored_once(self):
+        body = self._post(research=False).get_data(as_text=True)
+        self.assertIn("Bạn hài lòng với kết quả này", body)
+        context = feedback_context(body)
+        stored = self.client.post("/feedback", data={"context": context, "rating": "4", "comment": "mail me: a@b.vn"},
+                                  headers={"Accept": "application/json"})
+        self.assertEqual(stored.status_code, 201)
+        again = self.client.post("/feedback", data={"context": context, "rating": "2"}, headers={"Accept": "application/json"})
+        self.assertEqual(again.get_json()["status"], "duplicate")
+        lines = (self.tempdir / "feedback" / "feedback.jsonl").read_text(encoding="utf-8").splitlines()
+        self.assertEqual(len(lines), 1)
+        record = json.loads(lines[0])
+        self.assertEqual(record["rating"], 4)
+        self.assertNotIn("a@b.vn", record["comment"])
+        self.assertEqual(record["context"]["pipeline_mode"], "local_baseline")
+        self.assertIn("total_score", record["context"])
+
+    def test_feedback_rejects_bad_rating_and_forged_context(self):
+        context = feedback_context(self._post(research=False).get_data(as_text=True))
+        headers = {"Accept": "application/json"}
+        self.assertEqual(self.client.post("/feedback", data={"context": context, "rating": "6"}, headers=headers).status_code, 400)
+        self.assertEqual(self.client.post("/feedback", data={"context": context, "rating": ""}, headers=headers).status_code, 400)
+        self.assertEqual(self.client.post("/feedback", data={"context": context[:-2] + "xx", "rating": "5"},
+                                          headers=headers).status_code, 400)
+        self.assertEqual(self.client.post("/feedback", data={"context": context, "rating": "5", "comment": "x" * 1001},
+                                          headers=headers).status_code, 400)
+        self.assertFalse((self.tempdir / "feedback" / "feedback.jsonl").exists())
+
+    def test_feedback_without_javascript_renders_thank_you_page(self):
+        context = feedback_context(self._post(research=False).get_data(as_text=True))
+        response = self.client.post("/feedback", data={"context": context, "rating": "5"})
+        self.assertEqual(response.status_code, 201)
+        self.assertIn("Cảm ơn bạn đã đánh giá", response.get_data(as_text=True))
 
     def test_rejects_missing_consent_and_short_jd(self):
         response = self.client.post(
@@ -258,11 +300,13 @@ class RunPodWebFlowTests(unittest.TestCase):
 
 
 class FakeSpaceClient:
-    """Mimics deployment/hf_space_api: IN_PROGRESS first, then a final payload."""
+    """Mimics deployment/hf_space_api: one in-flight status first, then a final payload."""
 
-    def __init__(self, final):
+    def __init__(self, final, first=None):
         self.final = final
+        self.first = first or {"status": "IN_PROGRESS", "delayTime": 10}
         self.submitted = []
+        self.feedback = []
         self.polls = 0
 
     def submit(self, job_input, *, webhook_url=None):
@@ -272,8 +316,14 @@ class FakeSpaceClient:
     def status(self, job_id):
         self.polls += 1
         if self.polls == 1:
-            return {"id": job_id, "status": "IN_PROGRESS", "delayTime": 10}
+            return {"id": job_id, **self.first}
         return {"id": job_id, **self.final}
+
+    def submit_feedback(self, record):
+        if any(item["id"] == record["id"] for item in self.feedback):
+            return False
+        self.feedback.append(record)
+        return True
 
 
 class HFSpaceWebFlowTests(unittest.TestCase):
@@ -284,8 +334,8 @@ class HFSpaceWebFlowTests(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.tempdir, ignore_errors=True)
 
-    def _app(self, final, research_enabled=False):
-        self.remote = FakeSpaceClient(final)
+    def _app(self, final, research_enabled=False, first=None):
+        self.remote = FakeSpaceClient(final, first)
         app = create_app({
             "TESTING": True,
             "DATA_DIR": str(self.tempdir),
@@ -311,7 +361,7 @@ class HFSpaceWebFlowTests(unittest.TestCase):
         client = self._app({"status": "COMPLETED", "output": {**REMOTE_OUTPUT, "method_label": "Qwen Pointer P0 (GGUF, CPU) + Parser v1"}})
         home = client.get("/").get_data(as_text=True)
         self.assertNotIn('name="consent_research"', home)
-        self.assertIn("Hugging Face Spaces", home)
+        self.assertIn("Oracle Cloud", home)
         token = self._submit(client, research=True).headers["Location"].rsplit("/", 1)[-1]
         self.assertEqual(client.get(f"/api/jobs/{token}").get_json()["status"], "IN_PROGRESS")
         status = client.get(f"/api/jobs/{token}").get_json()
@@ -327,6 +377,38 @@ class HFSpaceWebFlowTests(unittest.TestCase):
         client.get(f"/api/jobs/{token}")
         status = client.get(f"/api/jobs/{token}").get_json()
         self.assertEqual(status, {"status": "FAILED", "message": "PDF có mật khẩu."})
+
+    def test_queue_position_and_eta_are_shown(self):
+        client = self._app({"status": "COMPLETED", "output": REMOTE_OUTPUT},
+                           first={"status": "IN_QUEUE", "queuePosition": 2, "etaSeconds": 900, "estimateSeconds": 330})
+        token = self._submit(client, research=False).headers["Location"].rsplit("/", 1)[-1]
+        status = client.get(f"/api/jobs/{token}").get_json()
+        self.assertEqual(status["queue_position"], 2)
+        self.assertEqual(status["eta_seconds"], 900)
+        self.assertIn("còn 2 CV trước bạn", status["message"])
+        self.assertIn("12–18 phút", status["message"])
+
+    def test_feedback_is_forwarded_once_without_cv_content(self):
+        client = self._app({"status": "COMPLETED", "output": REMOTE_OUTPUT})
+        token = self._submit(client, research=False).headers["Location"].rsplit("/", 1)[-1]
+        client.get(f"/api/jobs/{token}")
+        result_url = client.get(f"/api/jobs/{token}").get_json()["result_url"]
+        context = feedback_context(client.get(result_url).get_data(as_text=True))
+        form = {"context": context, "rating": "5", "comment": "Rất hữu ích, gọi 0912 345 678"}
+        first = client.post("/feedback", data=form, headers={"Accept": "application/json"})
+        self.assertEqual(first.status_code, 201, first.get_json())
+        # Reloading the result page yields the same rating id, so a second rating is refused.
+        second = client.post("/feedback", data={**form, "context": feedback_context(client.get(result_url).get_data(as_text=True))},
+                             headers={"Accept": "application/json"})
+        self.assertEqual(second.get_json()["status"], "duplicate")
+        self.assertEqual(len(self.remote.feedback), 1)
+        record = self.remote.feedback[0]
+        self.assertEqual(record["rating"], 5)
+        self.assertNotIn("0912", record["comment"])
+        self.assertEqual(record["context"]["pipeline_mode"], "hf_space")
+        self.assertEqual(record["context"]["generated_tokens"], 140)
+        self.assertRegex(record["id"], r"^[0-9a-f]{32}$")
+        self.assertNotIn("Backend developer", json.dumps(record, ensure_ascii=False))
 
     def test_rejected_extraction_fails_job(self):
         client = self._app({"status": "COMPLETED", "output": {"status": "rejected", "issues": []}})
@@ -385,6 +467,13 @@ class ExtractionClientTests(unittest.TestCase):
         self._respond(self.Response(404, {"detail": "Job not found or expired"}))
         status = self.client.status("c" * 32)
         self.assertEqual(status["status"], "FAILED")
+
+    def test_feedback_post_and_duplicate(self):
+        self._respond(self.Response(201, {"id": "d" * 32, "status": "stored"}))
+        self.assertTrue(self.client.submit_feedback({"id": "d" * 32, "rating": 5}))
+        self.assertEqual(self.calls[0][0], "https://team-api.hf.space/v1/feedback")
+        self._respond(self.Response(409, {"detail": "duplicate"}))
+        self.assertFalse(self.client.submit_feedback({"id": "d" * 32, "rating": 5}))
 
     def test_requires_https_and_key(self):
         with self.assertRaises(ValueError):

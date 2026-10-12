@@ -172,6 +172,25 @@ giữ nguyên vì web gọi cùng một API). Sau đó chạy các ca kiểm tra
   khởi động nếu hash GGUF không khớp.
 - **Khởi động lại máy:** container tự chạy lại (`restart: unless-stopped`).
 - **Nhật ký:** `docker compose logs --tail 200 api`. API không log nội dung CV.
+- **Hàng đợi:** trang xử lý hiện số CV đứng trước và thời gian dự kiến (dạng khoảng). Ước tính lấy
+  trung vị thời gian của 10 CV gần nhất; khi chưa có CV nào thì dùng `JOB_SECONDS_ESTIMATE` (mặc định
+  330 giây, số đo của bản Q4_K_M). Sau khi có số đo trên VM ở bước 6, có thể đặt biến này trong `.env`.
+- **Đánh giá mức độ hài lòng:** web chuyển mỗi đánh giá (1–5 sao, góp ý đã che email/số điện thoại,
+  điểm, ngôn ngữ, tuyến xử lý, thời gian model) sang API, API ghi vào
+  `/data/feedback/feedback.jsonl` trong volume. Không có CV, JD hay mã tác vụ. Xem tổng hợp:
+
+  ```powershell
+  curl.exe -H "X-API-Key: <API_KEY>" https://<API_DOMAIN>/v1/feedback/summary
+  ```
+
+  Tải toàn bộ về máy để phân tích cho báo cáo (chạy trên VM, rồi `scp` tệp về):
+
+  ```bash
+  docker compose cp api:/data/feedback/feedback.jsonl ./feedback.jsonl
+  ```
+
+  Mỗi kết quả chỉ nhận một đánh giá. Đánh giá chứa góp ý tự do, nên xử lý như dữ liệu người tham gia:
+  không đưa tệp này lên kho mã nguồn.
 - **Bảo mật:** chỉ mở cổng 22, 80, 443. Mọi route `/v1` yêu cầu `X-API-Key`. `.env` không được commit
   (đã có trong `.gitignore`) và không được đưa vào image (`.dockerignore`).
 - Nếu lộ `API_KEY` hoặc `HF_TOKEN`: tạo khóa mới, sửa `.env`, `docker compose up -d`, cập nhật Render.

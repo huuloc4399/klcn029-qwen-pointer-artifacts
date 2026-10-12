@@ -7,11 +7,14 @@ The status payload mirrors RunPod's /status shape that cv_evaluation_web already
 
 from __future__ import annotations
 
+import itertools
 import logging
 import queue
+import statistics
 import threading
 import time
 import uuid
+from collections import deque
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
@@ -28,6 +31,7 @@ class QueueFullError(RuntimeError):
 class Job:
     id: str
     payload: dict[str, Any] | None
+    order: int = 0
     status: str = "IN_QUEUE"
     created: float = field(default_factory=time.time)
     started: float | None = None
@@ -53,7 +57,7 @@ class Job:
 
 class JobQueue:
     def __init__(self, process: Callable[[dict[str, Any]], dict[str, Any]], *,
-                 max_pending: int = 8, ttl_seconds: int = 3600) -> None:
+                 max_pending: int = 8, ttl_seconds: int = 3600, default_job_seconds: float = 330.0) -> None:
         self._process = process
         self._max_pending = max_pending
         self._ttl = ttl_seconds
@@ -61,6 +65,10 @@ class JobQueue:
         self._pending: queue.Queue[str] = queue.Queue()
         self._lock = threading.Lock()
         self._worker: threading.Thread | None = None
+        self._order = itertools.count(1)
+        # Until real jobs finish, estimates use the per-CV time measured by the GGUF fidelity run.
+        self._default_job_seconds = default_job_seconds
+        self._recent_seconds: deque[float] = deque(maxlen=10)
 
     def start(self) -> None:
         if self._worker is None:
@@ -71,12 +79,43 @@ class JobQueue:
     def pending(self) -> int:
         return self._pending.qsize()
 
+    def estimate_seconds(self) -> float:
+        """Median duration of recent completed jobs (robust to one long OCR CV)."""
+        with self._lock:
+            recent = list(self._recent_seconds)
+        return statistics.median(recent) if recent else self._default_job_seconds
+
+    def public(self, job: Job) -> dict[str, Any]:
+        """Status payload plus queue position and a rough ETA while the job is not finished.
+
+        queuePosition counts jobs that run before this one (the running job included), so a
+        waiting job with queuePosition 2 has one job in progress and one more queued ahead.
+        Only counts are exposed, never anything about other users' CVs.
+        """
+        estimate = self.estimate_seconds()
+        now = time.time()
+        with self._lock:
+            body = job.public()
+            if job.status in TERMINAL:
+                return body
+            running = [other for other in self._jobs.values() if other.status == "IN_PROGRESS"]
+            running_left = sum(max(estimate - (now - (other.started or now)), 0.0) for other in running)
+            if job.status == "IN_PROGRESS":
+                position, eta = 0, max(estimate - (now - (job.started or now)), 0.0)
+            else:
+                queued_ahead = sum(1 for other in self._jobs.values()
+                                   if other.status == "IN_QUEUE" and other.payload is not None and other.order < job.order)
+                position = len(running) + queued_ahead
+                eta = running_left + (queued_ahead + 1) * estimate
+        body.update({"queuePosition": position, "etaSeconds": int(round(eta)), "estimateSeconds": int(round(estimate))})
+        return body
+
     def submit(self, payload: dict[str, Any]) -> Job:
         self._expire()
         with self._lock:
             if self._pending.qsize() >= self._max_pending:
                 raise QueueFullError("Hàng đợi đang đầy; hãy thử lại sau vài phút.")
-            job = Job(id=uuid.uuid4().hex, payload=payload)
+            job = Job(id=uuid.uuid4().hex, payload=payload, order=next(self._order))
             self._jobs[job.id] = job
         self._pending.put(job.id)
         return job
@@ -116,6 +155,7 @@ class JobQueue:
                 output = self._process(payload)
                 with self._lock:
                     job.output, job.status = output, "COMPLETED"
+                    self._recent_seconds.append(time.time() - job.started)
             except ValueError as exc:
                 # ValueError subclasses carry user-facing messages (bad PDF, prompt too long).
                 with self._lock:

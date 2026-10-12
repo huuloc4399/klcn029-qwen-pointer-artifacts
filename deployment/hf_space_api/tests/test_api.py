@@ -184,6 +184,46 @@ class SpaceApiTest(unittest.TestCase):
             gate.set()
         self.assertIn(429, codes)
 
+    def test_status_reports_queue_position_and_eta(self):
+        gate = threading.Event()
+        with self.client(FakeRuntime(gate=gate)) as client:
+            ids = [client.post("/v1/jobs", headers=HEADERS, json={"source_text": f"CV {i}\nline"}).json()["id"]
+                   for i in range(3)]
+            for _ in range(100):
+                first = client.get(f"/v1/jobs/{ids[0]}", headers=HEADERS).json()
+                if first["status"] == "IN_PROGRESS":
+                    break
+                time.sleep(0.02)
+            third = client.get(f"/v1/jobs/{ids[2]}", headers=HEADERS).json()
+            gate.set()
+            done = wait_for(client, ids[2])
+        self.assertEqual(first["queuePosition"], 0)
+        self.assertEqual(first["estimateSeconds"], 330)
+        self.assertLessEqual(first["etaSeconds"], 330)
+        self.assertEqual(third["status"], "IN_QUEUE")
+        self.assertEqual(third["queuePosition"], 2)
+        self.assertGreater(third["etaSeconds"], 2 * 330 - 10)
+        self.assertNotIn("queuePosition", done)
+
+    def test_feedback_is_stored_once_with_contact_masked(self):
+        folder = Path(tempfile.mkdtemp(prefix="klcn029_feedback_"))
+        record = {"id": "f" * 32, "rating": 4, "comment": "Hữu ích, liên hệ a.b@example.com",
+                  "context": {"pipeline_mode": "hf_space", "language": "en", "total_score": 72.5}}
+        with self.client(feedback_dir=folder) as client:
+            self.assertEqual(client.post("/v1/feedback", json=record).status_code, 401)
+            self.assertEqual(client.post("/v1/feedback", headers=HEADERS, json=record).status_code, 201)
+            self.assertEqual(client.post("/v1/feedback", headers=HEADERS, json=record).status_code, 409)
+            self.assertEqual(client.post("/v1/feedback", headers=HEADERS,
+                                         json={**record, "id": "e" * 32, "rating": 6}).status_code, 422)
+            self.assertEqual(client.post("/v1/feedback", headers=HEADERS,
+                                         json={**record, "id": "e" * 32, "context": {"cv_text": "x"}}).status_code, 422)
+            summary = client.get("/v1/feedback/summary", headers=HEADERS).json()
+        self.assertEqual(summary["count"], 1)
+        self.assertEqual(summary["distribution"]["4"], 1)
+        stored = json.loads((folder / "feedback.jsonl").read_text(encoding="utf-8"))
+        self.assertNotIn("example.com", stored["comment"])
+        self.assertEqual(stored["context"]["total_score"], 72.5)
+
     def test_model_load_failure_is_reported(self):
         def broken():
             raise RuntimeError("Missing Space variables: GGUF_SHA256")

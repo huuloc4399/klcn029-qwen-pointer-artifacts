@@ -1,4 +1,5 @@
-"""Client for the free-tier extraction API hosted on Hugging Face Spaces.
+"""Client for the team's extraction API (deployment/hf_space_api), hosted on the Oracle Always
+Free VM (deployment/oracle_api) or on a Hugging Face Space.
 
 The API (deployment/hf_space_api) returns RunPod-compatible job payloads, so the web app
 finalizes results with the same code path. Messages are user-facing Vietnamese text.
@@ -87,3 +88,15 @@ class ExtractionAPIClient:
         if not isinstance(body.get("status"), str):
             raise ExtractionAPIError("Máy chủ trích xuất trả về trạng thái không hợp lệ.")
         return body
+
+    def submit_feedback(self, record: dict[str, Any]) -> bool:
+        """Store one rating on the API host; False when this result was already rated."""
+        try:
+            response = requests.post(f"{self.base_url}/v1/feedback", headers=self.headers, json=record,
+                                     timeout=self.timeout_seconds)
+        except requests.RequestException as exc:
+            raise ExtractionAPIError("Chưa gửi được đánh giá đến máy chủ. Hãy thử lại sau.") from exc
+        if response.status_code == 409:
+            return False
+        self._json(response)
+        return True

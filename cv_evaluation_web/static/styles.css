@@ -177,6 +177,26 @@ input:focus, select:focus, textarea:focus { border-color: var(--green); box-shad
 .privacy-result strong { color: var(--green-dark); }
 .privacy-result span { color: var(--muted); }
 
+.feedback-card { border-color: #f3dfa2; }
+.rating-icon { color: #b07800; background: #fff6d6; }
+.feedback-form { display: grid; gap: 14px; margin-top: 18px; }
+.feedback-form textarea { min-height: 96px; }
+.feedback-form .privacy-note { margin: 0; }
+.star-rating { margin: 0; padding: 0; border: 0; }
+.star-rating legend { margin-bottom: 4px; font-weight: 650; font-size: 14px; }
+.stars { display: inline-flex; flex-direction: row-reverse; gap: 4px; }
+.stars input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.stars label { color: #d0d5dd; font-size: 36px; line-height: 1; cursor: pointer; transition: color .12s ease, transform .12s ease; }
+.stars label:hover { transform: scale(1.08); }
+.stars input:checked ~ label, .stars label:hover, .stars label:hover ~ label { color: #f5b301; }
+.stars input:focus-visible + label { outline: 3px solid rgba(0,177,79,.35); outline-offset: 2px; border-radius: 6px; }
+.rating-caption { display: block; margin-top: 4px; color: var(--muted); font-size: 13px; }
+.feedback-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
+.feedback-status { font-size: 14px; font-weight: 650; }
+.feedback-status.success { color: var(--green-dark); }
+.feedback-status.error { color: var(--danger); }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
 .plain-page { min-height: 70vh; padding: 70px 0; background: #f7f9f8; }
 .prose { max-width: 820px; padding: 42px; background: white; border: 1px solid var(--line); border-radius: 15px; box-shadow: var(--shadow); }
 .plain-page h1 { margin-top: 9px; font-size: 42px; }

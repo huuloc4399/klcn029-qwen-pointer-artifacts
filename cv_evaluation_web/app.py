@@ -6,12 +6,15 @@ import os
 import base64
 import hashlib
 import hmac
+import math
 import secrets
 import tempfile
 import threading
+from datetime import datetime, timezone
 from pathlib import Path
 
 from flask import Flask, abort, jsonify, redirect, render_template, request, session, url_for
+from itsdangerous import BadSignature, URLSafeTimedSerializer
 from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -21,6 +24,16 @@ from services.evaluator import evaluate
 from services.job_store import JobStore
 from services.pdf_extractor import PDFExtractionError, extract_pdf
 from services.extraction_client import ExtractionAPIClient
+from services.feedback import (
+    COMMENT_LIMIT,
+    FEEDBACK_MAX_AGE_SECONDS,
+    FEEDBACK_SALT,
+    RATING_LABELS,
+    LocalFeedbackStore,
+    clean_comment,
+    feedback_id_for_job,
+    result_context,
+)
 from services.runpod_client import RemoteJobError, RunPodClient, TERMINAL_STATUSES
 from storage import POLICY_VERSION, SubmissionStore
 
@@ -30,9 +43,36 @@ ALLOWED_LANGUAGES = {"auto", "vi", "en"}
 REMOTE_MODES = {"runpod", "hf_space"}
 INFRA_NOTES = {
     "runpod": "Render vận hành web và RunPod vận hành GPU/OCR.",
-    "hf_space": "Render vận hành web; Hugging Face Spaces (máy chủ CPU miễn phí) vận hành OCR và model trích xuất.",
+    "hf_space": (
+        "Render vận hành web; máy chủ CPU của nhóm trên Oracle Cloud (gói Always Free) vận hành OCR, "
+        "model trích xuất và lưu đánh giá mức độ hài lòng."
+    ),
     "local_baseline": "Máy chủ web xử lý trực tiếp, không gửi CV ra dịch vụ khác.",
 }
+FEEDBACK_PER_HOUR = 20
+
+
+def minutes_range(seconds: float) -> str:
+    """Rough range for a CPU job ETA; CV length and OCR make single estimates misleading."""
+    if seconds < 60:
+        return "dưới 1 phút"
+    low = max(1, int(seconds * 0.85 // 60))
+    high = max(low + 1, math.ceil(seconds * 1.2 / 60))
+    return f"{low}–{high} phút"
+
+
+def progress_message(status: str, remote: dict) -> str:
+    """User-facing progress line; uses the extraction API's queue position and ETA when present."""
+    position, eta = remote.get("queuePosition"), remote.get("etaSeconds")
+    if not isinstance(position, int) or not isinstance(eta, (int, float)):
+        return "Đang chờ máy chủ trích xuất..." if status == "IN_QUEUE" else "Qwen đang trích xuất và kiểm tra CV..."
+    if status == "IN_QUEUE":
+        if position <= 0:
+            return f"Sắp đến lượt CV của bạn. Dự kiến hoàn tất sau khoảng {minutes_range(eta)}."
+        return f"Đang chờ: còn {position} CV trước bạn. Dự kiến hoàn tất sau khoảng {minutes_range(eta)}."
+    if eta <= 0:
+        return "Qwen đang hoàn tất CV của bạn; CV dài hoặc cần OCR có thể lâu hơn dự kiến một chút."
+    return f"Qwen đang trích xuất CV của bạn. Dự kiến còn khoảng {minutes_range(eta)}."
 
 
 def create_app(test_config: dict | None = None) -> Flask:
@@ -67,10 +107,20 @@ def create_app(test_config: dict | None = None) -> Flask:
     job_store = JobStore(app.config["DATA_DIR"])
     temporary_dir = Path(app.config["DATA_DIR"]).resolve() / "tmp"
     temporary_dir.mkdir(parents=True, exist_ok=True)
+    feedback_store = LocalFeedbackStore(app.config["DATA_DIR"])
+    feedback_serializer = URLSafeTimedSerializer(app.config["SECRET_KEY"], salt=FEEDBACK_SALT)
     app.config["SUBMISSION_STORE"] = store
     app.config["JOB_STORE"] = job_store
     app.config["TEMPORARY_DIR"] = temporary_dir
     finalize_lock = threading.Lock()
+
+    def secret_bytes() -> bytes:
+        secret_value = app.config["SECRET_KEY"]
+        return secret_value if isinstance(secret_value, bytes) else str(secret_value).encode("utf-8")
+
+    def feedback_token(result: dict, pipeline: dict | None, *, language: str, feedback_id: str) -> str:
+        context = result_context(result, pipeline, language=language, pipeline_mode=app.config["PIPELINE_MODE"])
+        return feedback_serializer.dumps({"id": feedback_id, **context})
 
     def csrf_token() -> str:
         token = session.get("csrf_token")
@@ -239,10 +289,12 @@ def create_app(test_config: dict | None = None) -> Flask:
                 "Tác vụ trích xuất kết thúc nhưng không tạo được kết quả.",
             )
         job_store.update(token, status=remote_status)
-        return {
-            "status": remote_status,
-            "message": "Đang chờ máy chủ trích xuất..." if remote_status == "IN_QUEUE" else "Qwen đang trích xuất và kiểm tra CV...",
-        }
+        payload = {"status": remote_status, "message": progress_message(remote_status, remote)}
+        if isinstance(remote.get("queuePosition"), int):
+            payload["queue_position"] = remote["queuePosition"]
+        if isinstance(remote.get("etaSeconds"), (int, float)):
+            payload["eta_seconds"] = int(remote["etaSeconds"])
+        return payload
 
     @app.after_request
     def security_headers(response):
@@ -287,9 +339,7 @@ def create_app(test_config: dict | None = None) -> Flask:
             return render_template("index.html", stats=store.public_stats(), errors=errors, form=request.form), 400
 
         remote_address = request.remote_addr or "unknown"
-        secret_value = app.config["SECRET_KEY"]
-        secret_bytes = secret_value if isinstance(secret_value, bytes) else str(secret_value).encode("utf-8")
-        identifier_hash = hashlib.sha256(secret_bytes + remote_address.encode("utf-8")).hexdigest()
+        identifier_hash = hashlib.sha256(secret_bytes() + remote_address.encode("utf-8")).hexdigest()
         if not store.allow_request(
             identifier_hash,
             maximum=app.config["RATE_LIMIT_PER_HOUR"],
@@ -372,6 +422,8 @@ def create_app(test_config: dict | None = None) -> Flask:
                 result=result,
                 research_receipt=research_receipt,
                 research_consent=consent_research,
+                feedback_context=feedback_token(result, None, language=language, feedback_id=secrets.token_hex(16)),
+                rating_labels=RATING_LABELS,
             )
         except PDFExtractionError as exc:
             return render_template(
@@ -407,13 +459,62 @@ def create_app(test_config: dict | None = None) -> Flask:
             payload = None
         if payload is None:
             return redirect(url_for("job_page", token=token), code=303)
+        job = job_store.load(token) or {}
         return render_template(
             "result.html",
             result=payload["result"],
             research_receipt=payload.get("research_receipt"),
             research_consent=payload.get("research_consent", False),
             pipeline=payload.get("pipeline"),
+            feedback_context=feedback_token(
+                payload["result"], payload.get("pipeline"), language=job.get("language", "auto"),
+                feedback_id=feedback_id_for_job(secret_bytes(), token),
+            ),
+            rating_labels=RATING_LABELS,
         )
+
+    @app.post("/feedback")
+    def submit_feedback():
+        wants_json = request.accept_mimetypes.best == "application/json"
+
+        def reply(status: str, message: str, code: int):
+            if wants_json:
+                return jsonify({"status": status, "message": message}), code
+            return render_template("feedback_done.html", message=message,
+                                   success=status in {"stored", "duplicate"}), code
+
+        try:
+            context = feedback_serializer.loads(request.form.get("context", ""), max_age=FEEDBACK_MAX_AGE_SECONDS)
+        except BadSignature:
+            return reply("invalid", "Phiên đánh giá đã hết hạn hoặc không hợp lệ. Hãy tải lại trang kết quả.", 400)
+        rating = request.form.get("rating", "")
+        if rating not in {"1", "2", "3", "4", "5"}:
+            return reply("invalid", "Hãy chọn mức hài lòng từ 1 đến 5 sao.", 400)
+        comment = request.form.get("comment", "").strip()
+        if len(comment) > COMMENT_LIMIT:
+            return reply("invalid", f"Góp ý tối đa {COMMENT_LIMIT} ký tự.", 400)
+        remote_address = request.remote_addr or "unknown"
+        identifier_hash = hashlib.sha256(secret_bytes() + b"feedback:" + remote_address.encode("utf-8")).hexdigest()
+        if not store.allow_request(identifier_hash, maximum=FEEDBACK_PER_HOUR, window_seconds=3600):
+            return reply("limited", "Bạn đã gửi quá nhiều đánh giá trong một giờ. Hãy thử lại sau.", 429)
+
+        record = {
+            "id": context.pop("id"),
+            "rating": int(rating),
+            "comment": clean_comment(comment),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "context": context,
+        }
+        try:
+            if app.config["PIPELINE_MODE"] == "hf_space":
+                stored = remote_client.submit_feedback(record)
+            else:
+                stored = feedback_store.add(record)
+        except RemoteJobError as exc:
+            return reply("unavailable", str(exc), 502)
+        if not stored:
+            return reply("duplicate", "Bạn đã đánh giá kết quả này rồi. Cảm ơn bạn!", 200)
+        return reply("stored", "Cảm ơn bạn đã đánh giá! Ý kiến của bạn giúp nhóm cải thiện hệ thống.", 201)
 
     @app.post("/api/runpod/webhook/<secret>")
     def runpod_webhook(secret: str):

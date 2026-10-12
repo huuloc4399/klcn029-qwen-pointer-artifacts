@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Kết quả đánh giá · CV Insight{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='feedback.js') }}" defer></script>{% endblock %}
 {% block content %}
 <section class="result-hero">
   <div class="container result-heading"><div><span class="eyebrow">KẾT QUẢ ĐÁNH GIÁ</span><h1>CV của bạn đang ở mức <em>{{ result.verdict }}</em></h1><p>Điểm được tính bằng baseline có thể tái lập. Hãy dùng các nhận xét như danh sách kiểm tra, không xem đây là quyết định tuyển dụng.</p></div><a class="button secondary" href="{{ url_for('index') }}#evaluate">Đánh giá CV khác</a></div>
@@ -33,6 +34,28 @@
       <section class="receipt-card"><span class="receipt-icon">♡</span><div><h2>Cảm ơn bạn đã đóng góp cho nghiên cứu</h2><p>Hãy lưu mã dưới đây. Đây là cách duy nhất để yêu cầu xóa dữ liệu đã đóng góp.</p><code>{{ research_receipt.withdrawal_code }}</code><small>Mã hồ sơ nghiên cứu: {{ research_receipt.submission_id }}</small></div></section>
       {% else %}
       <section class="privacy-result"><strong>CV không được lưu vào tập nghiên cứu.</strong><span>Tệp tạm đã bị xóa sau khi kết quả này được tạo.</span></section>
+      {% endif %}
+
+      {% if feedback_context %}
+      <section class="result-card feedback-card" id="feedback" aria-labelledby="feedbackTitle">
+        <div class="card-title"><span class="title-icon rating-icon">★</span><div><h2 id="feedbackTitle">Bạn hài lòng với kết quả này đến mức nào?</h2><p>Đánh giá giúp nhóm đo chất lượng hệ thống. Bạn có thể bỏ qua phần này.</p></div></div>
+        <form class="feedback-form" id="feedbackForm" method="post" action="{{ url_for('submit_feedback') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="context" value="{{ feedback_context }}">
+          <fieldset class="star-rating">
+            <legend>Mức độ hài lòng</legend>
+            <div class="stars">
+              {% for value in range(5, 0, -1) %}<input type="radio" id="rating{{ value }}" name="rating" value="{{ value }}" data-label="{{ rating_labels[value] }}" required><label for="rating{{ value }}" title="{{ value }} sao · {{ rating_labels[value] }}"><span class="visually-hidden">{{ value }} sao · {{ rating_labels[value] }}</span><span aria-hidden="true">★</span></label>{% endfor %}
+            </div>
+            <span class="rating-caption" id="ratingCaption">Chọn từ 1 sao (rất không hài lòng) đến 5 sao (rất hài lòng)</span>
+          </fieldset>
+          <label class="full-label">Góp ý thêm <span class="optional">(không bắt buộc)</span>
+            <textarea name="comment" maxlength="1000" rows="3" placeholder="Điều gì hữu ích, điều gì chưa chính xác?"></textarea>
+          </label>
+          <p class="privacy-note">Đừng nhập thông tin cá nhân; email và số điện thoại trong góp ý sẽ được che. Nhóm chỉ lưu số sao, góp ý và thông tin tổng quát của kết quả (điểm, ngôn ngữ, thời gian xử lý), không lưu CV hay JD.</p>
+          <div class="feedback-actions"><button class="button primary" type="submit">Gửi đánh giá</button><span class="feedback-status" id="feedbackStatus" role="status" aria-live="polite"></span></div>
+        </form>
+      </section>
       {% endif %}
     </div>
   </div>
