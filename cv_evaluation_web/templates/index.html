@@ -53,12 +53,13 @@
 
       <div class="form-card consent-card">
         <div class="step-title"><span>3</span><div><h3>Xác nhận sử dụng dữ liệu</h3><p>Hai lựa chọn dưới đây hoàn toàn tách biệt.</p></div></div>
-        <label class="check-row required-check"><input type="checkbox" name="consent_evaluation" value="yes" required><span><strong>Tôi đồng ý để hệ thống xử lý tạm thời CV và JD nhằm trả kết quả đánh giá.</strong><small>Render vận hành web và RunPod vận hành GPU/OCR. Nếu không chọn đóng góp nghiên cứu, tệp tạm sẽ bị xóa sau khi hoàn tất hoặc hết hạn xử lý.</small></span></label>
-        <label class="check-row research-check"><input type="checkbox" name="consent_research" value="yes"><span><strong>Tôi tự nguyện đóng góp CV, JD và kết quả cho nghiên cứu của nhóm.</strong><small>Không ảnh hưởng đến điểm đánh giá. Bạn sẽ nhận mã rút dữ liệu sau khi gửi và có thể yêu cầu xóa bất cứ lúc nào.</small></span></label>
+        <label class="check-row required-check"><input type="checkbox" name="consent_evaluation" value="yes" required><span><strong>Tôi đồng ý để hệ thống xử lý tạm thời CV và JD nhằm trả kết quả đánh giá.</strong><small>{{ infra_note }} Nếu không chọn đóng góp nghiên cứu, tệp tạm sẽ bị xóa sau khi hoàn tất hoặc hết hạn xử lý.</small></span></label>
+        {% if research_enabled %}<label class="check-row research-check"><input type="checkbox" name="consent_research" value="yes"><span><strong>Tôi tự nguyện đóng góp CV, JD và kết quả cho nghiên cứu của nhóm.</strong><small>Không ảnh hưởng đến điểm đánh giá. Bạn sẽ nhận mã rút dữ liệu sau khi gửi và có thể yêu cầu xóa bất cứ lúc nào.</small></span></label>
+        {% else %}<p class="privacy-note">Bản thử nghiệm này không lưu CV cho nghiên cứu: mọi tệp chỉ được xử lý tạm thời rồi xóa.</p>{% endif %}
         <p class="privacy-note">Bằng việc tiếp tục, bạn xác nhận CV thuộc quyền sử dụng của mình. Xem <a href="{{ url_for('privacy') }}" target="_blank">chính sách dữ liệu nghiên cứu</a>.</p>
       </div>
 
-      <button class="button primary submit-button" type="submit" id="submitButton"><span>Phân tích và đánh giá CV</span><small>GPU có thể cần 30 giây đến vài phút ở lần chạy đầu</small></button>
+      <button class="button primary submit-button" type="submit" id="submitButton"><span>Phân tích và đánh giá CV</span><small>{% if pipeline_mode == 'hf_space' %}Máy chủ CPU miễn phí: mỗi CV cần vài phút, lần đầu sau thời gian nghỉ cần thêm thời gian khởi động{% else %}GPU có thể cần 30 giây đến vài phút ở lần chạy đầu{% endif %}</small></button>
     </form>
   </div>
 </section>

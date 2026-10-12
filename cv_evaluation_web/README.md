@@ -42,7 +42,11 @@ Biến môi trường:
 | `CV_WEB_MAX_PDF_PAGES` | `12` | giới hạn số trang |
 | `CV_WEB_HOST` | `127.0.0.1` | địa chỉ lắng nghe |
 | `CV_WEB_PORT` | `8780` | cổng web |
-| `CV_PIPELINE_MODE` | `local_baseline` | `local_baseline` hoặc `runpod` |
+| `CV_PIPELINE_MODE` | `local_baseline` | `local_baseline`, `hf_space` (API miễn phí trên Hugging Face Spaces) hoặc `runpod` |
+| `EXTRACTION_API_URL` | trống | URL https của Space API khi `CV_PIPELINE_MODE=hf_space` |
+| `EXTRACTION_API_KEY` | trống | khóa `X-API-Key` của Space API |
+| `EXTRACTION_HF_TOKEN` | trống | token read của Hugging Face, chỉ cần khi Space private |
+| `CV_WEB_RESEARCH_ENABLED` | `1` | `0` ẩn và tắt lưu nghiên cứu (bản thử nghiệm không có ổ đĩa lâu dài) |
 | `RUNPOD_ENDPOINT_ID` | trống | endpoint Qwen trên RunPod |
 | `RUNPOD_API_KEY` | trống | khóa server-side để gọi RunPod |
 | `RUNPOD_WEBHOOK_SECRET` | trống | bí mật xác thực URL webhook |
@@ -78,7 +82,7 @@ Model trích xuất và parser không sinh điểm tuyển dụng. `services/eva
 đã kiểm tra và thực hiện baseline matching có thể tái lập. Cách tách này giữ ranh giới mô đun
 trích xuất với mô đun chấm điểm của dự án.
 
-Hướng dẫn triển khai đầy đủ ở `deployment/DEPLOY_RENDER_RUNPOD.md`.
+Hướng dẫn triển khai đầy đủ ở `deployment/DEPLOY_RENDER_RUNPOD.md`. Phương án thử nghiệm miễn phí (Render free + Hugging Face Spaces CPU) ở `deployment/DEPLOY_FREE_HF_RENDER.md`.
 
 Lý do vẫn giữ chế độ local:
 

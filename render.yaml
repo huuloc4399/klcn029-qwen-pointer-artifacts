@@ -1,21 +1,25 @@
+# Free test deployment: web on Render (free plan), extraction API on a Hugging Face Space.
+# Guide: deployment/DEPLOY_FREE_HF_RENDER.md. The paid Render + RunPod blueprint is kept in
+# deployment/render.runpod.yaml.
+#
+# Render free web services sleep after 15 minutes without traffic and have no persistent
+# disk, so research storage is disabled (CV_WEB_RESEARCH_ENABLED=0) and job files live in /tmp.
 services:
   - type: web
     name: cv-insight-klcn029
     runtime: docker
+    plan: free
     dockerfilePath: ./cv_evaluation_web/Dockerfile
     dockerContext: .
     healthCheckPath: /api/health
     numInstances: 1
-    maxShutdownDelaySeconds: 60
-    disk:
-      name: cv-insight-data
-      mountPath: /var/data
-      sizeGB: 5
     envVars:
       - key: CV_PIPELINE_MODE
-        value: runpod
+        value: hf_space
       - key: CV_WEB_DATA_DIR
-        value: /var/data
+        value: /tmp/cv-web-data
+      - key: CV_WEB_RESEARCH_ENABLED
+        value: "0"
       - key: CV_WEB_MAX_UPLOAD_MB
         value: 8
       - key: CV_WEB_MAX_PDF_PAGES
@@ -24,9 +28,9 @@ services:
         value: 5
       - key: CV_WEB_SECRET_KEY
         generateValue: true
-      - key: RUNPOD_WEBHOOK_SECRET
-        generateValue: true
-      - key: RUNPOD_ENDPOINT_ID
+      - key: EXTRACTION_API_URL
         sync: false
-      - key: RUNPOD_API_KEY
+      - key: EXTRACTION_API_KEY
+        sync: false
+      - key: EXTRACTION_HF_TOKEN
         sync: false

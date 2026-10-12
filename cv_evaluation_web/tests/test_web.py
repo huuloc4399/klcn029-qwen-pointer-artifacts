@@ -256,5 +256,139 @@ class RunPodWebFlowTests(unittest.TestCase):
         self.assertEqual(len(list((self.tempdir / "submissions").glob("*/cv.pdf"))), 1)
 
 
+
+class FakeSpaceClient:
+    """Mimics deployment/hf_space_api: IN_PROGRESS first, then a final payload."""
+
+    def __init__(self, final):
+        self.final = final
+        self.submitted = []
+        self.polls = 0
+
+    def submit(self, job_input, *, webhook_url=None):
+        self.submitted.append(job_input)
+        return {"id": "a" * 32, "status": "IN_QUEUE"}
+
+    def status(self, job_id):
+        self.polls += 1
+        if self.polls == 1:
+            return {"id": job_id, "status": "IN_PROGRESS", "delayTime": 10}
+        return {"id": job_id, **self.final}
+
+
+class HFSpaceWebFlowTests(unittest.TestCase):
+    def setUp(self):
+        self.tempdir = ROOT / "cv_evaluation_web" / "data" / ".qa" / uuid.uuid4().hex
+        self.tempdir.mkdir(parents=True, exist_ok=False)
+
+    def tearDown(self):
+        shutil.rmtree(self.tempdir, ignore_errors=True)
+
+    def _app(self, final, research_enabled=False):
+        self.remote = FakeSpaceClient(final)
+        app = create_app({
+            "TESTING": True,
+            "DATA_DIR": str(self.tempdir),
+            "PIPELINE_MODE": "hf_space",
+            "REMOTE_CLIENT": self.remote,
+            "RESEARCH_ENABLED": research_enabled,
+            "CSRF_ENABLED": False,
+        })
+        return app.test_client()
+
+    def _submit(self, client, research=True):
+        data = {
+            "cv_file": (io.BytesIO(sample_pdf()), "candidate.pdf"),
+            "jd_text": JD_TEXT,
+            "language": "en",
+            "consent_evaluation": "yes",
+        }
+        if research:
+            data["consent_research"] = "yes"
+        return client.post("/evaluate", data=data, content_type="multipart/form-data")
+
+    def test_research_disabled_hides_option_and_never_stores(self):
+        client = self._app({"status": "COMPLETED", "output": {**REMOTE_OUTPUT, "method_label": "Qwen Pointer P0 (GGUF, CPU) + Parser v1"}})
+        home = client.get("/").get_data(as_text=True)
+        self.assertNotIn('name="consent_research"', home)
+        self.assertIn("Hugging Face Spaces", home)
+        token = self._submit(client, research=True).headers["Location"].rsplit("/", 1)[-1]
+        self.assertEqual(client.get(f"/api/jobs/{token}").get_json()["status"], "IN_PROGRESS")
+        status = client.get(f"/api/jobs/{token}").get_json()
+        self.assertEqual(status["status"], "COMPLETED")
+        body = client.get(status["result_url"]).get_data(as_text=True)
+        self.assertIn("GGUF, CPU", body)
+        self.assertEqual(list((self.tempdir / "submissions").glob("*/cv.pdf")), [])
+        self.assertIn("source_text", self.remote.submitted[0])
+
+    def test_remote_failure_message_is_shown(self):
+        client = self._app({"status": "FAILED", "error": "PDF có mật khẩu."})
+        token = self._submit(client, research=False).headers["Location"].rsplit("/", 1)[-1]
+        client.get(f"/api/jobs/{token}")
+        status = client.get(f"/api/jobs/{token}").get_json()
+        self.assertEqual(status, {"status": "FAILED", "message": "PDF có mật khẩu."})
+
+    def test_rejected_extraction_fails_job(self):
+        client = self._app({"status": "COMPLETED", "output": {"status": "rejected", "issues": []}})
+        token = self._submit(client, research=False).headers["Location"].rsplit("/", 1)[-1]
+        client.get(f"/api/jobs/{token}")
+        self.assertEqual(client.get(f"/api/jobs/{token}").get_json()["status"], "FAILED")
+
+
+class ExtractionClientTests(unittest.TestCase):
+    class Response:
+        def __init__(self, status_code, body=None, content_type="application/json"):
+            self.status_code = status_code
+            self._body = body
+            self.headers = {"Content-Type": content_type}
+
+        def json(self):
+            return self._body
+
+        def raise_for_status(self):
+            if self.status_code >= 400:
+                import requests
+                raise requests.HTTPError(str(self.status_code))
+
+    def setUp(self):
+        import services.extraction_client as module
+        self.module = module
+        self.client = module.ExtractionAPIClient("https://team-api.hf.space/", "key", hf_token="hf_x")
+        self.calls = []
+        self.original = (module.requests.post, module.requests.get)
+
+    def tearDown(self):
+        self.module.requests.post, self.module.requests.get = self.original
+
+    def _respond(self, response):
+        def fake(url, **kwargs):
+            self.calls.append((url, kwargs))
+            return response
+        self.module.requests.post = self.module.requests.get = fake
+
+    def test_submit_sends_both_keys_and_strips_request_id(self):
+        self._respond(self.Response(202, {"id": "b" * 32, "status": "IN_QUEUE"}))
+        self.client.submit({"request_id": "t", "language": "en", "source_text": "x"})
+        url, kwargs = self.calls[0]
+        self.assertEqual(url, "https://team-api.hf.space/v1/jobs")
+        self.assertEqual(kwargs["headers"]["X-API-Key"], "key")
+        self.assertEqual(kwargs["headers"]["Authorization"], "Bearer hf_x")
+        self.assertNotIn("request_id", kwargs["json"])
+
+    def test_sleeping_space_html_is_a_friendly_error(self):
+        self._respond(self.Response(200, None, content_type="text/html"))
+        with self.assertRaises(self.module.ExtractionAPIError) as caught:
+            self.client.submit({"language": "en", "source_text": "x"})
+        self.assertIn("khởi động", str(caught.exception))
+
+    def test_unknown_job_after_restart_becomes_failed(self):
+        self._respond(self.Response(404, {"detail": "Job not found or expired"}))
+        status = self.client.status("c" * 32)
+        self.assertEqual(status["status"], "FAILED")
+
+    def test_requires_https_and_key(self):
+        with self.assertRaises(ValueError):
+            self.module.ExtractionAPIClient("http://insecure", "key")
+
 if __name__ == "__main__":
     unittest.main()

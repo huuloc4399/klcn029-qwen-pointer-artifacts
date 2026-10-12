@@ -4,6 +4,9 @@ CV_VN_PDF/
 corpus_v2/
 annotation/data/
 annotation_app/data/
+gold_review_app/data/
+gold_review_app/dist/
+gold_review_app/.venv/
 baseline_extraction/data/tmp*/
 baseline_extraction/data/
 baseline_extraction/outputs/
@@ -23,6 +26,11 @@ cv_evaluation_web/data/*
 # Large model artifacts and generated results
 training/*.zip
 training/colab/*.zip
+# Colab upload bundles may hold real CV text (e.g. GOLD40 inputs); only the synthetic
+# GGUF fidelity bundle is safe to version.
+training/colab/artifacts/*
+!training/colab/artifacts/gguf_fidelity_bundle_v1.zip
+dist/
 experiments/ocr/model_cache/
 experiments/ocr/.venv/
 *.safetensors

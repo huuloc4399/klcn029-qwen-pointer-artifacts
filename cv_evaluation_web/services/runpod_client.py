@@ -11,7 +11,11 @@ import requests
 TERMINAL_STATUSES = frozenset({"COMPLETED", "FAILED", "TIMED_OUT", "CANCELLED"})
 
 
-class RunPodError(RuntimeError):
+class RemoteJobError(RuntimeError):
+    """Raised when any remote extraction service cannot accept or describe a job."""
+
+
+class RunPodError(RemoteJobError):
     """Raised when the remote endpoint cannot accept or describe a job."""
 
 

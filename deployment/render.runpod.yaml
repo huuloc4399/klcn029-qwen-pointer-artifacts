@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: cv-insight-klcn029
+    runtime: docker
+    dockerfilePath: ./cv_evaluation_web/Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    numInstances: 1
+    maxShutdownDelaySeconds: 60
+    disk:
+      name: cv-insight-data
+      mountPath: /var/data
+      sizeGB: 5
+    envVars:
+      - key: CV_PIPELINE_MODE
+        value: runpod
+      - key: CV_WEB_DATA_DIR
+        value: /var/data
+      - key: CV_WEB_MAX_UPLOAD_MB
+        value: 8
+      - key: CV_WEB_MAX_PDF_PAGES
+        value: 12
+      - key: CV_WEB_RATE_LIMIT_PER_HOUR
+        value: 5
+      - key: CV_WEB_SECRET_KEY
+        generateValue: true
+      - key: RUNPOD_WEBHOOK_SECRET
+        generateValue: true
+      - key: RUNPOD_ENDPOINT_ID
+        sync: false
+      - key: RUNPOD_API_KEY
+        sync: false

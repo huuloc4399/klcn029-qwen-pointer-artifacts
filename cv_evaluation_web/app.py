@@ -20,12 +20,19 @@ from baseline_extraction.schema import CVSchema
 from services.evaluator import evaluate
 from services.job_store import JobStore
 from services.pdf_extractor import PDFExtractionError, extract_pdf
-from services.runpod_client import RunPodClient, RunPodError, TERMINAL_STATUSES
+from services.extraction_client import ExtractionAPIClient
+from services.runpod_client import RemoteJobError, RunPodClient, TERMINAL_STATUSES
 from storage import POLICY_VERSION, SubmissionStore
 
 
 ROOT = Path(__file__).resolve().parent
 ALLOWED_LANGUAGES = {"auto", "vi", "en"}
+REMOTE_MODES = {"runpod", "hf_space"}
+INFRA_NOTES = {
+    "runpod": "Render vận hành web và RunPod vận hành GPU/OCR.",
+    "hf_space": "Render vận hành web; Hugging Face Spaces (máy chủ CPU miễn phí) vận hành OCR và model trích xuất.",
+    "local_baseline": "Máy chủ web xử lý trực tiếp, không gửi CV ra dịch vụ khác.",
+}
 
 
 def create_app(test_config: dict | None = None) -> Flask:
@@ -39,6 +46,10 @@ def create_app(test_config: dict | None = None) -> Flask:
         RUNPOD_ENDPOINT_ID=os.getenv("RUNPOD_ENDPOINT_ID", ""),
         RUNPOD_API_KEY=os.getenv("RUNPOD_API_KEY", ""),
         RUNPOD_WEBHOOK_SECRET=os.getenv("RUNPOD_WEBHOOK_SECRET", ""),
+        EXTRACTION_API_URL=os.getenv("EXTRACTION_API_URL", ""),
+        EXTRACTION_API_KEY=os.getenv("EXTRACTION_API_KEY", ""),
+        EXTRACTION_HF_TOKEN=os.getenv("EXTRACTION_HF_TOKEN", ""),
+        RESEARCH_ENABLED=os.getenv("CV_WEB_RESEARCH_ENABLED", "1") == "1",
         PUBLIC_BASE_URL=(
             os.getenv("PUBLIC_BASE_URL", "")
             or (f"https://{os.getenv('RENDER_EXTERNAL_HOSTNAME')}" if os.getenv("RENDER_EXTERNAL_HOSTNAME") else "")
@@ -70,6 +81,14 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     app.jinja_env.globals["csrf_token"] = csrf_token
 
+    @app.context_processor
+    def deployment_context():
+        return {
+            "research_enabled": app.config["RESEARCH_ENABLED"],
+            "pipeline_mode": app.config["PIPELINE_MODE"],
+            "infra_note": INFRA_NOTES.get(app.config["PIPELINE_MODE"], ""),
+        }
+
     @app.before_request
     def verify_csrf():
         if not app.config["CSRF_ENABLED"] or request.method not in {"POST", "PUT", "PATCH", "DELETE"}:
@@ -82,11 +101,18 @@ def create_app(test_config: dict | None = None) -> Flask:
             abort(400, description="CSRF token is missing or invalid")
         return None
 
-    runpod_client = app.config.get("RUNPOD_CLIENT")
-    if app.config["PIPELINE_MODE"] == "runpod" and runpod_client is None:
-        runpod_client = RunPodClient(
+    remote_mode = app.config["PIPELINE_MODE"] in REMOTE_MODES
+    remote_client = app.config.get("REMOTE_CLIENT") or app.config.get("RUNPOD_CLIENT")
+    if app.config["PIPELINE_MODE"] == "runpod" and remote_client is None:
+        remote_client = RunPodClient(
             endpoint_id=app.config["RUNPOD_ENDPOINT_ID"],
             api_key=app.config["RUNPOD_API_KEY"],
+        )
+    elif app.config["PIPELINE_MODE"] == "hf_space" and remote_client is None:
+        remote_client = ExtractionAPIClient(
+            base_url=app.config["EXTRACTION_API_URL"],
+            api_key=app.config["EXTRACTION_API_KEY"],
+            hf_token=app.config["EXTRACTION_HF_TOKEN"],
         )
 
     def document_from_payload(payload: dict, *, text: str = ""):
@@ -140,12 +166,13 @@ def create_app(test_config: dict | None = None) -> Flask:
                 local_document["needs_ocr"] = bool(remote_document.get("ocr_pages", 0))
             document = document_from_payload(local_document)
             jd_text = job_store.jd_text(token)
+            extraction_label = output.get("method_label") or "Qwen Pointer P0 + Parser v1"
             result = evaluate(
                 document,
                 jd_text,
                 language=job["language"],
                 cv_schema=cv_schema,
-                method="Qwen Pointer P0 + Parser v1 + deterministic matching baseline v1",
+                method=f"{extraction_label} + deterministic matching baseline v1",
             ).to_dict()
             extraction = {
                 **document.public_dict(),
@@ -174,6 +201,7 @@ def create_app(test_config: dict | None = None) -> Flask:
                     "parser": (output.get("parser") or {}).get("parser_version"),
                     "model": (output.get("manifest") or {}).get("model_id"),
                     "worker_version": (output.get("manifest") or {}).get("worker_version"),
+                    "deployment_policy": (output.get("deployment") or {}).get("policy_version"),
                     "input_tokens": (output.get("manifest") or {}).get("input_tokens"),
                     "generated_tokens": (output.get("manifest") or {}).get("generated_tokens"),
                     "model_runtime_seconds": (output.get("manifest") or {}).get("runtime_seconds"),
@@ -196,18 +224,24 @@ def create_app(test_config: dict | None = None) -> Flask:
             return {"status": "FAILED", "message": job.get("error", "Tác vụ thất bại.")}
         if remote is None:
             try:
-                remote = runpod_client.status(job["remote_job_id"])
-            except RunPodError as exc:
+                remote = remote_client.status(job["remote_job_id"])
+            except RemoteJobError as exc:
                 return {"status": "UNAVAILABLE", "message": str(exc)}
         remote_status = str(remote.get("status", "UNKNOWN")).upper()
         if remote_status == "COMPLETED":
             return finalize_remote_job(token, remote)
         if remote_status in TERMINAL_STATUSES:
-            return fail_remote_job(token, "Tác vụ GPU kết thúc nhưng không tạo được kết quả.")
+            # Only the team's own API returns curated user-facing errors; RunPod errors may hold traces.
+            remote_error = remote.get("error") if app.config["PIPELINE_MODE"] == "hf_space" else None
+            return fail_remote_job(
+                token,
+                remote_error if isinstance(remote_error, str) and remote_error else
+                "Tác vụ trích xuất kết thúc nhưng không tạo được kết quả.",
+            )
         job_store.update(token, status=remote_status)
         return {
             "status": remote_status,
-            "message": "Đang chờ GPU..." if remote_status == "IN_QUEUE" else "Qwen đang trích xuất và kiểm tra CV...",
+            "message": "Đang chờ máy chủ trích xuất..." if remote_status == "IN_QUEUE" else "Qwen đang trích xuất và kiểm tra CV...",
         }
 
     @app.after_request
@@ -235,7 +269,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         language = request.form.get("language", "auto").strip().lower()
         participant_code = request.form.get("participant_code", "").strip()[:80]
         consent_evaluation = request.form.get("consent_evaluation") == "yes"
-        consent_research = request.form.get("consent_research") == "yes"
+        consent_research = app.config["RESEARCH_ENABLED"] and request.form.get("consent_research") == "yes"
 
         if not consent_evaluation:
             errors.append("Bạn cần xác nhận đồng ý xử lý tạm thời để hệ thống đánh giá CV.")
@@ -276,7 +310,9 @@ def create_app(test_config: dict | None = None) -> Flask:
                 upload.save(temporary)
                 temporary_path = Path(temporary.name)
             document = extract_pdf(temporary_path, max_pages=app.config["MAX_PDF_PAGES"])
-            if app.config["PIPELINE_MODE"] == "runpod":
+            if remote_mode and document.needs_ocr and language == "auto" and document.character_count < 40:
+                raise PDFExtractionError("CV là PDF dạng ảnh; hãy chọn đúng ngôn ngữ CV để hệ thống chạy OCR.")
+            if remote_mode:
                 token = job_store.create(
                     pdf_path=temporary_path,
                     jd_text=jd_text,
@@ -287,9 +323,10 @@ def create_app(test_config: dict | None = None) -> Flask:
                 )
                 if document.needs_ocr:
                     pdf_bytes = temporary_path.read_bytes()
-                    if len(pdf_bytes) > 6 * 1024 * 1024:
+                    ocr_limit_mb = 6 if app.config["PIPELINE_MODE"] == "runpod" else 8
+                    if len(pdf_bytes) > ocr_limit_mb * 1024 * 1024:
                         job_store.delete(token)
-                        raise PDFExtractionError("PDF cần OCR và vượt giới hạn 6 MB của pipeline GPU.")
+                        raise PDFExtractionError(f"PDF cần OCR và vượt giới hạn {ocr_limit_mb} MB của máy chủ trích xuất.")
                     remote_input = {
                         "request_id": token,
                         "language": language,
@@ -310,8 +347,8 @@ def create_app(test_config: dict | None = None) -> Flask:
                         f"{url_for('runpod_webhook', secret=app.config['RUNPOD_WEBHOOK_SECRET'])}"
                     )
                 try:
-                    submitted = runpod_client.submit(remote_input, webhook_url=webhook_url)
-                except RunPodError as exc:
+                    submitted = remote_client.submit(remote_input, webhook_url=webhook_url)
+                except RemoteJobError as exc:
                     job_store.delete(token)
                     return render_template(
                         "index.html", stats=store.public_stats(), errors=[str(exc)], form=request.form
