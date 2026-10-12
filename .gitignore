@@ -17,6 +17,8 @@ training/evaluation/results/
 # Secrets and local runtime state
 *.key
 .secrets/
+.apikey
+.hftoken
 .env
 .env.*
 !.env.example
