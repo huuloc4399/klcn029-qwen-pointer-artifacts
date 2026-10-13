@@ -19,7 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
 OVERLAY = ["Dockerfile", ".dockerignore", "docker-compose.yml", "Caddyfile", ".env.example",
-           "setup_vm.sh", "fidelity_check.py"]
+           "setup_vm.sh"]
 FIDELITY_BUNDLE = ROOT / "training/colab/artifacts/gguf_fidelity_bundle_v1.zip"
 
 

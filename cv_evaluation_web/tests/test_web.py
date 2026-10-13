@@ -371,6 +371,16 @@ class HFSpaceWebFlowTests(unittest.TestCase):
         self.assertEqual(list((self.tempdir / "submissions").glob("*/cv.pdf")), [])
         self.assertIn("source_text", self.remote.submitted[0])
 
+    def test_infra_note_can_name_another_host(self):
+        app = create_app({
+            "TESTING": True, "DATA_DIR": str(self.tempdir), "PIPELINE_MODE": "hf_space",
+            "REMOTE_CLIENT": FakeSpaceClient({}), "CSRF_ENABLED": False,
+            "INFRA_NOTE": "Render vận hành web; máy tính của nhóm qua Cloudflare Tunnel vận hành model.",
+        })
+        body = app.test_client().get("/privacy").get_data(as_text=True)
+        self.assertIn("Cloudflare Tunnel", body)
+        self.assertNotIn("Oracle Cloud", body)
+
     def test_remote_failure_message_is_shown(self):
         client = self._app({"status": "FAILED", "error": "PDF có mật khẩu."})
         token = self._submit(client, research=False).headers["Location"].rsplit("/", 1)[-1]

@@ -1,18 +1,22 @@
-"""Re-run the GGUF fidelity gate on the deployment VM (ARM llama.cpp instead of Colab x86).
+"""Re-run the GGUF fidelity gate on a deployment host (ARM, Windows CPU/GPU) instead of Colab x86.
 
-Same check as cell 6 of training/colab/Qwen3_Pointer_GGUF_Export_Colab.ipynb: the runtime code
-inside gguf_fidelity_bundle_v1.zip generates on N synthetic validation CVs and is compared with
-the recorded P0 outputs (NF4 + LoRA on a Colab GPU). Synthetic data only.
+Same check as cell 6 of training/colab/Qwen3_Pointer_GGUF_Export_Colab.ipynb: N synthetic
+validation CVs from gguf_fidelity_bundle_v1.zip are generated and compared with the recorded
+P0 outputs (NF4 + LoRA on a Colab GPU). Synthetic data only. Run it from the API bundle folder
+while the API itself is stopped, so the two do not compete for the CPU/GPU.
 
-Run with the API stopped so the two processes do not share the 2 OCPUs (see the guide):
+Default: the runtime code frozen inside the bundle (llama-cpp-python), as on the Oracle VM:
     docker compose run --rm -v ./gguf_fidelity_bundle_v1.zip:/tmp/bundle.zip:ro api \
         python fidelity_check.py /tmp/bundle.zip --samples 10
+--app-runtime: the API's own load_runtime(), e.g. llama-server on Windows (LLAMA_SERVER_URL):
+    python fidelity_check.py gguf_fidelity_bundle_v1.zip --samples 10 --app-runtime
 """
 
 from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import statistics
 import sys
@@ -28,11 +32,21 @@ def sha256_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def load_module(name: str, path: Path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("bundle", type=Path)
     parser.add_argument("--samples", type=int, default=10)
     parser.add_argument("--max-f1-drop-points", type=float, default=1.0)
+    parser.add_argument("--app-runtime", action="store_true",
+                        help="measure the API's load_runtime() (e.g. llama-server) instead of the bundle runtime")
+    parser.add_argument("--host", default="oracle_ampere_a1", help="label stored with the result")
     args = parser.parse_args()
 
     if sha256_file(args.bundle) != BUNDLE_SHA256:
@@ -44,17 +58,27 @@ def main() -> None:
     for name, digest in manifest["files"].items():
         if sha256_file(bundle_dir / name) != digest:
             sys.exit(f"Sai hash trong bundle: {name}")
-    # The bundle's runtime (same files the export notebook measured) takes precedence over the app's.
-    sys.path.insert(0, str(bundle_dir / "runtime"))
-    from app.llm_runtime import LlamaPointerRuntime, download_gguf
+    runtime_dir = bundle_dir / "runtime"
+    if args.app_runtime:
+        # The API folder (current directory) provides app/, prompting and the frozen parser;
+        # its manifest guarantees they match the build. Only metrics.py comes from the bundle.
+        sys.path.insert(0, str(Path.cwd()))
+        from app.llm_runtime import load_runtime
+    else:
+        # The bundle's runtime (same files the export notebook measured) takes precedence.
+        sys.path.insert(0, str(runtime_dir))
+        from app.llm_runtime import LlamaPointerRuntime, download_gguf
+
+        def load_runtime():
+            return LlamaPointerRuntime(*download_gguf())
     from prompting import build_messages
-    from training.evaluation.metrics import compute_field_metrics
     from training.evaluation.pointer_parser import parse_pointer_output
+    compute_field_metrics = load_module(
+        "fidelity_metrics", runtime_dir / "training/evaluation/metrics.py").compute_field_metrics
 
     records = [json.loads(line) for line in (bundle_dir / "fidelity_set.jsonl").read_text(encoding="utf-8").splitlines()
                if line.strip()][:args.samples]
-    gguf_path, artifact = download_gguf()
-    runtime = LlamaPointerRuntime(gguf_path, artifact)
+    runtime = load_runtime()
 
     rows = []
     for index, record in enumerate(records, 1):
@@ -79,8 +103,8 @@ def main() -> None:
     })["micro"]["f1"]
     times = [row["runtime_seconds"] for row in rows]
     fidelity = {
-        "host": "oracle_ampere_a1",
-        "gguf": artifact,
+        "host": args.host,
+        "gguf": runtime.artifact,
         "samples": len(rows),
         "cvschema_valid": sum(row["cvschema_valid"] for row in rows),
         "p0_cvschema_valid": sum(record["p0_reference"]["cvschema_valid"] for record in records),
@@ -96,7 +120,7 @@ def main() -> None:
     }
     fidelity["passed"] = (fidelity["cvschema_valid"] >= fidelity["p0_cvschema_valid"]
                           and fidelity["f1_drop_points"] <= args.max_f1_drop_points)
-    print(json.dumps(fidelity, indent=2))
+    print(json.dumps(fidelity, indent=2, ensure_ascii=False))
     if not fidelity["passed"]:
         sys.exit("CHƯA QUA cổng độ trung thực trên máy triển khai.")
 

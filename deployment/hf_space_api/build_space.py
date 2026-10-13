@@ -30,6 +30,7 @@ COPIES = {
     "requirements.txt": HERE / "requirements.txt",
     "README.md": HERE / "space_card.md",
     "prompting.py": ROOT / "deployment/runpod_qwen/prompting.py",
+    "fidelity_check.py": HERE / "fidelity/fidelity_check.py",
     "prompt_contract.json": ROOT / "deployment/runpod_qwen/prompt_contract.json",
     "baseline_extraction/__init__.py": ROOT / "baseline_extraction/__init__.py",
     "baseline_extraction/privacy.py": ROOT / "baseline_extraction/privacy.py",

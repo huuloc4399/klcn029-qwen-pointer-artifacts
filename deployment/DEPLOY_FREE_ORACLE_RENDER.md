@@ -26,7 +26,7 @@ Mã API giữ nguyên. Thư mục `deployment/oracle_api/` chỉ thêm phần ch
 | `docker-compose.yml`, `Caddyfile` | API + Caddy; Caddy tự lấy và gia hạn chứng chỉ HTTPS |
 | `.env.example` | mẫu biến môi trường; bản thật `.env` chỉ nằm trên VM |
 | `setup_vm.sh` | cài Docker, mở cổng 80/443 trong firewall của VM |
-| `fidelity_check.py` | chạy lại cổng độ trung thực ngay trên VM |
+| `fidelity_check.py` (từ `deployment/hf_space_api/fidelity/`) | chạy lại cổng độ trung thực ngay trên VM |
 | `build_bundle.py` | gom mã API + các tệp trên thành `dist/oracle_api` để chép lên VM |
 
 **Giới hạn và đánh đổi (cần ghi trong báo cáo):**

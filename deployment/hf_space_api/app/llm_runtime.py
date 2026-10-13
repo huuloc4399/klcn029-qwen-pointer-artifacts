@@ -139,6 +139,91 @@ class LlamaPointerRuntime:
         }
 
 
-def load_runtime() -> LlamaPointerRuntime:
+class LlamaServerRuntime:
+    """Same prompt and greedy decoding through a local llama-server process.
+
+    Used on Windows hosts (deployment/home_api): llama-cpp-python has no current prebuilt
+    Windows wheel, so the official llama.cpp release binary of the pinned commit serves the
+    GGUF (CPU or CUDA). The server must have loaded exactly the verified GGUF file.
+    """
+
+    def __init__(self, base_url: str, model_path: Path, artifact: dict[str, str], *,
+                 startup_timeout: float = 600.0) -> None:
+        import requests
+
+        self._session = requests.Session()
+        self.base_url = base_url.rstrip("/")
+        self.threads = available_cpus()
+        deadline = time.monotonic() + startup_timeout
+        # Require llama-server's {"status": "ok"} body, not just HTTP 200: another program on the
+        # same port can answer 200 too.
+        while not self._healthy():
+            if time.monotonic() > deadline:
+                raise RuntimeError(f"llama-server at {self.base_url} did not report status ok")
+            time.sleep(2)
+        try:
+            props = self._session.get(f"{self.base_url}/props", timeout=10).json()
+        except (requests.RequestException, ValueError) as exc:
+            raise RuntimeError(
+                f"{self.base_url}/props did not return llama-server JSON; is another program using this port?"
+            ) from exc
+        served = props.get("model_path") if isinstance(props, dict) else None
+        if not served or Path(served).resolve() != Path(model_path).resolve():
+            raise RuntimeError(f"llama-server serves {served!r}, not the verified GGUF {model_path}")
+        self.artifact = {**artifact, "backend": "llama-server"}
+
+    def _healthy(self) -> bool:
+        import requests
+
+        try:
+            response = self._session.get(f"{self.base_url}/health", timeout=10)
+            body = response.json()
+        except (requests.RequestException, ValueError):
+            return False
+        return response.status_code == 200 and isinstance(body, dict) and body.get("status") == "ok"
+
+    def _post(self, route: str, payload: dict[str, Any], timeout: float) -> dict[str, Any]:
+        response = self._session.post(f"{self.base_url}{route}", json=payload, timeout=timeout)
+        response.raise_for_status()
+        return response.json()
+
+    def generate(self, messages: list[dict[str, str]]) -> dict[str, Any]:
+        prompt = render_chatml(messages)
+        tokens = self._post("/tokenize", {"content": prompt, "add_special": False, "parse_special": True},
+                            timeout=60)["tokens"]
+        if len(tokens) > MAX_INPUT_TOKENS:
+            raise PromptTooLongError(
+                f"CV dài {len(tokens)} token, vượt giới hạn {MAX_INPUT_TOKENS}; hệ thống không cắt ngầm."
+            )
+        started = time.perf_counter()
+        # Greedy decoding with every penalty disabled, as in LlamaPointerRuntime.
+        completion = self._post("/completion", {
+            "prompt": tokens,
+            "n_predict": MAX_NEW_TOKENS,
+            "temperature": 0.0,
+            "top_k": 1,
+            "top_p": 1.0,
+            "min_p": 0.0,
+            "repeat_penalty": 1.0,
+            "frequency_penalty": 0.0,
+            "presence_penalty": 0.0,
+            "seed": 42,
+            "stop": [END_OF_TURN],
+            "cache_prompt": True,
+        }, timeout=1800)
+        runtime_seconds = time.perf_counter() - started
+        return {
+            "raw_output": completion["content"].strip(),
+            "input_tokens": len(tokens),
+            "generated_tokens": int(completion["tokens_predicted"]),
+            "hit_max_new_tokens": completion.get("stop_type") == "limit",
+            "runtime_seconds": round(runtime_seconds, 3),
+        }
+
+
+def load_runtime() -> LlamaPointerRuntime | LlamaServerRuntime:
     path, artifact = download_gguf()
+    server_url = os.getenv("LLAMA_SERVER_URL", "").strip()
+    if server_url:
+        return LlamaServerRuntime(server_url, path, artifact)
     return LlamaPointerRuntime(path, artifact)

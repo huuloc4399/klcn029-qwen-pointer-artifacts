@@ -90,6 +90,9 @@ def create_app(test_config: dict | None = None) -> Flask:
         EXTRACTION_API_KEY=os.getenv("EXTRACTION_API_KEY", ""),
         EXTRACTION_HF_TOKEN=os.getenv("EXTRACTION_HF_TOKEN", ""),
         RESEARCH_ENABLED=os.getenv("CV_WEB_RESEARCH_ENABLED", "1") == "1",
+        # Overrides the hosting sentence on the home and privacy pages when the extraction API
+        # runs somewhere other than the default for the mode (e.g. a team laptop behind a tunnel).
+        INFRA_NOTE=os.getenv("CV_WEB_INFRA_NOTE", "").strip(),
         PUBLIC_BASE_URL=(
             os.getenv("PUBLIC_BASE_URL", "")
             or (f"https://{os.getenv('RENDER_EXTERNAL_HOSTNAME')}" if os.getenv("RENDER_EXTERNAL_HOSTNAME") else "")
@@ -136,7 +139,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         return {
             "research_enabled": app.config["RESEARCH_ENABLED"],
             "pipeline_mode": app.config["PIPELINE_MODE"],
-            "infra_note": INFRA_NOTES.get(app.config["PIPELINE_MODE"], ""),
+            "infra_note": app.config["INFRA_NOTE"] or INFRA_NOTES.get(app.config["PIPELINE_MODE"], ""),
         }
 
     @app.before_request

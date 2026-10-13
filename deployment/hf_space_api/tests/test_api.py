@@ -237,6 +237,87 @@ class SpaceApiTest(unittest.TestCase):
             self.assertEqual(client.get("/health").json()["model"], "error")
             self.assertEqual(client.post("/v1/jobs", headers=HEADERS, json={"source_text": "a\nb"}).status_code, 503)
 
+    def test_llama_server_runtime_uses_greedy_frozen_decoding(self):
+        from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+        model_path = Path(tempfile.mkdtemp(prefix="klcn029_gguf_")) / "model.gguf"
+        model_path.write_bytes(b"gguf")
+        seen: dict[str, dict] = {}
+        token_count = {"n": 1200}
+
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self, *args):
+                pass
+
+            def _send(self, body):
+                data = json.dumps(body).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+
+            def do_GET(self):
+                self._send({"status": "ok"} if self.path == "/health" else {"model_path": str(model_path)})
+
+            def do_POST(self):
+                body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+                seen[self.path] = body
+                if self.path == "/tokenize":
+                    self._send({"tokens": list(range(token_count["n"]))})
+                else:
+                    self._send({"content": " {\"a\": 1} ", "tokens_predicted": 42, "stop_type": "limit"})
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        url = f"http://127.0.0.1:{server.server_address[1]}"
+        try:
+            runtime = llm_runtime.LlamaServerRuntime(url, model_path, {"sha256": "0" * 64})
+            result = runtime.generate([{"role": "system", "content": "S"}, {"role": "user", "content": "U"}])
+            self.assertEqual(result["raw_output"], '{"a": 1}')
+            self.assertEqual((result["input_tokens"], result["generated_tokens"]), (1200, 42))
+            self.assertTrue(result["hit_max_new_tokens"])
+            request = seen["/completion"]
+            self.assertEqual(request["prompt"], list(range(1200)))
+            self.assertEqual((request["temperature"], request["top_k"], request["repeat_penalty"]), (0.0, 1, 1.0))
+            self.assertEqual(request["n_predict"], llm_runtime.MAX_NEW_TOKENS)
+            self.assertEqual(request["stop"], ["<|im_end|>"])
+            self.assertTrue(seen["/tokenize"]["content"].endswith("<|im_start|>assistant\n"))
+            token_count["n"] = llm_runtime.MAX_INPUT_TOKENS + 1
+            with self.assertRaises(llm_runtime.PromptTooLongError):
+                runtime.generate([{"role": "user", "content": "U"}])
+            with self.assertRaises(RuntimeError):
+                llm_runtime.LlamaServerRuntime(url, model_path.with_name("other.gguf"), {})
+        finally:
+            server.shutdown()
+
+    def test_llama_server_runtime_rejects_other_program_on_port(self):
+        from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+        class Impostor(BaseHTTPRequestHandler):
+            """Another local app holding the port: answers 200 with HTML, never llama-server JSON."""
+
+            def log_message(self, *args):
+                pass
+
+            def do_GET(self):
+                data = b"<html>OK</html>"
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), Impostor)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        try:
+            with self.assertRaises(RuntimeError) as caught:
+                llm_runtime.LlamaServerRuntime(f"http://127.0.0.1:{server.server_address[1]}",
+                                               Path("model.gguf"), {}, startup_timeout=1)
+            self.assertIn("status ok", str(caught.exception))
+        finally:
+            server.shutdown()
+
     def test_chatml_render(self):
         rendered = llm_runtime.render_chatml([{"role": "system", "content": "S"}, {"role": "user", "content": "U"}])
         self.assertEqual(rendered, "<|im_start|>system\nS<|im_end|>\n<|im_start|>user\nU<|im_end|>\n<|im_start|>assistant\n")

@@ -34,3 +34,7 @@ services:
         sync: false
       - key: EXTRACTION_HF_TOKEN
         sync: false
+      # Optional hosting sentence for the privacy page, e.g. when the API runs on a team
+      # laptop behind a Cloudflare tunnel (deployment/DEPLOY_HOME_TUNNEL.md).
+      - key: CV_WEB_INFRA_NOTE
+        sync: false
