@@ -54,16 +54,35 @@ foreach ($dir in "", "downloads", "llama", "logs", "data", "tmp") {
     New-Item -ItemType Directory -Force (Join-Path $Root $dir) | Out-Null
 }
 $Root = (Resolve-Path $Root).Path
+
+# Windows locks the DLLs, python.exe and API files of a running service: refuse instead of
+# failing halfway through an update.
+$running = Get-Process -ErrorAction SilentlyContinue |
+    Where-Object { $_.Path -and $_.Path.StartsWith($Root + "\", [StringComparison]::OrdinalIgnoreCase) }
+if ($running) {
+    $list = ($running | ForEach-Object { "$($_.ProcessName) (PID $($_.Id))" }) -join ", "
+    throw ("The service is still running from $($Root): $list. Stop it first (Ctrl+C in the start_home " +
+           "window, or close that window), then run setup again.")
+}
 # Keep pip temp files off the nearly full system drive.
 $env:TEMP = Join-Path $Root "tmp"
 $env:TMP = $env:TEMP
 $env:PIP_NO_CACHE_DIR = "1"
 
 Write-Host "== llama.cpp b11312 ($Backend)"
-foreach ($asset in $LlamaAssets[$Backend]) {
-    $zip = Join-Path $Root "downloads\$($asset.Name)"
-    Get-Verified "$LlamaBase/$($asset.Name)" $zip $asset.Sha256
-    Expand-Archive -Path $zip -DestinationPath (Join-Path $Root "llama") -Force
+# Re-extract only when the installed build differs; re-running setup to rebuild api\ leaves llama\ alone.
+$marker = Join-Path $Root "llama\INSTALLED.txt"
+$wanted = ($LlamaAssets[$Backend] | ForEach-Object { "$($_.Name) $($_.Sha256)" }) -join "`n"
+$installed = if (Test-Path $marker) { (Get-Content $marker -Raw).Trim() } else { "" }
+if ($installed -eq $wanted -and (Test-Path (Join-Path $Root "llama\llama-server.exe"))) {
+    Write-Host "Already installed: $Root\llama"
+} else {
+    foreach ($asset in $LlamaAssets[$Backend]) {
+        $zip = Join-Path $Root "downloads\$($asset.Name)"
+        Get-Verified "$LlamaBase/$($asset.Name)" $zip $asset.Sha256
+        Expand-Archive -Path $zip -DestinationPath (Join-Path $Root "llama") -Force
+    }
+    Set-Content -Path $marker -Value $wanted -Encoding ascii
 }
 if (-not (Test-Path (Join-Path $Root "llama\llama-server.exe"))) { throw "llama-server.exe not found after extraction" }
 

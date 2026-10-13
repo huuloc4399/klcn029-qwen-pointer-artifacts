@@ -55,6 +55,11 @@ phát hành `b11312`). Prompt, decoding greedy và Parser v1 không đổi; API 
 | `setup_home.bat` | bước 3 (cài đặt, hoặc build lại `api\` sau khi cập nhật mã) |
 | `fidelity_home.bat` | bước 4; kết quả cũng lưu vào `F:\klcn029-home\logs\fidelity_<ngày>_<giờ>.txt` |
 | `start_home.bat` | bước 5 (chạy dịch vụ, in URL tunnel) |
+| `stop_home.bat` | dừng mọi tiến trình chạy từ `F:\klcn029-home` (khi cửa sổ start đã đóng mà dịch vụ vẫn chạy ngầm) |
+
+`setup_home.bat` từ chối chạy khi dịch vụ còn chạy, vì Windows khóa DLL của llama-server và `python.exe`
+đang dùng. Dừng dịch vụ (Ctrl+C trong cửa sổ start, hoặc `stop_home.bat`) rồi chạy lại setup. Khi cập
+nhật mã, setup chỉ build lại `api\`; thư mục `llama\` chỉ giải nén lại khi đổi bản build.
 
 ## 3. Cài đặt (một lần, khoảng 15–30 phút tùy mạng)
 
