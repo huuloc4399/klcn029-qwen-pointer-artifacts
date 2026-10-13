@@ -47,6 +47,15 @@ phát hành `b11312`). Prompt, decoding greedy và Parser v1 không đổi; API 
   python -c "import secrets; print(secrets.token_urlsafe(32))"
   ```
 
+**Cách nhanh:** nhấp đúp các tệp trong `deployment\home_api\`, mặc định dùng `F:\klcn029-home` (truyền
+đường dẫn khác làm tham số đầu tiên nếu ổ ngoài mang ký tự khác):
+
+| Tệp | Tương đương |
+|---|---|
+| `setup_home.bat` | bước 3 (cài đặt, hoặc build lại `api\` sau khi cập nhật mã) |
+| `fidelity_home.bat` | bước 4; kết quả cũng lưu vào `F:\klcn029-home\logs\fidelity_<ngày>_<giờ>.txt` |
+| `start_home.bat` | bước 5 (chạy dịch vụ, in URL tunnel) |
+
 ## 3. Cài đặt (một lần, khoảng 15–30 phút tùy mạng)
 
 Ở thư mục dự án:
