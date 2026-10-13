@@ -4,6 +4,7 @@ POST /v1/jobs        submit {language, source_text | pdf_base64}; returns {id, s
 GET  /v1/jobs/{id}   RunPod-compatible status with output when COMPLETED, plus queue position
                      and ETA while waiting
 POST /v1/feedback    store one satisfaction rating forwarded by the web app
+GET  /v1/feedback    stored ratings, most recent first (web admin page)
 GET  /v1/feedback/summary  rating count, mean and distribution
 GET  /health         public liveness and model state (no CV data)
 
@@ -173,6 +174,11 @@ def create_app(runtime_factory: Callable[[], Runtime] | None = None, *,
             LOGGER.exception("Feedback store is not writable")
             raise HTTPException(status_code=503, detail="Máy chủ chưa lưu được đánh giá.")
         return {"id": stored["id"], "status": "stored"}
+
+    @app.get("/v1/feedback", dependencies=[Depends(require_key)])
+    def list_feedback(limit: int = 5000) -> dict[str, Any]:
+        records = feedback.records(limit=max(1, min(limit, 20000)))
+        return {"count": len(records), "records": records}
 
     @app.get("/v1/feedback/summary", dependencies=[Depends(require_key)])
     def feedback_summary() -> dict[str, Any]:

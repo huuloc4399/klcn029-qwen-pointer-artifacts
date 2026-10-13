@@ -56,6 +56,12 @@ class FeedbackStore:
             self._ids.add(stored["id"])
         return stored
 
+    def records(self, limit: int = 5000) -> list[dict[str, Any]]:
+        """Most recent ratings first, for the web admin page."""
+        with self._lock:
+            records = self._records()
+        return list(reversed(records))[:limit]
+
     def summary(self) -> dict[str, Any]:
         with self._lock:
             records = self._records()

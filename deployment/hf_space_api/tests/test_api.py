@@ -228,6 +228,10 @@ class SpaceApiTest(unittest.TestCase):
             self.assertEqual(client.post("/v1/feedback", headers=HEADERS,
                                          json={**record, "id": "e" * 32, "context": {"cv_text": "x"}}).status_code, 422)
             summary = client.get("/v1/feedback/summary", headers=HEADERS).json()
+            self.assertEqual(client.get("/v1/feedback").status_code, 401)
+            listed = client.get("/v1/feedback", headers=HEADERS).json()
+            self.assertEqual(listed["count"], 1)
+            self.assertEqual(listed["records"][0]["id"], "f" * 32)
         self.assertEqual(summary["count"], 1)
         self.assertEqual(summary["distribution"]["4"], 1)
         stored = json.loads((folder / "feedback.jsonl").read_text(encoding="utf-8"))

@@ -38,3 +38,6 @@ services:
       # laptop behind a Cloudflare tunnel (deployment/DEPLOY_HOME_TUNNEL.md).
       - key: CV_WEB_INFRA_NOTE
         sync: false
+      # Key for /admin (satisfaction ratings dashboard), >= 16 characters; unset = page disabled.
+      - key: CV_WEB_ADMIN_KEY
+        sync: false

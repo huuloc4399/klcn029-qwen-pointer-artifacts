@@ -89,6 +89,25 @@ class ExtractionAPIClient:
             raise ExtractionAPIError("Máy chủ trích xuất trả về trạng thái không hợp lệ.")
         return body
 
+    def list_feedback(self, limit: int = 5000) -> list[dict[str, Any]]:
+        """Stored ratings, most recent first (admin page)."""
+        try:
+            response = requests.get(f"{self.base_url}/v1/feedback", headers=self.headers,
+                                    params={"limit": limit}, timeout=self.timeout_seconds)
+        except requests.RequestException as exc:
+            raise ExtractionAPIError("Không kết nối được máy chủ trích xuất để đọc đánh giá.") from exc
+        records = self._json(response).get("records")
+        if not isinstance(records, list):
+            raise ExtractionAPIError("Máy chủ trích xuất trả về danh sách đánh giá không hợp lệ.")
+        return [record for record in records if isinstance(record, dict)]
+
+    def health(self) -> dict[str, Any]:
+        try:
+            response = requests.get(f"{self.base_url}/health", headers=self.headers, timeout=10)
+        except requests.RequestException as exc:
+            raise ExtractionAPIError("Không kết nối được máy chủ trích xuất.") from exc
+        return self._json(response)
+
     def submit_feedback(self, record: dict[str, Any]) -> bool:
         """Store one rating on the API host; False when this result was already rated."""
         try:

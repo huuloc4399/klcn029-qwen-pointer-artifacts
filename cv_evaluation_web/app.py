@@ -6,10 +6,12 @@ import os
 import base64
 import hashlib
 import hmac
+import json
 import math
 import secrets
 import tempfile
 import threading
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -23,6 +25,7 @@ from baseline_extraction.schema import CVSchema
 from services.evaluator import evaluate
 from services.job_store import JobStore
 from services.pdf_extractor import PDFExtractionError, extract_pdf
+from services.admin_report import bar_chart, local_time, summarize
 from services.extraction_client import ExtractionAPIClient
 from services.feedback import (
     COMMENT_LIMIT,
@@ -50,6 +53,10 @@ INFRA_NOTES = {
     "local_baseline": "Máy chủ web xử lý trực tiếp, không gửi CV ra dịch vụ khác.",
 }
 FEEDBACK_PER_HOUR = 20
+ADMIN_KEY_MIN_LENGTH = 16
+ADMIN_LOGIN_PER_HOUR = 10
+ADMIN_SESSION_HOURS = 8
+ADMIN_LIST_LIMIT = 200
 
 
 def minutes_range(seconds: float) -> str:
@@ -93,6 +100,8 @@ def create_app(test_config: dict | None = None) -> Flask:
         # Overrides the hosting sentence on the home and privacy pages when the extraction API
         # runs somewhere other than the default for the mode (e.g. a team laptop behind a tunnel).
         INFRA_NOTE=os.getenv("CV_WEB_INFRA_NOTE", "").strip(),
+        # Admin page (/admin) for satisfaction ratings; disabled unless a key of >= 16 chars is set.
+        ADMIN_KEY=os.getenv("CV_WEB_ADMIN_KEY", "").strip(),
         PUBLIC_BASE_URL=(
             os.getenv("PUBLIC_BASE_URL", "")
             or (f"https://{os.getenv('RENDER_EXTERNAL_HOSTNAME')}" if os.getenv("RENDER_EXTERNAL_HOSTNAME") else "")
@@ -309,7 +318,100 @@ def create_app(test_config: dict | None = None) -> Flask:
             "default-src 'self'; img-src 'self' data:; style-src 'self'; "
             "script-src 'self'; font-src 'self'; frame-ancestors 'none'"
         )
+        if request.path.startswith("/admin"):
+            response.headers["Cache-Control"] = "no-store"
+            response.headers["X-Robots-Tag"] = "noindex, nofollow"
         return response
+
+    def admin_enabled() -> bool:
+        return len(app.config["ADMIN_KEY"]) >= ADMIN_KEY_MIN_LENGTH
+
+    def admin_signed_in() -> bool:
+        return admin_enabled() and float(session.get("admin_until", 0)) > time.time()
+
+    def feedback_records() -> list[dict]:
+        """Ratings, most recent first by their own timestamp (not by storage order)."""
+        if app.config["PIPELINE_MODE"] == "hf_space":
+            records = remote_client.list_feedback()
+        else:
+            records = feedback_store.records()
+        return sorted(records, key=lambda record: str(record.get("created_at") or record.get("received_at") or ""),
+                      reverse=True)
+
+    @app.route("/admin/login", methods=["GET", "POST"])
+    def admin_login():
+        if not admin_enabled():
+            abort(404)
+        error = None
+        if request.method == "POST":
+            remote_address = request.remote_addr or "unknown"
+            identifier = hashlib.sha256(secret_bytes() + b"admin-login:" + remote_address.encode("utf-8")).hexdigest()
+            if not store.allow_request(identifier, maximum=ADMIN_LOGIN_PER_HOUR, window_seconds=3600):
+                error = "Quá nhiều lần đăng nhập trong một giờ. Hãy thử lại sau."
+            elif hmac.compare_digest(request.form.get("admin_key", "").encode("utf-8"),
+                                     app.config["ADMIN_KEY"].encode("utf-8")):
+                session["admin_until"] = time.time() + ADMIN_SESSION_HOURS * 3600
+                return redirect(url_for("admin_dashboard"), code=303)
+            else:
+                error = "Khóa quản trị không đúng."
+        return render_template("admin_login.html", error=error), (400 if error else 200)
+
+    @app.post("/admin/logout")
+    def admin_logout():
+        session.pop("admin_until", None)
+        return redirect(url_for("index"), code=303)
+
+    @app.get("/admin")
+    def admin_dashboard():
+        if not admin_enabled():
+            abort(404)
+        if not admin_signed_in():
+            return redirect(url_for("admin_login"), code=303)
+        error, health, records = None, None, []
+        try:
+            records = feedback_records()
+        except RemoteJobError as exc:
+            error = str(exc)
+        if app.config["PIPELINE_MODE"] == "hf_space":
+            try:
+                health = remote_client.health()
+            except RemoteJobError:
+                health = None
+        report = summarize(records)
+        stars_filter = request.args.get("stars", "")
+        only_comments = request.args.get("all") != "1"
+        listed = [record for record in records
+                  if (not stars_filter or str(record.get("rating")) == stars_filter)
+                  and (not only_comments or (record.get("comment") or "").strip())]
+        distribution_chart = bar_chart(
+            [(f"{row['stars']}★", row["count"], f"{row['stars']} sao: {row['count']} lượt ({row['share']:.0%})")
+             for row in report["distribution"]], width=360, height=200, value_labels=True)
+        daily_chart = bar_chart(
+            [(row["day"].strftime("%d/%m"), row["count"],
+              f"{row['day']:%d/%m}: {row['count']} lượt" + (f", TB {row['mean']} sao" if row["mean"] else ""))
+             for row in report["daily"]], width=520, label_every=5)
+        return render_template(
+            "admin.html", report=report, error=error, health=health,
+            listed=listed[:ADMIN_LIST_LIMIT], listed_total=len(listed), list_limit=ADMIN_LIST_LIMIT,
+            stars_filter=stars_filter, only_comments=only_comments,
+            distribution_chart=distribution_chart, daily_chart=daily_chart, local_time=local_time,
+            source="máy chủ trích xuất" if app.config["PIPELINE_MODE"] == "hf_space" else "máy chủ web",
+        )
+
+    @app.get("/admin/feedback.jsonl")
+    def admin_feedback_download():
+        if not admin_enabled():
+            abort(404)
+        if not admin_signed_in():
+            return redirect(url_for("admin_login"), code=303)
+        try:
+            records = feedback_records()
+        except RemoteJobError as exc:
+            return render_template("admin_login.html", error=str(exc)), 502
+        body = "".join(json.dumps(record, ensure_ascii=False) + "\n" for record in reversed(records))
+        filename = f"feedback_{datetime.now(timezone.utc):%Y%m%d}.jsonl"
+        return app.response_class(body, mimetype="application/x-ndjson",
+                                  headers={"Content-Disposition": f'attachment; filename="{filename}"'})
 
     @app.get("/")
     def index():

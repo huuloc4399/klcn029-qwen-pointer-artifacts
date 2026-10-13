@@ -110,6 +110,8 @@ Trong Render → service → Environment:
 - `EXTRACTION_API_KEY` = `API_KEY`
 - `EXTRACTION_HF_TOKEN` = để trống
 - `CV_WEB_INFRA_NOTE` = `Render vận hành web; máy tính của nhóm (kết nối qua Cloudflare Tunnel) vận hành model trích xuất và lưu đánh giá mức độ hài lòng.`
+- `CV_WEB_ADMIN_KEY` = khóa trang quản trị, chuỗi ngẫu nhiên ít nhất 16 ký tự, khác `API_KEY`
+  (`python -c "import secrets; print(secrets.token_urlsafe(24))"`). Để trống thì trang quản trị bị tắt.
 
 Lưu lại; Render deploy lại trong vài phút. Mỗi lần chạy lại `start_home.ps1` chỉ cần sửa
 `EXTRACTION_API_URL`.
@@ -117,6 +119,13 @@ Lưu lại; Render deploy lại trong vài phút. Mỗi lần chạy lại `star
 ## 7. Vận hành và dữ liệu
 
 - Nhật ký: `E:\klcn029-home\logs` (`llama-server`, `api`, `cloudflared`). API không log nội dung CV.
+- **Trang quản trị:** `https://<tên-service>.onrender.com/admin`, đăng nhập bằng `CV_WEB_ADMIN_KEY`
+  (phiên 8 giờ, tối đa 10 lần thử mỗi giờ mỗi IP). Trang đọc trực tiếp đánh giá từ API nên laptop phải
+  đang chạy. Có: trạng thái máy chủ trích xuất (model, CV đang chờ, giây/CV), 5 chỉ số (số lượt, điểm TB
+  và trung vị, tỷ lệ 4–5★ và 1–2★, số góp ý), biểu đồ phân bố số sao và số lượt 30 ngày (kèm bảng), bảng
+  theo ngôn ngữ / tuyến xử lý / mức đánh giá / khoảng điểm CV, danh sách góp ý lọc theo số sao, và nút
+  tải `.jsonl` để chạy `export_feedback.py`. Trang không có liên kết công khai và không cho công cụ tìm
+  kiếm lập chỉ mục; chỉ đưa khóa cho thành viên nhóm và giảng viên.
 - Đánh giá mức độ hài lòng: `E:\klcn029-home\data\feedback\feedback.jsonl`; tổng hợp nhanh qua
   `<URL>/v1/feedback/summary` với header `X-API-Key`. Xuất báo cáo Excel (tổng quan, phân bố sao kèm
   biểu đồ, theo ngôn ngữ / tuyến xử lý / mức đánh giá / khoảng điểm CV / ngày, và danh sách góp ý):

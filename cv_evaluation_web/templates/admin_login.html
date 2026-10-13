@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Quản trị · CV Insight{% endblock %}
+{% block content %}
+<section class="plain-page"><div class="container withdraw-wrap">
+  <span class="eyebrow">QUẢN TRỊ</span><h1>Đăng nhập trang quản trị</h1>
+  <p>Trang này hiển thị đánh giá mức độ hài lòng của người dùng. Chỉ thành viên nhóm có khóa quản trị mới truy cập được.</p>
+  {% if error %}<div class="alert error" role="alert">{{ error }}</div>{% endif %}
+  <form class="withdraw-form" method="post" action="{{ url_for('admin_login') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label>Khóa quản trị<input type="password" name="admin_key" autocomplete="current-password" required></label>
+    <button class="button primary" type="submit">Đăng nhập</button>
+  </form>
+</div></section>
+{% endblock %}

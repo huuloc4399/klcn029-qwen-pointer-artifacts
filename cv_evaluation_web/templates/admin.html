@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Quản trị đánh giá · CV Insight{% endblock %}
+{% macro percent(value) %}{{ '—' if value is none else '{:.0%}'.format(value) }}{% endmacro %}
+{% macro chart(spec, label) %}
+<svg class="bar-chart" viewBox="0 0 {{ spec.width }} {{ spec.height }}" role="img" aria-label="{{ label }}">
+  {% for tick in spec.ticks %}<line class="grid" x1="{{ spec.left }}" x2="{{ spec.right }}" y1="{{ tick.y }}" y2="{{ tick.y }}"></line><text class="tick" x="{{ spec.left - 6 }}" y="{{ tick.y + 4 }}" text-anchor="end">{{ tick.value }}</text>{% endfor %}
+  {% for bar in spec.bars %}<g class="bar"><title>{{ bar.tooltip }}</title><rect class="hit" x="{{ bar.hit_x }}" y="{{ spec.top }}" width="{{ bar.hit_width }}" height="{{ spec.base - spec.top }}"></rect>{% if bar.path %}<path d="{{ bar.path }}"></path>{% endif %}{% if spec.value_labels and bar.value %}<text class="value" x="{{ bar.label_x }}" y="{{ bar.value_y }}" text-anchor="middle">{{ bar.value }}</text>{% endif %}{% if bar.label %}<text class="tick" x="{{ bar.label_x }}" y="{{ spec.base + 17 }}" text-anchor="middle">{{ bar.label }}</text>{% endif %}</g>{% endfor %}
+  <line class="axis" x1="{{ spec.left }}" x2="{{ spec.right }}" y1="{{ spec.base }}" y2="{{ spec.base }}"></line>
+</svg>
+{% endmacro %}
+{% block content %}
+<section class="admin-page">
+  <div class="container">
+    <div class="admin-head">
+      <div><span class="eyebrow">QUẢN TRỊ</span><h1>Đánh giá mức độ hài lòng</h1>
+        <p>Nguồn: {{ source }} · giờ Việt Nam · {% if report.first %}từ {{ report.first.strftime('%d/%m/%Y') }} đến {{ report.last.strftime('%d/%m/%Y %H:%M') }}{% else %}chưa có đánh giá{% endif %}</p></div>
+      <div class="admin-actions">
+        <a class="button secondary" href="{{ url_for('admin_feedback_download') }}">Tải dữ liệu (.jsonl)</a>
+        <form method="post" action="{{ url_for('admin_logout') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="button secondary" type="submit">Đăng xuất</button></form>
+      </div>
+    </div>
+
+    {% if error %}<div class="alert error" role="alert"><strong>Không đọc được đánh giá</strong>{{ error }}</div>{% endif %}
+    {% if health is not none %}
+    <div class="admin-status {{ 'ok' if health.model == 'ready' else 'warn' }}">
+      <strong>{{ '● Máy chủ trích xuất sẵn sàng' if health.model == 'ready' else '▲ Model: ' ~ health.model }}</strong>
+      <span>{{ health.pending_jobs }} CV đang chờ · ước tính {{ health.job_seconds_estimate }} giây/CV{% if health.gguf %} · {{ health.gguf.backend or 'llama-cpp-python' }}{% endif %}</span>
+    </div>
+    {% elif source == 'máy chủ trích xuất' %}
+    <div class="admin-status warn"><strong>▲ Không kết nối được máy chủ trích xuất</strong><span>Kiểm tra laptop/VM và URL tunnel trên Render.</span></div>
+    {% endif %}
+
+    <div class="kpi-row">
+      <div class="kpi"><span>Số lượt đánh giá</span><strong>{{ report.count }}</strong></div>
+      <div class="kpi"><span>Điểm hài lòng TB</span><strong>{{ '—' if report.mean is none else report.mean }}<small>/5</small></strong><em>trung vị {{ '—' if report.median is none else report.median }}</em></div>
+      <div class="kpi"><span>Hài lòng (4–5★)</span><strong>{{ percent(report.satisfied) }}</strong></div>
+      <div class="kpi"><span>Không hài lòng (1–2★)</span><strong>{{ percent(report.dissatisfied) }}</strong></div>
+      <div class="kpi"><span>Có góp ý</span><strong>{{ report.with_comment }}</strong></div>
+    </div>
+
+    <div class="admin-grid">
+      <section class="result-card">
+        <h2>Phân bố số sao</h2>
+        {{ chart(distribution_chart, 'Biểu đồ cột: số lượt đánh giá theo số sao') }}
+        <table class="admin-table"><thead><tr><th>Số sao</th><th>Số lượt</th><th>Tỷ lệ</th></tr></thead>
+          <tbody>{% for row in report.distribution|reverse %}<tr><td>{{ row.stars }}★</td><td>{{ row.count }}</td><td>{{ percent(row.share) if report.count else '—' }}</td></tr>{% endfor %}</tbody></table>
+      </section>
+      <section class="result-card">
+        <h2>Số lượt đánh giá 30 ngày gần nhất</h2>
+        {{ chart(daily_chart, 'Biểu đồ cột: số lượt đánh giá mỗi ngày trong 30 ngày') }}
+        <table class="admin-table"><thead><tr><th>Ngày</th><th>Số lượt</th><th>Điểm TB</th></tr></thead>
+          <tbody>{% for row in report.days_with_ratings[:10] %}<tr><td>{{ row.day.strftime('%d/%m/%Y') }}</td><td>{{ row.count }}</td><td>{{ row.mean }}</td></tr>{% else %}<tr><td colspan="3">Chưa có đánh giá trong 30 ngày.</td></tr>{% endfor %}</tbody></table>
+      </section>
+    </div>
+
+    <div class="admin-grid groups">
+      {% for title, rows in report.groups %}
+      <section class="result-card"><h2>{{ title }}</h2>
+        <table class="admin-table"><thead><tr><th>Nhóm</th><th>Số lượt</th><th>Điểm TB</th><th>4–5★</th></tr></thead>
+          <tbody>{% for row in rows %}<tr><td>{{ row.label }}</td><td>{{ row.count }}</td><td>{{ row.mean }}</td><td>{{ percent(row.satisfied) }}</td></tr>{% else %}<tr><td colspan="4">Chưa có dữ liệu.</td></tr>{% endfor %}</tbody></table>
+      </section>
+      {% endfor %}
+    </div>
+
+    <section class="result-card">
+      <div class="list-head"><h2>Góp ý của người dùng</h2>
+        <form class="admin-filter" method="get" action="{{ url_for('admin_dashboard') }}">
+          <label>Số sao<select name="stars"><option value="">Tất cả</option>{% for value in range(5, 0, -1) %}<option value="{{ value }}" {{ 'selected' if stars_filter == value|string }}>{{ value }}★</option>{% endfor %}</select></label>
+          <label class="inline-check"><input type="checkbox" name="all" value="1" {{ 'checked' if not only_comments }}> Gồm cả đánh giá không có góp ý</label>
+          <button class="button secondary" type="submit">Lọc</button>
+        </form>
+      </div>
+      <p class="method-note">Hiển thị {{ listed|length }}/{{ listed_total }} đánh giá mới nhất{% if listed_total > list_limit %} (tải .jsonl để xem tất cả){% endif %}. Email và số điện thoại trong góp ý đã được che khi lưu.</p>
+      <div class="table-scroll"><table class="admin-table comments">
+        <thead><tr><th>Thời điểm</th><th>Sao</th><th>Góp ý</th><th>Ngôn ngữ</th><th>Điểm CV</th><th>Tuyến xử lý</th></tr></thead>
+        <tbody>{% for record in listed %}{% set context = record.context or {} %}{% set stamp = local_time(record) %}
+          <tr><td>{{ stamp.strftime('%d/%m %H:%M') if stamp else '' }}</td><td class="stars-cell" title="{{ record.rating }} sao">{{ '★' * record.rating }}<span class="muted">{{ '★' * (5 - record.rating) }}</span></td>
+            <td>{{ record.comment or '—' }}</td><td>{{ context.language or '' }}</td><td>{{ context.total_score if context.total_score is not none else '' }}</td><td>{{ context.document_route or 'web' }}</td></tr>
+        {% else %}<tr><td colspan="6">Không có đánh giá phù hợp bộ lọc.</td></tr>{% endfor %}</tbody>
+      </table></div>
+    </section>
+  </div>
+</section>
+{% endblock %}

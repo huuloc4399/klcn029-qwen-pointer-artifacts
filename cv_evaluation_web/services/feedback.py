@@ -72,3 +72,17 @@ class LocalFeedbackStore:
             with self.path.open("a", encoding="utf-8") as handle:
                 handle.write(json.dumps(record, ensure_ascii=False) + "\n")
         return True
+
+    def records(self) -> list[dict[str, Any]]:
+        """Most recent ratings first (admin page)."""
+        with self._lock:
+            if not self.path.is_file():
+                return []
+            lines = self.path.read_text(encoding="utf-8").splitlines()
+        records = []
+        for line in lines:
+            try:
+                records.append(json.loads(line))
+            except ValueError:
+                continue
+        return list(reversed(records))

@@ -337,6 +337,13 @@ class FakeSpaceClient:
         self.feedback.append(record)
         return True
 
+    def list_feedback(self, limit=5000):
+        return list(reversed(self.feedback))[:limit]
+
+    def health(self):
+        return {"model": "ready", "pending_jobs": 1, "job_seconds_estimate": 32,
+                "gguf": {"backend": "llama-server"}}
+
 
 class HFSpaceWebFlowTests(unittest.TestCase):
     def setUp(self):
@@ -437,6 +444,111 @@ class HFSpaceWebFlowTests(unittest.TestCase):
         token = self._submit(client, research=False).headers["Location"].rsplit("/", 1)[-1]
         client.get(f"/api/jobs/{token}")
         self.assertEqual(client.get(f"/api/jobs/{token}").get_json()["status"], "FAILED")
+
+
+ADMIN_KEY = "admin-key-for-tests-only"
+
+
+class AdminPageTests(unittest.TestCase):
+    def setUp(self):
+        self.tempdir = ROOT / "cv_evaluation_web" / "data" / ".qa" / uuid.uuid4().hex
+        self.tempdir.mkdir(parents=True, exist_ok=False)
+
+    def tearDown(self):
+        shutil.rmtree(self.tempdir, ignore_errors=True)
+
+    def _client(self, **config):
+        app = create_app({"TESTING": True, "CSRF_ENABLED": False, "DATA_DIR": str(self.tempdir),
+                          "ADMIN_KEY": ADMIN_KEY, **config})
+        return app.test_client()
+
+    def _rate(self, client, rating, comment):
+        upload = client.post("/evaluate", data={
+            "cv_file": (io.BytesIO(sample_pdf()), "candidate.pdf"), "jd_text": JD_TEXT,
+            "language": "en", "consent_evaluation": "yes",
+        }, content_type="multipart/form-data")
+        context = feedback_context(upload.get_data(as_text=True))
+        response = client.post("/feedback", data={"context": context, "rating": str(rating), "comment": comment},
+                               headers={"Accept": "application/json"})
+        self.assertEqual(response.status_code, 201)
+
+    def test_admin_is_disabled_without_a_long_key(self):
+        for key in ("", "short-key"):
+            client = self._client(ADMIN_KEY=key)
+            self.assertEqual(client.get("/admin").status_code, 404)
+            self.assertEqual(client.get("/admin/login").status_code, 404)
+
+    def test_login_required_and_wrong_key_rejected(self):
+        client = self._client()
+        self.assertEqual(client.get("/admin").headers["Location"], "/admin/login")
+        self.assertEqual(client.get("/admin/feedback.jsonl").status_code, 303)
+        wrong = client.post("/admin/login", data={"admin_key": "not-the-admin-key-123"})
+        self.assertEqual(wrong.status_code, 400)
+        self.assertEqual(client.get("/admin").status_code, 303)
+
+    def test_login_attempts_are_rate_limited(self):
+        client = self._client()
+        codes = [client.post("/admin/login", data={"admin_key": f"wrong-key-attempt-{i:02d}"}).status_code for i in range(10)]
+        blocked = client.post("/admin/login", data={"admin_key": ADMIN_KEY})
+        self.assertEqual(set(codes), {400})
+        self.assertIn("Quá nhiều lần đăng nhập", blocked.get_data(as_text=True))
+
+    def test_dashboard_shows_local_ratings_escaped(self):
+        client = self._client()
+        self._rate(client, 5, "Rất hữu ích")
+        self._rate(client, 2, "<script>alert(1)</script> chưa đúng")
+        self.assertEqual(client.post("/admin/login", data={"admin_key": ADMIN_KEY}).status_code, 303)
+        page = client.get("/admin")
+        body = page.get_data(as_text=True)
+        self.assertEqual(page.status_code, 200)
+        self.assertEqual(page.headers["Cache-Control"], "no-store")
+        self.assertIn("Đánh giá mức độ hài lòng", body)
+        self.assertIn("3.5", body)  # mean of 5 and 2
+        self.assertIn("&lt;script&gt;", body)
+        self.assertNotIn("<script>alert(1)</script>", body)
+        self.assertIn('class="bar-chart"', body)
+        filtered = client.get("/admin?stars=5").get_data(as_text=True)
+        self.assertIn("Rất hữu ích", filtered)
+        self.assertNotIn("&lt;script&gt;", filtered)
+        download = client.get("/admin/feedback.jsonl")
+        lines = download.get_data(as_text=True).splitlines()
+        self.assertEqual([json.loads(line)["rating"] for line in lines], [5, 2])
+        self.assertIn("attachment", download.headers["Content-Disposition"])
+        client.post("/admin/logout")
+        self.assertEqual(client.get("/admin").status_code, 303)
+
+    def test_dashboard_reads_ratings_from_extraction_api(self):
+        remote = FakeSpaceClient({"status": "COMPLETED", "output": REMOTE_OUTPUT})
+        remote.feedback.append({"id": "e" * 32, "rating": 4, "comment": "Ổn",
+                                "created_at": "2026-10-13T01:00:00+00:00",
+                                "context": {"language": "vi", "total_score": 72.0, "document_route": "web_native_pdf_text"}})
+        client = self._client(PIPELINE_MODE="hf_space", REMOTE_CLIENT=remote)
+        client.post("/admin/login", data={"admin_key": ADMIN_KEY})
+        body = client.get("/admin").get_data(as_text=True)
+        self.assertIn("Máy chủ trích xuất sẵn sàng", body)
+        self.assertIn("llama-server", body)
+        self.assertIn("Ổn", body)
+        self.assertIn("70–84", body)
+
+
+class AdminReportTests(unittest.TestCase):
+    def test_summary_and_chart_geometry(self):
+        from datetime import date
+        from services.admin_report import bar_chart, summarize
+
+        records = [
+            {"rating": 5, "comment": "a", "created_at": "2026-10-12T20:00:00+00:00", "context": {"language": "en", "total_score": 90}},
+            {"rating": 3, "comment": "", "created_at": "2026-10-13T01:00:00+00:00", "context": {"language": "vi", "total_score": 40}},
+        ]
+        report = summarize(records, today=date(2026, 10, 13))
+        self.assertEqual((report["count"], report["mean"], report["with_comment"]), (2, 4.0, 1))
+        # 20:00 UTC on 12/10 is 03:00 on 13/10 in Vietnam, so both ratings fall on 13/10.
+        self.assertEqual(report["days_with_ratings"][0]["count"], 2)
+        self.assertEqual([row["count"] for row in report["distribution"]], [0, 0, 1, 0, 1])
+        chart = bar_chart([("1", 0, ""), ("2", 7, "")])
+        self.assertEqual([tick["value"] for tick in chart["ticks"]], [0, 2, 4, 6, 8])
+        self.assertEqual(chart["bars"][0]["path"], "")
+        self.assertTrue(chart["bars"][1]["path"].startswith("M"))
 
 
 class ExtractionClientTests(unittest.TestCase):
