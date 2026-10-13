@@ -117,8 +117,17 @@ Lưu lại; Render deploy lại trong vài phút. Mỗi lần chạy lại `star
 ## 7. Vận hành và dữ liệu
 
 - Nhật ký: `E:\klcn029-home\logs` (`llama-server`, `api`, `cloudflared`). API không log nội dung CV.
-- Đánh giá mức độ hài lòng: `E:\klcn029-home\data\feedback\feedback.jsonl`; tổng hợp qua
-  `<URL>/v1/feedback/summary` với header `X-API-Key`. Không đưa tệp này lên kho mã nguồn.
+- Đánh giá mức độ hài lòng: `E:\klcn029-home\data\feedback\feedback.jsonl`; tổng hợp nhanh qua
+  `<URL>/v1/feedback/summary` với header `X-API-Key`. Xuất báo cáo Excel (tổng quan, phân bố sao kèm
+  biểu đồ, theo ngôn ngữ / tuyến xử lý / mức đánh giá / khoảng điểm CV / ngày, và danh sách góp ý):
+
+  ```powershell
+  python deployment/tools/export_feedback.py E:\klcn029-home\data\feedback\feedback.jsonl
+  ```
+
+  Tệp `feedback_report_<ngày>.xlsx` được ghi cạnh tệp nguồn. Có thể truyền nhiều tệp (laptop và Oracle)
+  để gộp; đánh giá trùng mã chỉ giữ một. Cần `openpyxl` (`python -m pip install openpyxl`). Không đưa
+  tệp `.jsonl` hay `.xlsx` này lên kho mã nguồn (đã có trong `.gitignore`).
 - Cập nhật mã API: chạy lại `setup_home.ps1` (bỏ qua các tệp đã tải, build lại `api\`).
 - Rút ổ ngoài khi dịch vụ đang chạy sẽ làm API dừng; dừng bằng Ctrl+C trước.
 - Khi máy Oracle sẵn sàng: chuyển `EXTRACTION_API_URL` sang tên miền của Oracle và xóa `CV_WEB_INFRA_NOTE`.

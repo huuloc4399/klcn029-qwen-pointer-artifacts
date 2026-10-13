@@ -188,6 +188,18 @@ class WebFlowTests(unittest.TestCase):
         self.assertEqual(response.status_code, 201)
         self.assertIn("Cảm ơn bạn đã đánh giá", response.get_data(as_text=True))
 
+    def test_pdf_with_bytes_before_header_is_accepted(self):
+        def upload(payload: bytes):
+            return self.client.post("/evaluate", data={
+                "cv_file": (io.BytesIO(payload), "candidate.pdf"), "jd_text": JD_TEXT,
+                "language": "en", "consent_evaluation": "yes",
+            }, content_type="multipart/form-data")
+
+        self.assertEqual(upload(b"\n" + sample_pdf()).status_code, 200)
+        rejected = upload(b"PK\x03\x04 not a pdf")
+        self.assertEqual(rejected.status_code, 400)
+        self.assertIn("cấu trúc PDF", rejected.get_data(as_text=True))
+
     def test_rejects_missing_consent_and_short_jd(self):
         response = self.client.post(
             "/evaluate",

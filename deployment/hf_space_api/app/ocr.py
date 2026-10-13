@@ -233,7 +233,8 @@ def ocr_page(image, language: str, engines: OCREngines) -> tuple[str, dict[str, 
 
 
 def route_pdf(pdf_bytes: bytes, language: str, engines: OCREngines) -> RoutedDocument:
-    if not pdf_bytes.startswith(b"%PDF-"):
+    # Same rule as PDF readers: the header may follow a few stray bytes within the first 1 KB.
+    if b"%PDF-" not in pdf_bytes[:1024]:
         raise DocumentError("Tệp gửi lên không phải PDF.")
     try:
         document = pymupdf.open(stream=pdf_bytes, filetype="pdf")

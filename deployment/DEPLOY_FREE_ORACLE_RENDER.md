@@ -189,6 +189,8 @@ giữ nguyên vì web gọi cùng một API). Sau đó chạy các ca kiểm tra
   docker compose cp api:/data/feedback/feedback.jsonl ./feedback.jsonl
   ```
 
+  Sau khi `scp` tệp về máy, xuất báo cáo Excel bằng
+  `python deployment/tools/export_feedback.py feedback.jsonl` (xem `DEPLOY_HOME_TUNNEL.md` mục 7).
   Mỗi kết quả chỉ nhận một đánh giá. Đánh giá chứa góp ý tự do, nên xử lý như dữ liệu người tham gia:
   không đưa tệp này lên kho mã nguồn.
 - **Bảo mật:** chỉ mở cổng 22, 80, 443. Mọi route `/v1` yêu cầu `X-API-Key`. `.env` không được commit

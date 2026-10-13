@@ -13,6 +13,11 @@ from pathlib import Path
 import pymupdf
 
 
+# PDF readers accept the "%PDF-" header anywhere in the first 1024 bytes; files saved by some
+# tools start with a newline or other bytes before it (30 of the team's 80 sample CVs do).
+PDF_HEADER_WINDOW = 1024
+
+
 class PDFExtractionError(ValueError):
     """Raised when an uploaded file cannot be processed safely."""
 
@@ -54,10 +59,11 @@ def _looks_multi_column(page: pymupdf.Page, blocks: list[tuple]) -> bool:
 def extract_pdf(path: str | Path, *, max_pages: int = 12) -> DocumentAnalysis:
     source = Path(path)
     try:
-        header = source.read_bytes()[:5]
+        with source.open("rb") as handle:
+            header = handle.read(PDF_HEADER_WINDOW)
     except OSError as exc:
         raise PDFExtractionError("Không thể đọc tệp đã tải lên.") from exc
-    if header != b"%PDF-":
+    if b"%PDF-" not in header:
         raise PDFExtractionError("Tệp không có cấu trúc PDF hợp lệ.")
 
     try:

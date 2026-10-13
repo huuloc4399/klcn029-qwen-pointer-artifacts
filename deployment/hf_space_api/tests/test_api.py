@@ -161,6 +161,16 @@ class SpaceApiTest(unittest.TestCase):
         self.assertEqual(document["language"], "en")
         self.assertEqual([page["route"] for page in document["routing_log"]], ["native_text"])
 
+    def test_pdf_with_bytes_before_header_is_routed(self):
+        lines = ["Backend developer with three years of experience building APIs in Python and Go."] * 3
+        pdf = b"\n" + text_pdf(["SUMMARY", *lines, "SKILLS", "Python, FastAPI, PostgreSQL"])
+        with self.client() as client:
+            job_id = client.post("/v1/jobs", headers=HEADERS,
+                                 json={"language": "en", "pdf_base64": base64.b64encode(pdf).decode()}).json()["id"]
+            body = wait_for(client, job_id)
+        self.assertEqual(body["status"], "COMPLETED", body)
+        self.assertEqual(body["output"]["manifest"]["document"]["routing_log"][0]["route"], "native_text")
+
     def test_invalid_pdf_fails_with_user_message(self):
         with self.client() as client:
             job_id = client.post("/v1/jobs", headers=HEADERS,
