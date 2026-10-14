@@ -25,6 +25,39 @@ chấm điểm và RAG. Kế hoạch chi tiết nằm ở
 - `data/pairs_v1/pairs.csv`: các cột `pair_id,cv_id,jd_id,split,intended_fit`, có thể thêm `cv_file`
   để chỉ tệp PDF. Cột `split` và `intended_fit` **không** được đưa vào file của người chấm.
 
+### Lập cặp CV–JD
+
+```bash
+python -m downstream.data.make_pairs
+```
+
+Lệnh này tạo `data/pairs_v1/pairs.csv` (chỉ chứa mã CV và mã JD) và `PAIRS_SUMMARY.json`:
+
+- Chọn 24 CV GOLD40 thuộc mảng backend, fullstack, frontend hoặc mobile.
+- Mỗi CV có một JD cùng mảng (chọn theo tỉ lệ yêu cầu bắt buộc mà CV nêu được) và một JD khác mảng.
+  CV fullstack nhận một JD backend và một JD frontend.
+- JD trên 20 yêu cầu dùng tối đa 2 lần, JD 16–20 yêu cầu dùng tối đa 5 lần, JD còn lại tối đa 7 lần;
+  mỗi JD dùng ít nhất 2 lần.
+- Chia theo CV: 8 CV (16 cặp) dev, 16 CV (32 cặp) test.
+
+Nhãn mảng của CV là ước lượng heuristic, nên **nhóm kiểm tra trên PDF** trước khi tạo file chấm:
+
+1. Mở `data/pairs_v1/cv_track_review.csv` bằng Excel. Bảng liệt kê cả 40 CV GOLD40 với nhãn
+   heuristic, căn cứ gán nhãn, nhãn đang dùng và CV đó có được chọn hay không. Bảng được tạo lại
+   mỗi lần chạy, nên **không ghi vào đây**.
+2. CV nào nhãn sai thì thêm một dòng vào `data/pairs_v1/cv_track_overrides.csv` (cột `cv_id,track,ly_do`).
+   `track` thuộc `backend, frontend, fullstack, mobile, data_ai, qa_test, ba_other`; `ly_do` bắt buộc,
+   ví dụ "Mục tiêu nghề nghiệp ghi Java Backend Intern". Lưu bằng **CSV UTF-8**.
+3. Chạy lại `python -m downstream.data.make_pairs`. Nhãn ghi đè luôn thắng nhãn heuristic; `pairs.csv`
+   ghi nguồn nhãn ở cột `cv_track_source`. Dòng sai (mã CV lạ, nhãn lạ, thiếu lý do, trùng CV) làm
+   lệnh dừng và báo lỗi.
+
+Các cột
+`split`, `intended_fit`, `cv_track` và `skill_overlap` dùng cho thiết kế và phân tích, không hiện trong
+file của người chấm.
+
+Vòng chấm thử chỉ dùng cặp dev: thêm `--split dev` khi tạo file chấm.
+
 ### Tạo file cho người chấm
 
 ```bash
@@ -43,6 +76,22 @@ Trong file:
 - Cột `kiem_tra` hiện `OK` khi dòng đã đủ thông tin.
 - Sheet `TIEN_DO` đếm số cặp đã xong.
 - Sheet ẩn `META` lưu phiên bản rubric và mã băm SHA-256 của rubric, `pairs.csv` và JD gold.
+
+### Đóng gói gửi người chấm
+
+```bash
+python -m downstream.data.package_rater --rater A --split dev --deadline 20/10/2026 --coordinator "Tên người điều phối"
+```
+
+Lệnh tạo `data/labels_v1/packages/pilot_rater_A.zip` gồm:
+
+- `00_DOC_TRUOC.docx`: hướng dẫn 2 trang (quy tắc, cách chấm một cặp, trích dẫn, nộp bài);
+- file Excel đã khóa của người chấm đó;
+- `CV_PDF/<cv_id>.pdf` của các CV có trong cặp. JD nằm sẵn trong sheet `JD`.
+
+Gói **không** chứa `pairs.csv`, JD gold, CVSchema gold hay output mô hình. Gói có CV thật: chỉ gửi qua
+kênh riêng của nhóm. Mỗi lần đóng gói được ghi vào `packages/PACKAGES_LOG.jsonl`. Bỏ `--split` để
+đóng gói vòng chính với cả 48 cặp.
 
 ### Kiểm tra và xuất nhãn
 

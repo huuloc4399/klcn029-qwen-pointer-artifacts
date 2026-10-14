@@ -71,7 +71,8 @@ WRAP = Alignment(wrap_text=True, vertical="top")
 
 
 def sha256_bytes(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
+    """Hash of a text file with CRLF folded to LF, so a Windows copy and the git checkout agree."""
+    return hashlib.sha256(data.replace(b"\r\n", b"\n")).hexdigest()
 
 
 def load_pairs(path: Path) -> list[dict[str, str]]:
@@ -102,7 +103,7 @@ def load_jd_gold(folder: Path, jd_ids: set[str]) -> tuple[dict[str, dict], str]:
             raise FileNotFoundError(f"no JD gold for {jd_id}: {path}")
         raw = path.read_bytes()
         jds[jd_id] = JDSchema.model_validate(json.loads(raw.decode("utf-8"))).model_dump()
-        digest.update(jd_id.encode() + b"\0" + raw + b"\0")
+        digest.update(jd_id.encode() + b"\0" + raw.replace(b"\r\n", b"\n") + b"\0")
         if not jds[jd_id]["requirements"]["must_have"]:
             raise ValueError(f"{jd_id} has no must_have requirement")
     return jds, digest.hexdigest()
@@ -232,12 +233,16 @@ def guide_blocks(rubric: dict, rater: str, pair_count: int) -> list[tuple[str, s
 
 def build(pairs_path: Path, jd_gold_dir: Path, rater: str, out: Path, *, jd_text_dir: Path | None = None,
           rubric_path: Path = RUBRIC, seed: int = 20261013, created_at: str | None = None,
-          lock: bool = False) -> dict:
+          lock: bool = False, split: str | None = None) -> dict:
     """Write one rater's workbook. With lock=True only the input columns stay editable (no password)."""
     rubric_bytes = rubric_path.read_bytes()
     rubric = json.loads(rubric_bytes.decode("utf-8"))
     criteria = rubric["criteria"]
     pairs = load_pairs(pairs_path)
+    if split:
+        pairs = [p for p in pairs if p.get("split") == split]
+        if not pairs:
+            raise ValueError(f"no pairs with split '{split}' in {pairs_path.name}")
     jds, jd_hash = load_jd_gold(jd_gold_dir, {p["jd_id"] for p in pairs})
     order = ordered_pairs(pairs, rater, seed)
 
@@ -381,6 +386,7 @@ def build(pairs_path: Path, jd_gold_dir: Path, rater: str, out: Path, *, jd_text
         "pairs_sha256": sha256_bytes(pairs_path.read_bytes()),
         "jd_gold_sha256": jd_hash,
         "order_seed": seed,
+        "split": split or "all",
         "pair_count": len(order),
         "criterion_rows": len(crit_rows),
         "requirement_rows": len(req_rows),
@@ -414,6 +420,7 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=20261013)
     parser.add_argument("--lock", action="store_true",
                         help="lock fixed columns and sheets for raters (Review > Unprotect Sheet, no password)")
+    parser.add_argument("--split", help="only pairs of this split, e.g. dev for the pilot round")
     parser.add_argument("--demo", action="store_true", help="build the fictional demo template")
     args = parser.parse_args()
     if args.demo:
@@ -423,7 +430,7 @@ def main() -> None:
     if not (args.pairs and args.jd_gold and args.rater and args.out):
         parser.error("--pairs, --jd-gold, --rater and --out are required unless --demo")
     meta = build(args.pairs, args.jd_gold, args.rater, args.out, jd_text_dir=args.jd_text, seed=args.seed,
-                 lock=args.lock)
+                 lock=args.lock, split=args.split)
     print(json.dumps(meta, ensure_ascii=False, indent=1))
 
 

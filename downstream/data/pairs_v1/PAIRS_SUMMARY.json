@@ -1,0 +1,56 @@
+{
+ "version": "pairs_v1",
+ "seed": 20261014,
+ "inputs_sha256": {
+  "jd_manifest": "c7fc4c8b151f7f91783646902d1296325851a9bee139017e26ca15062981b873",
+  "pairs_csv": "5e66538a26bcf0509f88a6dd62e83e592dfdd1bb45a9f78bd6c7ae427b953b8b"
+ },
+ "cv_count": 24,
+ "pair_count": 48,
+ "track_overrides": {},
+ "split": {
+  "dev": 16,
+  "test": 32
+ },
+ "cvs_by_track_language": {
+  "backend/en": 7,
+  "backend/vi": 7,
+  "frontend/en": 1,
+  "frontend/vi": 1,
+  "fullstack/en": 3,
+  "fullstack/vi": 2,
+  "mobile/en": 3
+ },
+ "dev_cvs_by_track": {
+  "backend": 5,
+  "mobile": 1,
+  "fullstack": 2
+ },
+ "excluded_in_scope_cvs": [
+  "EN005"
+ ],
+ "pairs_by_fit": {
+  "same_track": 29,
+  "other_track": 19
+ },
+ "jd_load": {
+  "JD001": "3/5",
+  "JD002": "2/7",
+  "JD003": "2/2",
+  "JD004": "2/7",
+  "JD005": "2/2",
+  "JD006": "4/7",
+  "JD007": "4/7",
+  "JD008": "5/7",
+  "JD009": "5/5",
+  "JD010": "5/5",
+  "JD011": "7/7",
+  "JD012": "7/7"
+ },
+ "same_track_overlap_mean": 3.1,
+ "other_track_overlap_mean": 0.84,
+ "notes": [
+  "CV tracks come from the heuristic in downstream/data/cv_track_profile.py; review them on the PDFs before rating.",
+  "intended_fit, cv_track, split and skill_overlap are design data: build_rating_workbook does not show them to raters."
+ ]
+}
