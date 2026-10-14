@@ -216,7 +216,11 @@ def guide_blocks(rubric: dict, rater: str, pair_count: int) -> list[tuple[str, s
         ("h", "Quy tắc trích dẫn bằng chứng"),
         ("p", "• Chép nguyên văn từ PDF, tối đa khoảng 25 từ, không sửa chính tả. Chọn mục chứa đoạn đó ở cột muc_bang_chung."),
         ("p", "• Điểm từ 1 trở lên ở TIEU_CHI, và trạng thái met hoặc mentioned_only ở YEU_CAU_JD, bắt buộc có trích dẫn."),
-        ("p", "• Với C1 và C7 (hình thức, ATS), chọn muc_bang_chung = toan_bo_cv và mô tả ngắn điều quan sát được ở cột trich_dan."),
+        ("p", "• Với C1 và C7 (hình thức, ATS), chọn muc_bang_chung = toan_bo_cv và mô tả ngắn điều quan sát được ở cột trich_dan. "
+              "Không dùng toan_bo_cv cho trích dẫn thông thường."),
+        ("p", "• Mục trong CV có tên khác danh sách thì chọn mục tương ứng: Ngoại ngữ → skills (chứng chỉ có điểm như TOEIC, "
+              "IELTS → certifications); Mục tiêu, Giới thiệu, Profile → summary; Thực tập, Công việc → experience; "
+              "Đồ án → projects; Giải thưởng, Thành tích → awards; Hoạt động, CLB, Tình nguyện → activities."),
         ("h", "Trạng thái tiêu chí (cột trang_thai ở TIEU_CHI)"),
         *[("p", f"• {key}: {text}") for key, text in statuses.items()],
         ("h", "Trạng thái yêu cầu JD (cột trang_thai ở YEU_CAU_JD)"),

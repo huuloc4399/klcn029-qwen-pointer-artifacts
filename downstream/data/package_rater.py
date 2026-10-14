@@ -118,6 +118,9 @@ def guide(path: Path, *, rater: str, round_name: str, workbook_name: str, meta: 
     heading("6. Trích dẫn")
     bullets([
         "Chép nguyên văn từ PDF, tối đa khoảng 25 từ, không sửa chính tả; chọn mục chứa đoạn đó ở muc_bang_chung.",
+        "Mục trong CV có tên khác danh sách thì chọn mục tương ứng: Ngoại ngữ → skills (chứng chỉ có điểm như TOEIC, "
+        "IELTS → certifications); Mục tiêu, Giới thiệu → summary; Thực tập, Công việc → experience; Đồ án → projects; "
+        "Giải thưởng, Thành tích → awards; Hoạt động, CLB, Tình nguyện → activities. Chỉ dùng toan_bo_cv cho C1 và C7.",
         "Ví dụ: tiêu chí C4, điểm 3, muc_bang_chung = projects, trich_dan = 'Built REST API for booking with Spring Boot "
         "and MySQL, role: backend developer', ly_do = 'Có vai trò, công nghệ, đầu việc; chưa có kết quả đo được'.",
         "Không chắc giữa hai mức điểm: chọn mức thấp hơn khi thiếu bằng chứng, và ghi điều phân vân vào ghi_chu. "
