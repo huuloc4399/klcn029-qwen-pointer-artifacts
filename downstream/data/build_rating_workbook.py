@@ -226,6 +226,8 @@ def guide_blocks(rubric: dict, rater: str, pair_count: int) -> list[tuple[str, s
               "(JD cần giao tiếp tiếng Anh, CV chỉ đọc tài liệu); yêu cầu có 'A hoặc B' → có một lựa chọn là đủ."),
         ("p", "• Bao hàm trực tiếp (Spring Boot → Java, FastAPI backend → REST API…) → xem như có kỹ năng, ghi chú đã suy ra "
               "từ đâu; liên quan lỏng (Docker → Linux, Git → CI/CD) → unclear. Danh sách đầy đủ trong 00_DOC_TRUOC.docx."),
+        ("p", "• Các trường hợp khác (câu tự nhận kinh nghiệm, ngoại ngữ và kỹ năng mềm, công cụ khác tên, lĩnh vực, cách tính "
+              "C8, khi nào dùng missing_in_cv) xem mục 'Một số trường hợp khó' trong 00_DOC_TRUOC.docx."),
         ("p", "• Link GitHub với yêu cầu Git: link gắn với một dự án cụ thể → met (projects); chỉ có link hồ sơ ở phần "
               "liên hệ → mentioned_only (personal_info); Git/GitHub chỉ ghi trong mục kỹ năng → mentioned_only (skills)."),
         ("h", "Trạng thái tiêu chí (cột trang_thai ở TIEU_CHI)"),

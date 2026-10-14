@@ -116,7 +116,22 @@ def guide(path: Path, *, rater: str, round_name: str, workbook_name: str, meta: 
         "Angular → JavaScript; ASP.NET → C#; dựng backend/API bằng FastAPI, Express, Spring Boot, Django → REST API. "
         "Ví dụ: 'Integrated a PhoBERT-based chatbot through a FastAPI backend' → REST API: met, ghi chú 'suy ra từ FastAPI backend'.",
         "Liên quan lỏng (thường đi cùng nhưng không bắt buộc) → unclear và ghi lý do. Ví dụ: Docker → Linux; MySQL → thiết kế "
-        "hay tối ưu CSDL; Git → CI/CD; React → TypeScript.",
+        "hay tối ưu CSDL; Git → CI/CD; React → TypeScript; Java, C# → OOP (trừ khi CV nêu OOP, class, kế thừa, design pattern).",
+        "Câu tự nhận kinh nghiệm ('Experienced in X', 'Có kinh nghiệm với X') ở mục kỹ năng hoặc giới thiệu mà không gắn với "
+        "dự án cụ thể → mentioned_only. Nếu X xuất hiện trong một dự án, trích đoạn dự án đó → met.",
+        "Ngoại ngữ và kỹ năng mềm: có chứng chỉ (TOEIC, IELTS) hoặc việc làm cụ thể (thuyết trình bằng tiếng Anh, làm trưởng "
+        "nhóm) → met; chỉ tự ghi ở mục kỹ năng hoặc giới thiệu → mentioned_only. CV viết bằng tiếng Anh không phải bằng chứng "
+        "về tiếng Anh → unclear, ghi chú 'chỉ suy ra từ ngôn ngữ của CV'.",
+        "Kỹ năng mềm chỉ tính khi đúng tên hoặc đồng nghĩa: tư duy logic = logical thinking; giải quyết vấn đề = problem-solving; "
+        "tư duy phân tích = analytical thinking; làm việc nhóm = teamwork; giao tiếp = communication. Kỹ năng khác không thay "
+        "thế nhau (problem-solving không tính cho tư duy logic) → missing.",
+        "Công cụ cụ thể nhưng CV dùng công cụ khác cùng loại (GitHub thay GitLab, MySQL thay PostgreSQL, Trello thay Jira) → "
+        "missing, ghi chú 'dùng X thay vì Y'. Chỉ tính thay thế khi JD đã ghi 'hoặc', 'or similar', 'tương đương'.",
+        "Yêu cầu là một loại công cụ kèm ví dụ ('E-commerce platforms: Shopify, WordPress or other') → chỉ tính công cụ cùng loại "
+        "(WooCommerce, Magento…); tự xây một website bán hàng không tính → missing, ghi chú.",
+        "Yêu cầu về lĩnh vực (tài chính – ngân hàng, fintech) → dự án phải thuộc lĩnh vực đó. Chỉ có một tính năng liên quan "
+        "trong dự án khác lĩnh vực (tích hợp cổng thanh toán trong web bán hàng) → unclear, ghi chú.",
+        "Với missing: để trống muc_bang_chung và trich_dan; lý do (nếu cần) ghi ở ghi_chu.",
     ])
 
     heading("5. Chấm tiêu chí")
@@ -129,11 +144,19 @@ def guide(path: Path, *, rater: str, round_name: str, workbook_name: str, meta: 
         "và sao chép chữ trong PDF.",
         "C5 (kinh nghiệm) với JD intern/fresher: nếu không có kinh nghiệm nhưng có dự án đạt mức 3 ở C4, cho tối đa 2 điểm "
         "và ghi 'dự án thay thế' ở ly_do.",
+        "Mức 0 vì CV không có mục hoặc nội dung cho tiêu chí (không có kinh nghiệm, không có chứng chỉ…) → luôn dùng "
+        "missing_in_cv, kể cả C5 với JD junior. Chỉ dùng scored với điểm 0 khi CV có nội dung nhưng yếu đến mức 0 "
+        "(ví dụ C8 dưới 20%).",
+        "C8: tính tỉ lệ = (số met + 0,5 × số mentioned_only) / số yêu cầu bắt buộc, không tính các dòng unclear. Làm đúng "
+        "theo khoảng: dưới 0,2 → 0; 0,2 đến dưới 0,4 → 1; 0,4 đến dưới 0,6 → 2; 0,6 đến dưới 0,8 → 3; từ 0,8 → 4 "
+        "(cần thêm vài yêu cầu ưu tiên). Ví dụ 0,59 → 2.",
     ])
 
     heading("6. Trích dẫn")
     bullets([
         "Chép nguyên văn từ PDF, tối đa khoảng 25 từ, không sửa chính tả; chọn mục chứa đoạn đó ở muc_bang_chung.",
+        "Trích một đoạn liền mạch; không nối nhiều chỗ bằng '...'. Kỹ năng xuất hiện ở nhiều nơi thì trích chỗ mạnh nhất "
+        "(dự án hoặc kinh nghiệm trước, mục kỹ năng sau).",
         "Mục trong CV có tên khác danh sách thì chọn mục tương ứng: Ngoại ngữ → skills (chứng chỉ có điểm như TOEIC, "
         "IELTS → certifications); Mục tiêu, Giới thiệu → summary; Thực tập, Công việc → experience; Đồ án → projects; "
         "Giải thưởng, Thành tích → awards; Hoạt động, CLB, Tình nguyện → activities. Chỉ dùng toan_bo_cv cho C1 và C7.",
