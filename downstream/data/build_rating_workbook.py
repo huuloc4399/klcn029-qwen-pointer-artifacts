@@ -221,6 +221,9 @@ def guide_blocks(rubric: dict, rater: str, pair_count: int) -> list[tuple[str, s
         ("p", "• Mục trong CV có tên khác danh sách thì chọn mục tương ứng: Ngoại ngữ → skills (chứng chỉ có điểm như TOEIC, "
               "IELTS → certifications); Mục tiêu, Giới thiệu, Profile → summary; Thực tập, Công việc → experience; "
               "Đồ án → projects; Giải thưởng, Thành tích → awards; Hoạt động, CLB, Tình nguyện → activities."),
+        ("p", "• Chỉ chấm theo nội dung CV; không mở link GitHub, portfolio hay demo. Link chỉ tính như một dòng chữ trong CV."),
+        ("p", "• Link GitHub với yêu cầu Git: link gắn với một dự án cụ thể → met (projects); chỉ có link hồ sơ ở phần "
+              "liên hệ → mentioned_only (personal_info); Git/GitHub chỉ ghi trong mục kỹ năng → mentioned_only (skills)."),
         ("h", "Trạng thái tiêu chí (cột trang_thai ở TIEU_CHI)"),
         *[("p", f"• {key}: {text}") for key, text in statuses.items()],
         ("h", "Trạng thái yêu cầu JD (cột trang_thai ở YEU_CAU_JD)"),

@@ -121,6 +121,10 @@ def guide(path: Path, *, rater: str, round_name: str, workbook_name: str, meta: 
         "Mục trong CV có tên khác danh sách thì chọn mục tương ứng: Ngoại ngữ → skills (chứng chỉ có điểm như TOEIC, "
         "IELTS → certifications); Mục tiêu, Giới thiệu → summary; Thực tập, Công việc → experience; Đồ án → projects; "
         "Giải thưởng, Thành tích → awards; Hoạt động, CLB, Tình nguyện → activities. Chỉ dùng toan_bo_cv cho C1 và C7.",
+        "Chỉ chấm theo nội dung CV; không mở link GitHub, portfolio hay demo. Link chỉ tính như một dòng chữ trong CV "
+        "(với C4, link repo hoặc demo của dự án vẫn là 'sản phẩm kiểm chứng được').",
+        "Link GitHub với yêu cầu Git: link gắn với một dự án cụ thể → met (projects); chỉ có link hồ sơ ở phần liên hệ → "
+        "mentioned_only (personal_info); Git/GitHub chỉ ghi trong mục kỹ năng → mentioned_only (skills).",
         "Ví dụ: tiêu chí C4, điểm 3, muc_bang_chung = projects, trich_dan = 'Built REST API for booking with Spring Boot "
         "and MySQL, role: backend developer', ly_do = 'Có vai trò, công nghệ, đầu việc; chưa có kết quả đo được'.",
         "Không chắc giữa hai mức điểm: chọn mức thấp hơn khi thiếu bằng chứng, và ghi điều phân vân vào ghi_chu. "
