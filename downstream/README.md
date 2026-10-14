@@ -89,6 +89,11 @@ Lệnh tạo `data/labels_v1/packages/pilot_rater_A.zip` gồm:
 - file Excel đã khóa của người chấm đó;
 - `CV_PDF/<cv_id>.pdf` của các CV có trong cặp. JD nằm sẵn trong sheet `JD`.
 
+Khi chỉ đổi quy tắc trong hướng dẫn, thêm `--guide-only`: lệnh chỉ ghi
+`packages/pilot_rater_A_00_DOC_TRUOC.docx` để gửi riêng, không đóng gói lại CV. File `.docx` là hướng dẫn
+chính thức; sheet `HUONG_DAN` trong Excel chỉ là bản tóm tắt. Chỉ đóng gói lại khi file chấm thay đổi
+(rubric, cặp, JD gold, cột).
+
 Gói **không** chứa `pairs.csv`, JD gold, CVSchema gold hay output mô hình. Gói có CV thật: chỉ gửi qua
 kênh riêng của nhóm. Mỗi lần đóng gói được ghi vào `packages/PACKAGES_LOG.jsonl`. Bỏ `--split` để
 đóng gói vòng chính với cả 48 cặp.

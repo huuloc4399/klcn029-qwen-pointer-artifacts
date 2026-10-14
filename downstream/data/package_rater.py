@@ -147,7 +147,8 @@ def guide(path: Path, *, rater: str, round_name: str, workbook_name: str, meta: 
 
 def package(rater: str, *, split: str | None = None, pairs: Path = PAIRS, jd_gold: Path = JD_GOLD,
             jd_text: Path = JD_TEXT, out_dir: Path = OUT_DIR, deadline: str = "do điều phối viên thông báo",
-            coordinator: str = "điều phối viên của nhóm", pdf_paths=cv_pdf_paths) -> Path:
+            coordinator: str = "điều phối viên của nhóm", pdf_paths=cv_pdf_paths, guide_only: bool = False) -> Path:
+    """Write the rater's zip; with guide_only, write only <stem>_00_DOC_TRUOC.docx (rule changes in the guide)."""
     round_name = "Vòng chấm thử" if split == "dev" else "Vòng chính" if split in (None, "test") else f"Tập {split}"
     stem = f"{'pilot' if split == 'dev' else 'full' if split is None else split}_rater_{rater}"
     workbook_name = f"{stem}.xlsx"
@@ -156,10 +157,14 @@ def package(rater: str, *, split: str | None = None, pairs: Path = PAIRS, jd_gol
         meta = builder.build(pairs, jd_gold, rater, work / workbook_name, jd_text_dir=jd_text, lock=True, split=split)
         with pairs.open(encoding="utf-8-sig", newline="") as handle:
             cv_ids = sorted({r["cv_id"] for r in csv.DictReader(handle) if split is None or r.get("split") == split})
-        pdfs = pdf_paths(set(cv_ids))
         guide(work / "00_DOC_TRUOC.docx", rater=rater, round_name=round_name, workbook_name=workbook_name, meta=meta,
               cv_ids=cv_ids, deadline=deadline, coordinator=coordinator)
         out_dir.mkdir(parents=True, exist_ok=True)
+        if guide_only:
+            target = out_dir / f"{stem}_00_DOC_TRUOC.docx"
+            target.write_bytes((work / "00_DOC_TRUOC.docx").read_bytes())
+            return target
+        pdfs = pdf_paths(set(cv_ids))
         target = out_dir / f"{stem}.zip"
         with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as archive:
             archive.write(work / "00_DOC_TRUOC.docx", f"{stem}/00_DOC_TRUOC.docx")
@@ -180,9 +185,12 @@ def main() -> None:
     parser.add_argument("--split", help="dev for the pilot round; omit for all pairs")
     parser.add_argument("--deadline", default="do điều phối viên thông báo")
     parser.add_argument("--coordinator", default="điều phối viên của nhóm")
+    parser.add_argument("--guide-only", action="store_true",
+                        help="only write the guide .docx; use when just the rules in the guide changed")
     args = parser.parse_args()
     sys.stdout.reconfigure(encoding="utf-8")
-    target = package(args.rater, split=args.split, deadline=args.deadline, coordinator=args.coordinator)
+    target = package(args.rater, split=args.split, deadline=args.deadline, coordinator=args.coordinator,
+                     guide_only=args.guide_only)
     print(f"{target.relative_to(ROOT)} ({target.stat().st_size // 1024} KB)")
 
 

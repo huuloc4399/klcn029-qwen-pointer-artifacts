@@ -40,6 +40,20 @@ class PackageRaterTests(unittest.TestCase):
             self.assertEqual((meta["split"], meta["pair_count"], meta["locked"]), ("dev", 3, True))
             self.assertTrue((folder / "out" / "PACKAGES_LOG.jsonl").is_file())
 
+    def test_guide_only_writes_just_the_guide(self):
+        with tempfile.TemporaryDirectory() as folder:
+            folder = Path(folder)
+            pairs = folder / "pairs.csv"
+            pairs.write_text(builder.DEMO_PAIRS.read_text(encoding="utf-8"), encoding="utf-8")
+
+            def no_pdfs(ids):
+                raise AssertionError("guide-only must not touch CV PDFs")
+
+            target = package_rater.package("B", split="dev", pairs=pairs, jd_gold=builder.DEMO_JD_GOLD, jd_text=folder,
+                                           out_dir=folder / "out", pdf_paths=no_pdfs, guide_only=True)
+            self.assertEqual(target.name, "pilot_rater_B_00_DOC_TRUOC.docx")
+            self.assertEqual(sorted(p.name for p in (folder / "out").iterdir()), [target.name])
+
     def test_missing_pdf_stops_packaging(self):
         with tempfile.TemporaryDirectory() as folder:
             manifest = Path(folder) / "manifest.csv"
