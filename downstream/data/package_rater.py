@@ -110,7 +110,13 @@ def guide(path: Path, *, rater: str, round_name: str, workbook_name: str, meta: 
         "CV nêu một khả năng khác cùng lĩnh vực → missing và ghi lý do ở ghi_chu. Ví dụ JD cần giao tiếp tiếng Anh "
         "(viết và nói), CV chỉ ghi đọc hiểu tài liệu kỹ thuật.",
         "Yêu cầu có lựa chọn thay thế ('Jest hoặc Jasmine', 'React hoặc Vue') → CV có một trong các lựa chọn là đủ.",
-        "Kỹ năng chỉ suy ra gián tiếp (CV có Spring Boot nhưng không ghi Java) → unclear và ghi lý do; không tự suy ra là met.",
+        "Bao hàm trực tiếp (dùng công nghệ trong CV thì bắt buộc dùng kỹ năng được yêu cầu) → xem như CV có kỹ năng đó: "
+        "trong dự án/kinh nghiệm → met, chỉ ở mục kỹ năng → mentioned_only; ghi ở ghi_chu đã suy ra từ đâu. Gồm: "
+        "Spring Boot → Java; Laravel → PHP; Django, FastAPI, Flask → Python; Express, NestJS → Node.js; React, Vue, "
+        "Angular → JavaScript; ASP.NET → C#; dựng backend/API bằng FastAPI, Express, Spring Boot, Django → REST API. "
+        "Ví dụ: 'Integrated a PhoBERT-based chatbot through a FastAPI backend' → REST API: met, ghi chú 'suy ra từ FastAPI backend'.",
+        "Liên quan lỏng (thường đi cùng nhưng không bắt buộc) → unclear và ghi lý do. Ví dụ: Docker → Linux; MySQL → thiết kế "
+        "hay tối ưu CSDL; Git → CI/CD; React → TypeScript.",
     ])
 
     heading("5. Chấm tiêu chí")
