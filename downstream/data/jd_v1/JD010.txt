@@ -1,0 +1,22 @@
+Vị trí: Frontend Developer (Angular)
+Cấp độ: junior
+Mô tả công việc:
+- Tham gia xây dựng hệ thống phần mềm của công ty
+- Thiết kế giao diện cho tính năng mới và hiện thực giao diện theo bản thiết kế của designer
+- Cùng BA phân tích, thiết kế giải pháp phù hợp với người dùng cuối
+- Phối hợp với backend để tích hợp API
+- Xây dựng và tích hợp micro-frontend trong kiến trúc microservice
+Yêu cầu bắt buộc:
+- Tốt nghiệp cao đẳng hoặc đại học ngành công nghệ phần mềm
+- Tối thiểu 1 năm lập trình Angular 8 trở lên và SASS
+- Có kinh nghiệm thiết kế giao diện web và phát triển sản phẩm web, kể cả giao diện responsive
+- Đã làm việc với API
+- Đã thiết kế, triển khai micro-frontend hoặc SPA dạng module
+- Viết unit test frontend (Jest/Testing Library hoặc Jasmine/Karma)
+- Hiểu các khái niệm hiệu năng web: critical rendering path, code splitting, lazy loading
+- Tự học và nghiên cứu công nghệ mới
+- Giao tiếp tốt, làm việc nhóm hiệu quả
+- Tư duy logic và tự giải quyết vấn đề
+- Thành thạo GitLab và Jira
+Ưu tiên:
+- Đã làm việc cùng BA và designer

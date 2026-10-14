@@ -1,0 +1,18 @@
+Position: JavaScript Developer Intern
+Level: intern
+Responsibilities:
+- Design, build and maintain web applications with cross-functional teams
+- Take part in the whole development cycle: requirements, design, coding, testing and deployment
+- Develop and maintain applications in JavaScript
+- Help roll out new technologies and IT projects
+- Communicate with international teammates in English and document code and processes
+Required:
+- Very good written and spoken English
+- Basic JavaScript and TypeScript
+- Basic experience with at least one JavaScript framework or library, such as React, React Native or Node.js
+- Good problem-solving and analytical thinking
+- Basic Git or another version control system
+Preferred:
+- Basic Docker
+- RESTful APIs and connecting front-end with back-end
+- A relational database such as PostgreSQL or MySQL, including basic CRUD

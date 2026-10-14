@@ -1,0 +1,21 @@
+Position: Back-end Developer (C#/.NET)
+Level: junior
+Responsibilities:
+- Build, maintain and tune back-end services written in C# on .NET Framework or .NET Core, with SQL Server as the database
+- Design and build RESTful APIs and microservices used by the web and mobile apps
+- Keep the services fast, secure and able to scale
+- Work with front-end developers, QA and other stakeholders to ship features
+- Find and fix bugs and improve existing applications
+- Take part in code reviews and help improve the system architecture and performance
+Required:
+- At least 1 year of back-end development with C# and .NET (Framework or Core)
+- Good knowledge of SQL Server, including database design and optimization
+- Experience building and integrating RESTful APIs
+- Understanding of OOP, the SOLID principles and design patterns
+- Familiar with Agile/Scrum
+- Good problem-solving skills and able to work in a team
+Preferred:
+- Experience with an ORM such as Entity Framework or Dapper
+- Knowledge of a cloud platform (Azure, AWS or GCP)
+- Familiar with CI/CD pipelines and DevOps practices
+- Experience with containers, for example Docker or Kubernetes

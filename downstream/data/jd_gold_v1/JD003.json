@@ -1,0 +1,45 @@
+{
+  "job_title": "Backend Engineer (Python/FastAPI, Ruby on Rails)",
+  "requirements": {
+    "must_have": [
+      "Python or Ruby on Rails",
+      "Backend application development",
+      "HTTP/REST APIs",
+      "Relational databases and SQL (PostgreSQL or similar)",
+      "Git",
+      "Linux",
+      "Docker",
+      "Unit testing",
+      "Integration testing",
+      "Problem-solving",
+      "Debugging and troubleshooting (application and database layers)"
+    ],
+    "nice_to_have": [
+      "Async Python (e.g. FastAPI, SQLAlchemy, Alembic)",
+      "Ruby on Rails in production",
+      "Background jobs or event-driven systems (e.g. Redis, Kafka, Pub/Sub)",
+      "Distributed systems concepts (concurrency, idempotency, retries, failure handling)",
+      "OAuth2/OIDC",
+      "ClickHouse or other analytics database",
+      "Kubernetes (e.g. Helm, ArgoCD)",
+      "Azure",
+      "CI/CD or GitOps",
+      "Logs, metrics and production troubleshooting",
+      "Vue.js/Nuxt",
+      "TypeScript",
+      "Fintech or payment systems",
+      "Agile"
+    ],
+    "min_experience_years": null,
+    "education": "Degree in Computer Science, Software Engineering, IT, or equivalent practical experience"
+  },
+  "responsibilities": [
+    "Maintain and enhance Ruby on Rails CRM and fintech integrations, including payment gateways",
+    "Develop new backend services in Python with FastAPI, SQLAlchemy and Alembic",
+    "Design REST APIs, authentication flows, background jobs and event-driven workflows",
+    "Work with PostgreSQL, Redis and ClickHouse: migrations, query optimization, data consistency",
+    "Write reliable, testable backend code with error handling and failure recovery",
+    "Troubleshoot production issues with platform/DevOps engineers in containerized environments"
+  ],
+  "seniority_level": "fresher"
+}

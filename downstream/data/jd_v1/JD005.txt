@@ -1,0 +1,23 @@
+Vị trí: Lập trình viên Java Backend
+Cấp độ: junior
+Mô tả công việc:
+- Phân tích, thiết kế, phát triển và tối ưu một hệ thống mạng xã hội
+- Viết mã Java sạch, an toàn, dễ mở rộng và bảo trì
+- Thiết kế và triển khai RESTful API, microservice, tích hợp với hệ thống khác
+- Thiết kế và tối ưu cơ sở dữ liệu cho hiệu năng và độ ổn định
+- Hỗ trợ kiểm thử và sửa lỗi
+- Làm việc cùng BA, tester và PM để giữ tiến độ và chất lượng
+Yêu cầu bắt buộc:
+- Tối thiểu 1 năm làm Java backend
+- Tốt nghiệp đại học ngành CNTT hoặc ngành liên quan
+- Vững Java 8 trở lên, Java core, OOP và dependency injection
+- Thành thạo Spring Boot, Hibernate/JPA, REST API, Maven hoặc Gradle
+- Đã làm việc trên Linux
+- Có kinh nghiệm với CSDL quan hệ (PostgreSQL, MySQL) và tối ưu truy vấn SQL
+- Nắm cơ bản CRUD, transaction, xử lý lỗi và xử lý theo lô (batch processing)
+- Đã làm với microservice và Docker
+- Có kiến thức về bảo mật hệ thống
+- Có tư duy phân tích nghiệp vụ, đọc hiểu tài liệu tốt
+Ưu tiên:
+- Từng làm sản phẩm mạng xã hội hoặc tài chính
+- Hiểu CI/CD, Kubernetes; đã làm với WebSocket

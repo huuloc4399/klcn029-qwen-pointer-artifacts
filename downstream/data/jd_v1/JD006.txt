@@ -1,0 +1,21 @@
+Vị trí: Lập trình viên Java (dự án ngân hàng)
+Cấp độ: fresher
+Mô tả công việc:
+- Phát triển và vận hành các module backend của hệ thống ngân hàng, fintech
+- Thiết kế, xây dựng API và xử lý dữ liệu theo yêu cầu dự án
+- Cùng BA phân tích yêu cầu, góp phần nâng chất lượng hệ thống
+- Tối ưu hiệu năng, giữ chất lượng mã và tuân thủ chuẩn lập trình
+- Phối hợp với nhóm frontend, mobile và tester
+Yêu cầu bắt buộc:
+- Từ 6 tháng kinh nghiệm lập trình (tuyển cả junior và middle, đến 4 năm)
+- Tốt nghiệp đại học trở lên
+- Nắm tốt Java core và OOP
+- Vững Spring/Spring Boot (controller, service, repository)
+- Hiểu cơ bản RESTful API và SQL (MySQL hoặc Oracle)
+- Biết dùng Git
+- Tư duy logic tốt
+Ưu tiên:
+- Hiểu mô hình microservice
+- Từng làm dự án tài chính, ngân hàng
+Điều kiện làm việc:
+- Làm onsite tại khách hàng

@@ -1,0 +1,29 @@
+{
+  "job_title": "JavaScript Developer Intern",
+  "requirements": {
+    "must_have": [
+      "English communication (written and verbal)",
+      "JavaScript",
+      "TypeScript",
+      "JavaScript framework or library (React, React Native or Node.js)",
+      "Problem-solving",
+      "Analytical thinking",
+      "Git (or other version control)"
+    ],
+    "nice_to_have": [
+      "Docker",
+      "RESTful API and front-end/back-end integration",
+      "Relational database (PostgreSQL or MySQL, basic CRUD)"
+    ],
+    "min_experience_years": null,
+    "education": ""
+  },
+  "responsibilities": [
+    "Design, develop and maintain web applications with cross-functional teams",
+    "Participate in the full development lifecycle from requirements to deployment",
+    "Develop and maintain applications using JavaScript",
+    "Assist with new technology and IT projects",
+    "Communicate in English with international members and document code and processes"
+  ],
+  "seniority_level": "intern"
+}

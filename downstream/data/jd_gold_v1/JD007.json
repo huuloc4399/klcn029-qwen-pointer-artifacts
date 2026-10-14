@@ -1,0 +1,27 @@
+{
+  "job_title": "Java Backend Developer Intern",
+  "requirements": {
+    "must_have": [
+      "Java core (OOP, collections, exception handling, interfaces/abstract classes, generics)",
+      "Spring Boot",
+      "REST API (HTTP methods GET, POST, PUT, DELETE)",
+      "SQL and relational databases",
+      "Git",
+      "Reading English technical documentation"
+    ],
+    "nice_to_have": [
+      "Java Stream API"
+    ],
+    "min_experience_years": null,
+    "education": "Final-year student or recent graduate in Computer Science, Software Engineering or IT"
+  },
+  "responsibilities": [
+    "Develop and maintain backend systems with Java and Spring Boot",
+    "Build RESTful APIs for web applications and internal services",
+    "Work with PostgreSQL and MongoDB: queries, CRUD, basic data optimization",
+    "Debug and fix issues during development",
+    "Write unit tests for assigned modules and APIs",
+    "Use Git with the team workflow and take part in code reviews"
+  ],
+  "seniority_level": "intern"
+}

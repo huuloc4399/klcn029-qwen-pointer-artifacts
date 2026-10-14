@@ -1,0 +1,23 @@
+Position: Front-end Developer (Shopify, WordPress)
+Level: junior
+Responsibilities:
+- Turn design files (Sketch, Zeplin, Figma) into responsive, accessible front-end components for brand websites
+- Keep accessibility, performance and coding standards high
+- Work with the team leader and project manager to deliver on schedule
+- Research and adopt current front-end practices with the technical lead
+Required:
+- Basic English reading and writing
+- Experience with Shopify, WordPress or another e-commerce platform
+- Critical thinking and problem-solving
+- Semantic, SEO-friendly HTML5
+- Cross-browser web development (Chrome, Safari, Firefox)
+- Modern CSS: frameworks such as Tailwind CSS, plus Flexbox, Grid, transforms and animation
+- Basic CSS preprocessors such as Sass, Less or PostCSS
+- JavaScript ES6+ without relying on jQuery
+- Familiar with a JavaScript framework such as React or Vue.js
+- Strong responsive web design
+- Comfortable with design tools such as Sketch, Zeplin and Figma
+- Git
+Preferred:
+- Build tools: Webpack, Babel or Vite
+- Liquid (Shopify templates)

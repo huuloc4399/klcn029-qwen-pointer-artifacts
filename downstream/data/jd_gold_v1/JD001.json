@@ -1,0 +1,37 @@
+{
+  "job_title": "Back-end Developer (C#/.NET)",
+  "requirements": {
+    "must_have": [
+      "C#",
+      ".NET (Framework or Core)",
+      "SQL Server",
+      "Database design",
+      "Database optimization",
+      "RESTful API development and integration",
+      "OOP",
+      "SOLID principles",
+      "Design patterns",
+      "Agile/Scrum",
+      "Problem-solving",
+      "Teamwork"
+    ],
+    "nice_to_have": [
+      "ORM (Entity Framework, Dapper or other)",
+      "Cloud services (Azure, AWS or GCP)",
+      "CI/CD pipelines",
+      "DevOps practices",
+      "Containerization (e.g. Docker, Kubernetes)"
+    ],
+    "min_experience_years": 1.0,
+    "education": ""
+  },
+  "responsibilities": [
+    "Build, maintain and optimize back-end applications with C#, .NET and SQL Server",
+    "Design and implement RESTful APIs and microservices for web and mobile apps",
+    "Ensure performance, security and scalability",
+    "Collaborate with front-end developers, QA and stakeholders",
+    "Debug, troubleshoot and improve existing applications",
+    "Participate in code reviews and improve architecture and performance"
+  ],
+  "seniority_level": "junior"
+}

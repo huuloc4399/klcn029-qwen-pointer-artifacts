@@ -1,0 +1,36 @@
+{
+  "job_title": "Frontend Developer (React, TypeScript)",
+  "requirements": {
+    "must_have": [
+      "HTML5/CSS3",
+      "JavaScript (ES6+)",
+      "TypeScript",
+      "Framework JavaScript (ReactJS, VueJS hoặc Angular)",
+      "Responsive web design",
+      "Tương thích đa trình duyệt",
+      "Git",
+      "Làm việc nhóm",
+      "Giao tiếp",
+      "RESTful API",
+      "UI/UX"
+    ],
+    "nice_to_have": [
+      "ReactJS",
+      "Node.js",
+      "Golang",
+      "Phát triển fullstack",
+      "An ninh mạng (cybersecurity)"
+    ],
+    "min_experience_years": null,
+    "education": "Tốt nghiệp đại học ngành CNTT, Khoa học máy tính hoặc ngành liên quan"
+  },
+  "responsibilities": [
+    "Phát triển và duy trì ứng dụng web theo UI đã thiết kế",
+    "Chuyển thiết kế Figma, Sketch, Adobe XD thành HTML, CSS, JavaScript, TypeScript",
+    "Tối ưu hiệu suất ứng dụng web",
+    "Phối hợp với UI/UX designer",
+    "Tích hợp API và dữ liệu từ backend vào giao diện",
+    "Nghiên cứu, áp dụng công nghệ frontend mới"
+  ],
+  "seniority_level": "fresher"
+}

@@ -1,0 +1,33 @@
+{
+  "job_title": "Front-end Developer (Shopify, WordPress)",
+  "requirements": {
+    "must_have": [
+      "Basic English reading and writing",
+      "E-commerce platforms (Shopify, WordPress or other)",
+      "Critical thinking",
+      "Problem-solving",
+      "Semantic, SEO-friendly HTML5",
+      "Cross-browser development",
+      "Modern CSS (Tailwind CSS, Flexbox, Grid, transforms, animation)",
+      "CSS preprocessor (Sass, Less or PostCSS)",
+      "JavaScript (ES6+)",
+      "JavaScript framework (React or Vue.js)",
+      "Responsive web design",
+      "Design tools (Sketch, Zeplin, Figma)",
+      "Git"
+    ],
+    "nice_to_have": [
+      "Build tools (Webpack, Babel or Vite)",
+      "Liquid (Shopify)"
+    ],
+    "min_experience_years": 1.0,
+    "education": "Đại học trở lên"
+  },
+  "responsibilities": [
+    "Transform design files (Sketch, Zeplin, Figma) into responsive, accessible front-end components",
+    "Uphold accessibility, performance and coding standards",
+    "Collaborate with the team leader and project manager on schedule",
+    "Research and adopt modern front-end practices with the technical lead"
+  ],
+  "seniority_level": "junior"
+}

@@ -1,0 +1,135 @@
+{
+  "rubric_version": "rubric_v2_draft1",
+  "status": "draft: lock after the 10-pair pilot; record every change in RUBRIC_CHANGELOG",
+  "scale": [0, 1, 2, 3, 4],
+  "criteria": [
+    {
+      "id": "C1_structure",
+      "name": "Cấu trúc và hình thức trình bày",
+      "weight": 10,
+      "how_to_judge": "Xem toàn bộ PDF. Chấm cách tổ chức và trình bày, không chấm nội dung chuyên môn.",
+      "anchors": [
+        "Không xác định được các mục; thông tin lộn xộn, không theo được mạch.",
+        "Có vài mục nhưng thứ tự rối, thiếu tiêu đề hoặc nội dung các mục lẫn vào nhau; nhiều lỗi định dạng.",
+        "Đủ các mục chính nhưng trình bày thiếu nhất quán (ngày tháng, gạch đầu dòng, phông chữ) hoặc quá dày, quá dài.",
+        "Mục rõ, thứ tự hợp lý, định dạng nhất quán; chỉ còn lỗi nhỏ như vài lỗi chính tả hoặc khoảng trắng.",
+        "Mục rõ, thông tin quan trọng với vị trí được đặt trước, nhất quán, gọn (1–2 trang), không lỗi chính tả."
+      ]
+    },
+    {
+      "id": "C2_it_content",
+      "name": "Nội dung chuyên môn phù hợp lĩnh vực CNTT",
+      "weight": 10,
+      "how_to_judge": "Chấm độc lập với JD: CV có thể hiện chuyên môn CNTT rõ và nhất quán không.",
+      "anchors": [
+        "Nội dung không liên quan đến CNTT.",
+        "Liên quan CNTT rất mờ nhạt; chủ yếu là thông tin chung chung.",
+        "Có nội dung CNTT nhưng chung chung, không gắn với một hướng cụ thể (ví dụ Backend hoặc Frontend).",
+        "Nội dung CNTT rõ, định hướng nghề nghiệp khớp một hướng cụ thể.",
+        "Mục tiêu, kỹ năng, dự án và kinh nghiệm nhất quán với nhau; thể hiện chiều sâu kỹ thuật như thiết kế, kiểm thử, triển khai."
+      ]
+    },
+    {
+      "id": "C3_skills",
+      "name": "Kỹ năng chuyên môn và kỹ năng bổ trợ",
+      "weight": 15,
+      "how_to_judge": "Kỹ năng có minh chứng là kỹ năng xuất hiện trong dự án, kinh nghiệm hoặc chứng chỉ, không chỉ trong danh sách kỹ năng.",
+      "anchors": [
+        "Không nêu kỹ năng.",
+        "Chỉ liệt kê vài kỹ năng rời rạc, không có ngữ cảnh sử dụng ở bất kỳ đâu trong CV.",
+        "Danh sách kỹ năng khá đủ nhưng phần lớn không có minh chứng sử dụng; hoặc không có kỹ năng bổ trợ nào.",
+        "Phần lớn kỹ năng chính có minh chứng sử dụng; có kỹ năng bổ trợ (làm việc nhóm, giao tiếp, ngoại ngữ) nhưng chưa có ngữ cảnh.",
+        "Kỹ năng chính được nhóm rõ và có minh chứng; kỹ năng bổ trợ có ngữ cảnh cụ thể (vai trò trong nhóm, chứng chỉ ngoại ngữ)."
+      ]
+    },
+    {
+      "id": "C4_projects",
+      "name": "Chất lượng mô tả dự án",
+      "weight": 15,
+      "how_to_judge": "Chấm theo 1–2 dự án liên quan nhất đến JD, không lấy trung bình mọi dự án.",
+      "anchors": [
+        "Không có dự án.",
+        "Chỉ có tên dự án hoặc một dòng mô tả chung.",
+        "Có vai trò hoặc công nghệ nhưng không nêu việc đã làm.",
+        "Có vai trò, công nghệ và đầu việc cụ thể.",
+        "Như mức 3, thêm kết quả đo được hoặc sản phẩm kiểm chứng được (link demo hoặc repo, số người dùng, số liệu)."
+      ]
+    },
+    {
+      "id": "C5_experience",
+      "name": "Kinh nghiệm làm việc hoặc thực tập",
+      "weight": 10,
+      "how_to_judge": "Với JD thực tập hoặc fresher: nếu không có kinh nghiệm nhưng có dự án đạt mức 3 trở lên ở C4, cho tối đa 2 điểm và ghi 'dự án thay thế' ở cột lý do.",
+      "anchors": [
+        "Không có kinh nghiệm làm việc hoặc thực tập, và không có dự án thay thế.",
+        "Có kinh nghiệm nhưng không liên quan CNTT, hoặc chỉ có tên công ty và chức danh.",
+        "Có kinh nghiệm hoặc thực tập CNTT nhưng chỉ nêu trách nhiệm chung chung; hoặc dự án thay thế theo quy tắc trên.",
+        "Kinh nghiệm hoặc thực tập CNTT có đầu việc và công nghệ cụ thể.",
+        "Như mức 3, thêm kết quả hoặc phạm vi rõ (quy mô, người dùng, cải thiện đo được)."
+      ]
+    },
+    {
+      "id": "C6_certs_activities",
+      "name": "Chứng chỉ, thành tích và hoạt động liên quan",
+      "weight": 5,
+      "how_to_judge": "Chỉ tính mức liên quan đến nghề; không cộng điểm cho xuất thân hay thông tin cá nhân.",
+      "anchors": [
+        "Không có chứng chỉ, giải thưởng hay hoạt động.",
+        "Có nhưng không liên quan CNTT hoặc nghề nghiệp.",
+        "Có ít nhất một mục liên quan nhưng chỉ nêu tên, không rõ đơn vị cấp hoặc năm.",
+        "Có mục liên quan CNTT, rõ đơn vị và năm (ví dụ chứng chỉ ngoại ngữ, cloud, cuộc thi lập trình).",
+        "Nhiều mục liên quan và kiểm chứng được: giải từ cấp trường trở lên, chứng chỉ chuyên môn được công nhận, vai trò nòng cốt trong CLB kỹ thuật."
+      ]
+    },
+    {
+      "id": "C7_ats",
+      "name": "Khả năng đáp ứng ATS (máy đọc được)",
+      "weight": 10,
+      "how_to_judge": "Thử bôi đen và sao chép chữ trong PDF. Chấm khả năng máy đọc đúng nội dung, không chấm thẩm mỹ.",
+      "anchors": [
+        "PDF dạng ảnh hoặc không chọn được chữ; máy gần như không đọc được.",
+        "Chọn được chữ nhưng nhiều cột, bảng hoặc hộp chữ làm sai thứ tự đọc; thông tin quan trọng nằm trong hình hoặc biểu tượng.",
+        "Đọc được phần lớn; còn một vấn đề như hai cột, thanh đo kỹ năng bằng đồ họa, tiêu đề mục lạ hoặc ngày tháng không nhất quán.",
+        "Một cột, hoặc hai cột đơn giản vẫn đọc đúng thứ tự; tiêu đề mục phổ biến; chỉ còn lỗi nhỏ.",
+        "Một cột, chọn được chữ, tiêu đề mục chuẩn, không dùng đồ họa thay chữ, ngày tháng nhất quán."
+      ]
+    },
+    {
+      "id": "C8_jd_fit",
+      "name": "Mức phù hợp với Job Description",
+      "weight": 25,
+      "how_to_judge": "Điền sheet YEU_CAU_JD trước, rồi chấm mục này. Tỷ lệ tính trên yêu cầu bắt buộc; 'mentioned_only' tính nửa.",
+      "anchors": [
+        "Dưới 20% yêu cầu bắt buộc có bằng chứng.",
+        "Khoảng 20–40% yêu cầu bắt buộc có bằng chứng.",
+        "Khoảng 40–60% yêu cầu bắt buộc có bằng chứng.",
+        "Khoảng 60–80% yêu cầu bắt buộc có bằng chứng.",
+        "Từ 80% yêu cầu bắt buộc trở lên có bằng chứng, và đáp ứng thêm một số yêu cầu ưu tiên."
+      ]
+    }
+  ],
+  "criterion_statuses": {
+    "scored": "Đã chấm 0–4 theo mô tả neo.",
+    "missing_in_cv": "PDF đọc được nhưng CV không có nội dung cho tiêu chí này. Điểm bắt buộc là 0.",
+    "not_applicable": "Tiêu chí không áp dụng cho vị trí theo quy tắc đã chốt. Bỏ trống điểm và ghi lý do.",
+    "unreadable": "Không đọc chắc được phần nội dung liên quan trong PDF (mờ, vỡ font, mất trang). Bỏ trống điểm."
+  },
+  "requirement_statuses": {
+    "met": "CV có bằng chứng sử dụng trong dự án, kinh nghiệm hoặc chứng chỉ.",
+    "mentioned_only": "Chỉ xuất hiện trong danh sách kỹ năng hoặc mục tiêu, không có ngữ cảnh sử dụng.",
+    "missing": "Không thấy trong CV.",
+    "unclear": "Có dấu hiệu liên quan nhưng không đủ để quyết định; ghi lý do ở cột ghi chú."
+  },
+  "evidence_sections": [
+    "summary", "skills", "experience", "projects", "education",
+    "certifications", "activities", "awards", "personal_info", "toan_bo_cv"
+  ],
+  "overall_fit": [
+    "1 · Không phù hợp: thiếu phần lớn yêu cầu cốt lõi.",
+    "2 · Ít phù hợp: chỉ đáp ứng vài yêu cầu, thiếu nền tảng chính.",
+    "3 · Phù hợp một phần: có nền tảng nhưng thiếu vài yêu cầu bắt buộc.",
+    "4 · Phù hợp: đáp ứng hầu hết yêu cầu bắt buộc có bằng chứng.",
+    "5 · Rất phù hợp: đáp ứng gần đủ yêu cầu bắt buộc và nhiều yêu cầu ưu tiên, minh chứng mạnh."
+  ],
+  "confidence_levels": ["cao", "trung_binh", "thap"]
+}

@@ -1,0 +1,33 @@
+Position: Backend Engineer (Python/FastAPI, Ruby on Rails), fintech platform
+Level: fresher
+Responsibilities:
+- Maintain and extend the existing Ruby on Rails CRM and fintech integrations, including payment gateways
+- Build new backend services in Python with FastAPI, SQLAlchemy and Alembic
+- Design REST APIs, authentication flows, background jobs and asynchronous, event-driven workflows
+- Work with PostgreSQL, Redis and ClickHouse: migrations, query tuning and data consistency
+- Write maintainable, testable code with proper error handling and recovery
+- Investigate production issues together with the platform/DevOps team in containerized environments
+Required:
+- Strong in Python or Ruby on Rails, and willing to work in both
+- Good grasp of backend development and HTTP/REST APIs
+- Good knowledge of relational databases and SQL (transactions, indexes, constraints, consistency), with hands-on PostgreSQL or a similar database
+- Uses Git in a team
+- Works in Linux development environments
+- Has used Docker and containerized applications
+- Writes unit tests and integration tests
+- Good at problem-solving and debugging, including issues that span the application and the database
+Preferred:
+- Async Python with frameworks such as FastAPI, SQLAlchemy or Alembic
+- Ruby on Rails in production
+- Background jobs or event-driven systems such as Redis, Kafka or Pub/Sub
+- Distributed-systems concepts: concurrency, idempotency, retries, failure handling
+- OAuth2/OIDC
+- ClickHouse or another analytics database
+- Kubernetes (Helm, ArgoCD), Azure, and CI/CD or GitOps workflows
+- Logs, metrics and production troubleshooting
+- Vue.js/Nuxt and TypeScript
+- Interest or experience in fintech or payments
+- Awareness of Agile and DevOps
+Qualifications:
+- Degree in Computer Science, Software Engineering, IT, or equivalent practical experience
+- 1+ year of experience is preferred; strong fresh graduates with solid backend projects are welcome

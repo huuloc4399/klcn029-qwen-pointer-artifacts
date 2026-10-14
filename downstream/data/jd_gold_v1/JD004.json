@@ -1,0 +1,22 @@
+{
+  "job_title": "Thực tập sinh Backend (Golang)",
+  "requirements": {
+    "must_have": [
+      "Go (Golang)",
+      "RESTful API",
+      "Kiến trúc phần mềm",
+      "Kiểm thử phần mềm (unit test, integration test)",
+      "Cơ sở dữ liệu (SQL hoặc NoSQL)"
+    ],
+    "nice_to_have": [],
+    "min_experience_years": null,
+    "education": "Sinh viên năm cuối cao đẳng hoặc đại học ngành CNTT"
+  },
+  "responsibilities": [
+    "Tham gia dự án thực tế mảng Travel Tech (đặt vé máy bay, đặt phòng khách sạn)",
+    "Lập trình backend bằng Golang dưới sự hướng dẫn của mentor",
+    "Phát triển API, viết unit test và xử lý lỗi khi triển khai",
+    "Phối hợp kiểm thử chức năng, tối ưu hiệu năng và cải thiện chất lượng sản phẩm"
+  ],
+  "seniority_level": "intern"
+}

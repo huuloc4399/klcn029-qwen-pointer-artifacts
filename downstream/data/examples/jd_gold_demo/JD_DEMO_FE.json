@@ -1,0 +1,14 @@
+{
+  "job_title": "Frontend Developer Fresher (ví dụ minh họa)",
+  "requirements": {
+    "must_have": ["JavaScript", "React", "HTML/CSS", "Responsive design"],
+    "nice_to_have": ["TypeScript", "Figma"],
+    "min_experience_years": 0.5,
+    "education": "Tốt nghiệp ngành CNTT hoặc tương đương"
+  },
+  "responsibilities": [
+    "Xây dựng giao diện web bằng React",
+    "Phối hợp với Backend để tích hợp API"
+  ],
+  "seniority_level": "fresher"
+}

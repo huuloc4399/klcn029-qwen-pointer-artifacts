@@ -1,0 +1,36 @@
+{
+  "job_title": "Frontend Developer (Angular)",
+  "requirements": {
+    "must_have": [
+      "Angular 8+",
+      "SASS",
+      "Thiết kế giao diện web",
+      "Phát triển sản phẩm web",
+      "Responsive web design",
+      "Tích hợp API",
+      "Micro-frontend hoặc SPA modular",
+      "Unit test frontend (Jest/Testing Library hoặc Jasmine/Karma)",
+      "Hiệu năng web (critical rendering path, code splitting, lazy loading)",
+      "Tự học công nghệ mới",
+      "Giao tiếp",
+      "Làm việc nhóm",
+      "Tư duy logic",
+      "Giải quyết vấn đề",
+      "GitLab",
+      "Jira"
+    ],
+    "nice_to_have": [
+      "Phối hợp với BA và designer"
+    ],
+    "min_experience_years": 1.0,
+    "education": "Tốt nghiệp cao đẳng hoặc đại học ngành công nghệ phần mềm"
+  },
+  "responsibilities": [
+    "Tham gia xây dựng hệ thống phần mềm của công ty",
+    "Thiết kế và hiện thực giao diện theo bản thiết kế của designer",
+    "Phối hợp với BA phân tích, thiết kế giải pháp",
+    "Tích hợp API cùng đội backend",
+    "Xây dựng và tích hợp micro-frontend trong kiến trúc microservices"
+  ],
+  "seniority_level": "junior"
+}

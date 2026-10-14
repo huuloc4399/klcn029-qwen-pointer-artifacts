@@ -1,0 +1,28 @@
+{
+  "job_title": "Lập trình viên Backend Web (Node.js, tích hợp AI)",
+  "requirements": {
+    "must_have": [
+      "JavaScript",
+      "Node.js",
+      "RESTful API hoặc Web services",
+      "Tư duy logic",
+      "Tự học công nghệ mới"
+    ],
+    "nice_to_have": [
+      "LLM prompting",
+      "Vector database",
+      "Docker",
+      "Linux",
+      "Apache"
+    ],
+    "min_experience_years": null,
+    "education": "Tốt nghiệp CNTT, Khoa học máy tính hoặc ngành liên quan"
+  },
+  "responsibilities": [
+    "Phát triển, tối ưu và bảo trì mã nguồn hệ thống hiện tại",
+    "Xây dựng, tích hợp dịch vụ API và xử lý luồng dữ liệu bằng Node.js/JavaScript",
+    "Ứng dụng LLM prompting, vector DB và công cụ AI để tự động hóa hệ thống nội bộ",
+    "Phối hợp triển khai, vận hành ứng dụng trên Linux/Docker"
+  ],
+  "seniority_level": "fresher"
+}

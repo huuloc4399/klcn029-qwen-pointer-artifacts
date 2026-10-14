@@ -1,0 +1,13 @@
+Vị trí: Thực tập sinh Backend (Golang)
+Cấp độ: intern
+Mô tả công việc:
+- Tham gia dự án thật của công ty trong mảng du lịch trực tuyến (đặt vé máy bay, đặt phòng khách sạn)
+- Lập trình backend bằng Golang dưới sự hướng dẫn của mentor
+- Cùng phát triển API, viết unit test và sửa lỗi khi triển khai
+- Phối hợp với nhóm kiểm thử chức năng, tối ưu hiệu năng và nâng chất lượng sản phẩm
+Yêu cầu bắt buộc:
+- Sinh viên năm cuối cao đẳng hoặc đại học ngành CNTT
+- Đã học và từng thực hành Golang
+- Kỹ năng theo tin tuyển dụng: RESTful API, kiến trúc phần mềm, kiểm thử phần mềm (unit test, integration test), cơ sở dữ liệu SQL hoặc NoSQL
+Điều kiện làm việc:
+- Thực tập toàn thời gian trong 3 tháng

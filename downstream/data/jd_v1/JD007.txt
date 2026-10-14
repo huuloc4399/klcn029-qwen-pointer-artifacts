@@ -1,0 +1,21 @@
+Position: Java Backend Developer Intern (SaaS advertising platform)
+Level: intern
+Responsibilities:
+- Build and maintain backend services with Java and Spring Boot
+- Write RESTful APIs for the web app and internal services
+- Query and process data in PostgreSQL and MongoDB at a basic level (CRUD, simple optimization)
+- Debug and fix issues found during development
+- Write unit tests for the modules and APIs you own
+- Use Git following the team workflow, and take part in code reviews
+- Read technical requirements and research new tools with guidance from senior developers
+Required:
+- Final-year student or recent graduate in Computer Science, Software Engineering or IT
+- Basic Java core: OOP, collections, exception handling, interfaces and abstract classes, generics
+- Basic Spring Boot and REST APIs, including HTTP methods (GET, POST, PUT, DELETE)
+- Basic SQL and relational databases
+- Familiar with Git
+- Can read English technical documentation
+Preferred:
+- Java Stream API
+Working conditions:
+- Full-time availability preferred; path from 2-month internship to official employee

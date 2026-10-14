@@ -1,0 +1,43 @@
+{
+  "job_title": "Lập trình viên Java Backend",
+  "requirements": {
+    "must_have": [
+      "Java core (Java 8+)",
+      "Spring Boot",
+      "Hibernate/JPA",
+      "REST API",
+      "Maven/Gradle",
+      "Linux",
+      "Cơ sở dữ liệu quan hệ (PostgreSQL, MySQL)",
+      "Tối ưu truy vấn SQL",
+      "OOP",
+      "Dependency Injection (DI)",
+      "CRUD",
+      "Transaction",
+      "Xử lý lỗi (error handling)",
+      "Batch processing",
+      "Microservices",
+      "Docker",
+      "Bảo mật hệ thống",
+      "Phân tích nghiệp vụ",
+      "Đọc hiểu tài liệu kỹ thuật"
+    ],
+    "nice_to_have": [
+      "Lĩnh vực mạng xã hội hoặc tài chính",
+      "CI/CD",
+      "Kubernetes",
+      "WebSocket"
+    ],
+    "min_experience_years": 1.0,
+    "education": "Tốt nghiệp đại học ngành CNTT hoặc ngành liên quan"
+  },
+  "responsibilities": [
+    "Phân tích, thiết kế, phát triển và tối ưu hệ thống mạng xã hội",
+    "Lập trình Java theo chuẩn clean code, bảo mật, dễ mở rộng và bảo trì",
+    "Thiết kế, triển khai RESTful API, microservices và tích hợp hệ thống khác",
+    "Thiết kế và tối ưu database đảm bảo hiệu năng và ổn định",
+    "Hỗ trợ kiểm thử, sửa lỗi",
+    "Phối hợp với BA, tester, PM về tiến độ và chất lượng"
+  ],
+  "seniority_level": "junior"
+}

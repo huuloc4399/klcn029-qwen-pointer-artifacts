@@ -1,0 +1,14 @@
+Vị trí: Lập trình viên Backend Web (Node.js, tích hợp AI)
+Cấp độ: fresher
+Mô tả công việc:
+- Phát triển, tối ưu và bảo trì mã nguồn của hệ thống đang chạy
+- Xây dựng và tích hợp các dịch vụ API, xử lý luồng dữ liệu bằng Node.js/JavaScript
+- Tìm hiểu và áp dụng công nghệ mới (prompt cho LLM, cơ sở dữ liệu vector, công cụ AI) để tự động hóa và nâng cấp hệ thống nội bộ
+- Cùng triển khai và vận hành ứng dụng trên Linux và Docker
+Yêu cầu bắt buộc:
+- Tốt nghiệp ngành CNTT, Khoa học máy tính hoặc ngành liên quan
+- Vững JavaScript và Node.js
+- Có kinh nghiệm làm việc với RESTful API hoặc web service
+- Tư duy logic tốt, tự học công nghệ mới nhanh
+Ưu tiên:
+- Hiểu biết hoặc đã làm với ít nhất một trong các mảng: prompt cho LLM, cơ sở dữ liệu vector, Docker, Linux, Apache

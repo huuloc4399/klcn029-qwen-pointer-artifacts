@@ -1,0 +1,15 @@
+{
+  "job_title": "Backend Developer Intern (ví dụ minh họa)",
+  "requirements": {
+    "must_have": ["Java", "Spring Boot", "SQL", "REST API", "Git"],
+    "nice_to_have": ["Docker", "Redis", "Unit testing"],
+    "min_experience_years": null,
+    "education": "Sinh viên năm 3–4 ngành CNTT hoặc tương đương"
+  },
+  "responsibilities": [
+    "Xây dựng và kiểm thử REST API",
+    "Thiết kế bảng dữ liệu và viết truy vấn SQL",
+    "Tham gia review code cùng nhóm"
+  ],
+  "seniority_level": "intern"
+}

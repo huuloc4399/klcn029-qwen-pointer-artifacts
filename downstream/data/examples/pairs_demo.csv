@@ -1,0 +1,4 @@
+pair_id,cv_id,jd_id,split,intended_fit
+DEMO-P01,CV_DEMO_01,JD_DEMO_BE,dev,same_track
+DEMO-P02,CV_DEMO_01,JD_DEMO_FE,dev,other_track
+DEMO-P03,CV_DEMO_02,JD_DEMO_FE,dev,same_track

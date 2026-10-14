@@ -1,0 +1,32 @@
+{
+  "job_title": "Fresher Laravel PHP",
+  "requirements": {
+    "must_have": [
+      "PHP",
+      "HTML/CSS",
+      "JavaScript",
+      "MySQL",
+      "Git",
+      "Đọc hiểu tài liệu kỹ thuật",
+      "Debug",
+      "Sử dụng công cụ AI hỗ trợ lập trình",
+      "Python",
+      "PostgreSQL",
+      "Dự án thương mại điện tử, API, trang quản trị hoặc ERP"
+    ],
+    "nice_to_have": [
+      "Laravel (dự án đồ án, thực tập hoặc cá nhân)"
+    ],
+    "min_experience_years": null,
+    "education": "Cao đẳng trở lên"
+  },
+  "responsibilities": [
+    "Phát triển và bảo trì website Laravel (PHP), Blade, MySQL, JavaScript",
+    "Xây dựng, chỉnh sửa tính năng web theo yêu cầu nghiệp vụ",
+    "Đọc hiểu code hiện có, sửa lỗi, refactor",
+    "Viết code theo chuẩn nhóm (MVC, service, validation, Eloquent)",
+    "Tự kiểm tra kết quả, dùng AI hỗ trợ có kiểm soát",
+    "Tìm hiểu hệ thống ERP"
+  ],
+  "seniority_level": "fresher"
+}

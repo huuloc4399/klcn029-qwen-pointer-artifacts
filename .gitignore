@@ -48,3 +48,9 @@ __pycache__/
 .idea/
 .vscode/
 tmp/
+
+# Human ratings of CV-JD pairs quote real CVs; downstream run outputs
+downstream/data/labels_v1/
+# Original postings as copied from job sites; only the team rewrite is versioned
+downstream/data/jd_v1/raw/
+downstream/results/

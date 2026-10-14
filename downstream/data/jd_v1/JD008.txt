@@ -1,0 +1,17 @@
+Vị trí: Fresher Laravel PHP
+Cấp độ: fresher
+Mô tả công việc:
+- Phát triển và bảo trì website Laravel (PHP) dùng Blade, MySQL và JavaScript
+- Xây mới hoặc chỉnh sửa tính năng web theo yêu cầu nghiệp vụ
+- Đọc hiểu mã nguồn có sẵn, sửa lỗi và refactor khi cần
+- Viết mã rõ ràng theo chuẩn của nhóm (MVC, service, validation, Eloquent)
+- Tự kiểm tra kết quả; dùng công cụ AI để tăng tốc nhưng phải hiểu và giải thích được phần mình làm
+- Dần tìm hiểu hệ thống ERP khi đã vững Laravel
+Yêu cầu bắt buộc:
+- Nền tảng PHP, HTML/CSS, JavaScript và MySQL
+- Biết Git cơ bản, đọc tài liệu kỹ thuật và debug có logic
+- Biết dùng công cụ AI hiệu quả khi lập trình
+- Có hiểu biết về Python và PostgreSQL
+- Đã từng làm một trong các loại dự án: thương mại điện tử, API, trang quản trị hoặc hệ thống ERP
+Ưu tiên:
+- Đã có dự án Laravel (đồ án, thực tập hoặc cá nhân)

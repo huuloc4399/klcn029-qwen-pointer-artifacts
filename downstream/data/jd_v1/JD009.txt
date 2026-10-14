@@ -1,0 +1,20 @@
+Vị trí: Frontend Developer (React, TypeScript)
+Cấp độ: fresher
+Mô tả công việc:
+- Phát triển và duy trì ứng dụng web theo giao diện đã thiết kế
+- Chuyển bản thiết kế (Figma, Sketch, Adobe XD) thành mã HTML, CSS, JavaScript, TypeScript
+- Tối ưu hiệu năng ứng dụng web cho trải nghiệm người dùng tốt
+- Phối hợp với UI/UX designer và backend developer để tích hợp API và dữ liệu vào giao diện
+- Tìm hiểu và áp dụng thư viện, framework frontend mới
+Yêu cầu bắt buộc:
+- Tốt nghiệp đại học ngành CNTT, Khoa học máy tính hoặc ngành liên quan; ưu tiên mới tốt nghiệp hoặc dưới 2 năm kinh nghiệm
+- Vững HTML5, CSS3, JavaScript (ES6+) và TypeScript
+- Biết ít nhất một framework JavaScript: ReactJS, VueJS hoặc Angular
+- Hiểu responsive web design và tương thích đa trình duyệt
+- Đã dùng Git (GitHub, GitLab hoặc Bitbucket)
+- Làm việc nhóm và giao tiếp tốt
+- Kỹ năng theo tin tuyển dụng: RESTful API, UI/UX
+Ưu tiên:
+- ReactJS
+- Node.js, Golang, phát triển fullstack
+- Hiểu biết về an ninh mạng

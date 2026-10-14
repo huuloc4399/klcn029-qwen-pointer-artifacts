@@ -1,0 +1,28 @@
+{
+  "job_title": "Lập trình viên Java (dự án ngân hàng)",
+  "requirements": {
+    "must_have": [
+      "Java core",
+      "OOP",
+      "Spring/Spring Boot",
+      "RESTful API",
+      "SQL (MySQL hoặc Oracle)",
+      "Git",
+      "Tư duy logic"
+    ],
+    "nice_to_have": [
+      "Microservices",
+      "Dự án tài chính – ngân hàng"
+    ],
+    "min_experience_years": 0.5,
+    "education": "Đại học trở lên"
+  },
+  "responsibilities": [
+    "Phát triển, vận hành các module backend của hệ thống ngân hàng/fintech",
+    "Thiết kế, xây dựng API và xử lý dữ liệu theo yêu cầu dự án",
+    "Phân tích yêu cầu cùng BA, hỗ trợ cải tiến chất lượng hệ thống",
+    "Tối ưu hiệu năng, đảm bảo chất lượng code và chuẩn coding",
+    "Phối hợp với Frontend/Mobile/Tester"
+  ],
+  "seniority_level": "fresher"
+}
