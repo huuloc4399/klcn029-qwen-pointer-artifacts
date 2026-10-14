@@ -222,6 +222,8 @@ def guide_blocks(rubric: dict, rater: str, pair_count: int) -> list[tuple[str, s
               "IELTS → certifications); Mục tiêu, Giới thiệu, Profile → summary; Thực tập, Công việc → experience; "
               "Đồ án → projects; Giải thưởng, Thành tích → awards; Hoạt động, CLB, Tình nguyện → activities."),
         ("p", "• Chỉ chấm theo nội dung CV; không mở link GitHub, portfolio hay demo. Link chỉ tính như một dòng chữ trong CV."),
+        ("p", "• Yêu cầu JD: bỏ qua mức độ (thành thạo, cơ bản); CV nêu một khả năng khác cùng lĩnh vực → missing kèm ghi chú "
+              "(JD cần giao tiếp tiếng Anh, CV chỉ đọc tài liệu); yêu cầu có 'A hoặc B' → có một lựa chọn là đủ."),
         ("p", "• Link GitHub với yêu cầu Git: link gắn với một dự án cụ thể → met (projects); chỉ có link hồ sơ ở phần "
               "liên hệ → mentioned_only (personal_info); Git/GitHub chỉ ghi trong mục kỹ năng → mentioned_only (skills)."),
         ("h", "Trạng thái tiêu chí (cột trang_thai ở TIEU_CHI)"),

@@ -103,6 +103,16 @@ def guide(path: Path, *, rater: str, round_name: str, workbook_name: str, meta: 
         "Kiểm tra cột kiem_tra hiện OK ở mọi dòng của cặp. Sheet TIEN_DO cho biết cặp đã xong chưa.",
     ])
 
+    heading("Một số trường hợp khó ở YEU_CAU_JD", 11.5)
+    bullets([
+        "Bỏ qua mức độ: JD ghi 'thành thạo Java', CV ghi 'Java' trong mục kỹ năng → mentioned_only như bình thường. "
+        "Mức độ thành thạo được phản ánh ở tiêu chí C3.",
+        "CV nêu một khả năng khác cùng lĩnh vực → missing và ghi lý do ở ghi_chu. Ví dụ JD cần giao tiếp tiếng Anh "
+        "(viết và nói), CV chỉ ghi đọc hiểu tài liệu kỹ thuật.",
+        "Yêu cầu có lựa chọn thay thế ('Jest hoặc Jasmine', 'React hoặc Vue') → CV có một trong các lựa chọn là đủ.",
+        "Kỹ năng chỉ suy ra gián tiếp (CV có Spring Boot nhưng không ghi Java) → unclear và ghi lý do; không tự suy ra là met.",
+    ])
+
     heading("5. Chấm tiêu chí")
     bullets([
         "scored: chấm 0–4 theo mô tả neo. Điểm từ 1 trở lên phải có trích dẫn.",
