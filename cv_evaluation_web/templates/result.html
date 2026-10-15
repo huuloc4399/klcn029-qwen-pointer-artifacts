@@ -12,7 +12,7 @@
     <aside class="score-panel">
       <div class="score-circle"><strong>{{ result.total_score|round|int }}</strong><span>/100</span></div>
       <h2>{{ result.verdict }}</h2>
-      <p>{{ result.calls }} lượt gọi {{ result.model }} · {{ result.latency_seconds }} giây</p>
+      <p>{% if result.provider == 'rules' %}Chấm theo quy tắc trên máy chủ của nhóm{% else %}{{ result.calls }} lượt gọi {{ result.model }} · {{ result.latency_seconds }} giây{% endif %}</p>
       <div class="score-breakdown">
         {% for item in result.criteria %}<label><span><b>{{ item.name }}</b><small>{{ item.score }}/4 · {{ item.weighted }}/{{ item.weight }}đ</small></span><progress value="{{ item.score }}" max="4"></progress></label>{% endfor %}
       </div>
@@ -20,20 +20,20 @@
 
     <div class="result-content">
       {% if result.scoring_note %}<div class="alert warning"><strong>Lưu ý về cách chấm</strong><p>{{ result.scoring_note }}</p></div>{% endif %}
-      {% if pipeline %}<section class="result-card compact-card pipeline-proof"><div><h2>Pipeline đã xác minh</h2><p>{{ pipeline.model }} · {{ pipeline.parser }} · CVSchema {{ pipeline.cv_schema_version }}</p>{% if pipeline.ocr_quality_warning %}<p class="warning-text">CV tiếng Việt đã đi qua OCR dự phòng; nên kiểm tra lại nội dung bị nhận dạng sai.</p>{% endif %}</div></section>{% endif %}
+      {% if pipeline %}<section class="result-card compact-card pipeline-proof"><div><h2>Pipeline đã xác minh</h2><p>{{ pipeline.model }} · {{ pipeline.parser }} · CVSchema {{ pipeline.cv_schema_version }}</p>{% if pipeline.extraction_method %}<p>Trích xuất: {{ pipeline.extraction_method }}</p>{% endif %}{% if pipeline.model_runtime_seconds is not none %}<p>{{ pipeline.input_tokens }} token đầu vào · {{ pipeline.generated_tokens }} token sinh · {{ pipeline.model_runtime_seconds }} giây chạy model{% if pipeline.document_route %} · tuyến {{ pipeline.document_route }}{% endif %}</p>{% endif %}{% if pipeline.ocr_quality_warning %}<p class="warning-text">CV tiếng Việt đã đi qua OCR dự phòng; nên kiểm tra lại nội dung bị nhận dạng sai.</p>{% endif %}</div></section>{% endif %}
       {% if result.overall_comment %}<section class="result-card"><div class="card-title"><span class="title-icon">✎</span><div><h2>Nhận xét tổng thể</h2><p>Do tác tử phản biện của M4 viết sau khi rà soát điểm.</p></div></div><p>{{ result.overall_comment }}</p></section>{% endif %}
 
       <section class="result-card"><div class="card-title"><span class="title-icon improve">↗</span><div><h2>Ưu tiên cải thiện</h2><p>Sắp theo số điểm có thể tăng thêm; chỉ sửa khi bạn có thông tin thật.</p></div></div><ol class="improvement-list">{% for item in result.improvements %}<li><span>{{ loop.index }}</span><p>{{ item }}</p></li>{% else %}<li><span>✓</span><p>Không còn tiêu chí nào dưới mức tối đa.</p></li>{% endfor %}</ol></section>
 
       <section class="result-card"><div class="card-title"><span class="title-icon">≋</span><div><h2>Chi tiết 8 tiêu chí</h2><p>Bằng chứng trích từ CV và gợi ý cho từng tiêu chí.</p></div></div>
-        <ul class="criteria-list">{% for item in result.criteria %}<li><h3>{{ item.name }} <small>{{ item.score }}/4 · {{ item.weighted }}/{{ item.weight }}đ{% if item.scored_by == 'pdf' %} · chấm từ phân tích PDF{% elif item.initial_score is not none and item.initial_score != item.score %} · phản biện đổi từ {{ item.initial_score }}/4{% endif %}</small></h3>{% if item.evidence %}<p><b>Bằng chứng:</b> {{ item.evidence }}</p>{% endif %}{% if item.suggestion %}<p><b>Gợi ý:</b> {{ item.suggestion }}</p>{% endif %}</li>{% endfor %}</ul>
+        <ul class="criteria-list">{% for item in result.criteria %}<li><h3>{{ item.name }} <small>{{ item.score }}/4 · {{ item.weighted }}/{{ item.weight }}đ{% if item.scored_by == 'pdf' %} · chấm từ phân tích PDF{% elif item.scored_by == 'rule' %} · chấm theo quy tắc{% elif item.initial_score is not none and item.initial_score != item.score %} · phản biện đổi từ {{ item.initial_score }}/4{% endif %}</small></h3>{% if item.evidence %}<p><b>Bằng chứng:</b> {{ item.evidence }}</p>{% endif %}{% if item.suggestion %}<p><b>Gợi ý:</b> {{ item.suggestion }}</p>{% endif %}</li>{% endfor %}</ul>
       </section>
 
       {% if result.strengths %}<section class="result-card"><div class="card-title"><span class="title-icon good">✓</span><div><h2>Điểm mạnh đang thể hiện</h2><p>Các tiêu chí đạt từ 3/4 trở lên.</p></div></div><ul class="insight-list good-list">{% for item in result.strengths %}<li>{{ item }}</li>{% endfor %}</ul></section>{% endif %}
 
       {% if result.retrieval %}<section class="result-card compact-card"><div><h2>Tri thức tham khảo đã dùng</h2><p>Truy xuất: {{ result.retrieval.backend }}. Đây là tài liệu nội bộ của nhóm dùng để viết gợi ý, không phải bằng chứng về ứng viên.</p><ul class="insight-list">{% for chunk in result.retrieval.chunks %}<li>{{ chunk.title }}</li>{% endfor %}</ul></div></section>{% endif %}
 
-      <section class="result-card compact-card"><div><h2>Thông tin xử lý</h2><p>{{ result.extraction.page_count }} trang · {{ result.extraction.character_count }} ký tự · {{ result.input_tokens }} token vào · {{ result.output_tokens }} token ra · phương pháp: {{ result.method }}</p></div></section>
+      <section class="result-card compact-card"><div><h2>Thông tin xử lý</h2><p>{{ result.extraction.page_count }} trang · {{ result.extraction.character_count }} ký tự{% if result.provider != 'rules' %} · {{ result.input_tokens }} token vào · {{ result.output_tokens }} token ra{% endif %} · phương pháp: {{ result.method }}</p></div></section>
 {% else %}
 <section class="result-hero">
   <div class="container result-heading"><div><span class="eyebrow">KẾT QUẢ ĐÁNH GIÁ</span><h1>CV của bạn đang ở mức <em>{{ result.verdict }}</em></h1><p>Điểm được tính bằng baseline có thể tái lập. Hãy dùng các nhận xét như danh sách kiểm tra, không xem đây là quyết định tuyển dụng.</p></div><a class="button secondary" href="{{ url_for('index') }}#evaluate">Đánh giá CV khác</a></div>

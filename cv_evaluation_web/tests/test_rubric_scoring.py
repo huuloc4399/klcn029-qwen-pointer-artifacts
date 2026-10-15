@@ -133,7 +133,7 @@ class StrategyFlowTests(unittest.TestCase):
         self.assertNotIn("SCORING", statuses)
         self.assertEqual(self.groq.calls, [])
         self.assertIn("chưa đồng ý gửi CV", page)
-        self.assertNotIn("Chi tiết 8 tiêu chí", page)
+        self.assertIn("Chấm theo quy tắc trên máy chủ của nhóm", page)  # rubric v2 by rules, no Groq call
 
     def test_m3_uses_api_retrieval_and_falls_back_to_bm25(self):
         client = self.client()
@@ -165,7 +165,8 @@ class StrategyFlowTests(unittest.TestCase):
         page, _ = self.run_job(self.client(groq=failing), "m1_zero_shot")
         self.assertIn("Chưa chấm được bằng M1 · Zero-shot", page)
         self.assertIn("Dịch vụ Groq đang quá tải.", page)
-        self.assertIn("Đối chiếu kỹ năng", page)
+        self.assertIn("Chấm theo quy tắc trên máy chủ của nhóm", page)
+        self.assertIn("Chi tiết 8 tiêu chí", page)
 
     def test_without_groq_key_only_rules_are_offered(self):
         client = self.client(groq_key=False)
@@ -174,7 +175,7 @@ class StrategyFlowTests(unittest.TestCase):
         self.assertNotIn("consent_llm", home)
         page, statuses = self.run_job(client, "m1_zero_shot")
         self.assertNotIn("SCORING", statuses)
-        self.assertNotIn("Chi tiết 8 tiêu chí", page)
+        self.assertIn("Chấm theo quy tắc trên máy chủ của nhóm", page)
 
 
 class ScoringUnitTests(unittest.TestCase):

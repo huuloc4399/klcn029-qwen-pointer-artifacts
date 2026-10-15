@@ -25,6 +25,7 @@ from baseline_extraction.privacy import redact_text
 from baseline_extraction.schema import CVSchema
 from services import rubric_scoring
 from services.evaluator import evaluate
+from services.rule_rubric import score_rules
 from services.job_store import JobStore
 from services.pdf_extractor import PDFExtractionError, extract_pdf
 from services.admin_report import bar_chart, local_time, summarize
@@ -243,14 +244,8 @@ def create_app(test_config: dict | None = None) -> Flask:
             document = document_from_payload(local_document)
             public_document = document.public_dict()
             jd_text = job_store.jd_text(token)
-            extraction_label = output.get("method_label") or "Qwen Pointer P0 + Parser v1"
-            result = evaluate(
-                document,
-                jd_text,
-                language=job["language"],
-                cv_schema=cv_schema,
-                method=f"{extraction_label} + deterministic matching baseline v1",
-            ).to_dict()
+            # The rule-based rubric v2 result is the baseline strategy and the fallback when M1–M4 fail.
+            result = score_rules(cv_schema=cv_schema, jd_text=jd_text, document=public_document)
             extraction = {
                 **document.public_dict(),
                 "cv_schema": cv_schema,
@@ -259,6 +254,7 @@ def create_app(test_config: dict | None = None) -> Flask:
                 "model_manifest": output.get("manifest") or {},
             }
             pipeline_info = {
+                    "extraction_method": output.get("method_label") or "Qwen Pointer P0 + Parser v1",
                     "status": "success",
                     "cv_schema_version": "2.0",
                     "parser": (output.get("parser") or {}).get("parser_version"),
