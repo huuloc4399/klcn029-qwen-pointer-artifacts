@@ -56,13 +56,13 @@ class RetrievingSpaceClient(base.FakeSpaceClient):
         self.fail_retrieve = fail_retrieve
         self.queries = []
 
-    def retrieve(self, query, top_k=3):
-        self.queries.append(query)
+    def retrieve(self, query, top_k=3, roles=None):
+        self.queries.append((query, top_k, roles))
         if self.fail_retrieve:
             raise RuntimeError("embedding down")
         kb = {row["id"]: row for row in rubric_scoring.load_kb()}
-        rows = [kb["kb_backend_core"], kb["kb_project_quality"], kb["kb_truthfulness"]][:top_k]
-        return {"backend": "bge-m3 (test)", "results": [{**row, "score": 0.8} for row in rows]}
+        ids = ["kb_backend_core"] if roles == ["backend", "frontend"] else ["kb_project_quality", "kb_impact_bullet"]
+        return {"backend": "bge-m3 (test)", "results": [{**kb[i], "score": 0.8} for i in ids[:top_k]]}
 
 
 def remote_output_with_contact():
@@ -140,7 +140,11 @@ class StrategyFlowTests(unittest.TestCase):
         page, _ = self.run_job(client, "m3_rag")
         self.assertIn("bge-m3 (test)", page)
         self.assertIn("Yêu cầu thường gặp của JD backend", page)
-        self.assertIn("Kỹ năng trong CV", self.remote.queries[0])
+        (jd_query, _, jd_roles), (cv_text_query, cv_k, cv_roles) = self.remote.queries
+        self.assertIn("Kỹ năng trong CV", jd_query)
+        self.assertEqual((jd_roles, cv_roles, cv_k), (["backend", "frontend"], ["all"], 2))
+        self.assertIn("Built a REST API", cv_text_query)
+        self.assertIn("Mô tả dự án đầy đủ", page)
         self.assertIn("Tri thức tham khảo nội bộ", self.groq.calls[0]["messages"][1]["content"])
         failing = RetrievingSpaceClient({"status": "COMPLETED", "output": base.REMOTE_OUTPUT}, fail_retrieve=True)
         page, _ = self.run_job(self.client(remote=failing), "m3_rag")
@@ -188,10 +192,12 @@ class ScoringUnitTests(unittest.TestCase):
         self.assertEqual(rubric_scoring.ats_from_pdf(self.facts(characters=300))["score"], 1)
         self.assertEqual(rubric_scoring.ats_from_pdf(self.facts(needs_ocr=True, pages_with_text_layer=0))["score"], 0)
 
-    def test_bm25_prefers_matching_chunks(self):
+    def test_bm25_prefers_matching_chunks_and_respects_roles(self):
         kb = rubric_scoring.load_kb()
         top = rubric_scoring.lexical_retrieve("frontend React TypeScript responsive", kb, top_k=1)
         self.assertEqual(top[0]["id"], "kb_frontend_core")
+        general = rubric_scoring.lexical_retrieve("frontend React TypeScript", kb, top_k=12, roles=["all"])
+        self.assertNotIn("kb_frontend_core", [chunk["id"] for chunk in general])
 
     def test_groq_caller_retries_rate_limits_and_falls_back_to_json_object(self):
         class Response:

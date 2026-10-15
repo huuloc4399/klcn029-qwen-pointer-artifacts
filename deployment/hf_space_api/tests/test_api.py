@@ -143,7 +143,12 @@ class SpaceApiTest(unittest.TestCase):
             self.assertGreaterEqual(body["results"][0]["score"], body["results"][1]["score"])
             self.assertEqual(len(body["kb_sha256"]), 64)
             client.post("/v1/retrieve", headers=HEADERS, json={"query": "backend REST SQL"})
-            self.assertEqual(embedder.calls, 3)  # KB embedded once, then one call per query
+            self.assertEqual(embedder.calls, 3)  # KB embedded once (startup warm-up), then one call per query
+            general = client.post("/v1/retrieve", headers=HEADERS,
+                                  json={"query": "frontend React kết quả dự án", "top_k": 6, "roles": ["all"]}).json()
+            self.assertTrue(all("all" in row["roles"] for row in general["results"]))
+            self.assertEqual(client.post("/v1/retrieve", headers=HEADERS,
+                                         json={"query": "react", "roles": ["devops"]}).status_code, 422)
             self.assertEqual(client.get("/health").json()["retrieval"], "ready")
             self.assertEqual(client.post("/v1/retrieve", headers=HEADERS, json={"query": "ab"}).status_code, 422)
 

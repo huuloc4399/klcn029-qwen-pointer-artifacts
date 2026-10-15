@@ -61,7 +61,7 @@ JD yêu cầu bắt buộc: Java, Spring Boot, MySQL, Docker, RESTful API.
 - C8_jd_fit: 3 — 4/5 yêu cầu bắt buộc có bằng chứng (thiếu Docker), khoảng 80% nhưng không có yêu cầu ưu tiên nào."""
 
 Caller = Callable[[list[dict[str, str]], dict[str, Any], int], tuple[dict[str, Any], dict[str, int]]]
-Retrieve = Callable[[str, int], dict[str, Any]]
+Retrieve = Callable[..., dict[str, Any]]
 
 
 class ScoringError(RuntimeError):
@@ -262,8 +262,10 @@ def _tokens(text: str) -> list[str]:
     return re.findall(r"[a-z0-9+#.]{2,}", folded)
 
 
-def lexical_retrieve(query: str, kb: list[dict[str, Any]], top_k: int = 3) -> list[dict[str, Any]]:
-    """BM25 over the same KB; used when the embedding server is unavailable."""
+def lexical_retrieve(query: str, kb: list[dict[str, Any]], top_k: int = 3,
+                     roles: list[str] | None = None) -> list[dict[str, Any]]:
+    """BM25 over the same KB (same role filter); used when the embedding server is unavailable."""
+    kb = [row for row in kb if not roles or set(roles) & set(row.get("roles", []))]
     documents = [_tokens(f"{row['title']} {row['text']}") for row in kb]
     average = sum(map(len, documents)) / len(documents)
     frequency = Counter(term for document in documents for term in set(document))
@@ -283,8 +285,17 @@ def lexical_retrieve(query: str, kb: list[dict[str, Any]], top_k: int = 3) -> li
 
 
 def rag_query(cv: dict[str, Any], jd_text: str) -> str:
+    """Query for the role-specific chunk: what the JD asks for and the CV's skills."""
     skills = (cv.get("skills") or {}).get("hard_skills") or []
     return f"{jd_text[:700]}\nKỹ năng trong CV: {', '.join(map(str, skills[:30]))}"
+
+
+def cv_query(cv: dict[str, Any]) -> str:
+    """Query for the CV-writing chunks: how the candidate currently presents summary, projects and work."""
+    parts = [str(cv.get("summary") or "")]
+    parts += [f"{p.get('name', '')}: {p.get('details', '')}" for p in cv.get("projects") or []]
+    parts += [f"{e.get('job_title', '')}: {e.get('description', '')}" for e in cv.get("experience") or []]
+    return "\n".join(part for part in parts if part.strip())[:1500] or "CV chưa có mô tả dự án hay kinh nghiệm"
 
 
 # ---- strategies -----------------------------------------------------------------------------
@@ -324,14 +335,18 @@ def score(strategy: str, *, cv_schema: dict[str, Any], jd_text: str, document: d
         scores, _ = run(llm_criteria, context=f"## Ví dụ chấm mẫu\n{FEW_SHOT_EXAMPLE}")
     elif strategy == "m3_rag":
         progress("Đang truy xuất tri thức tham khảo cho M3 · RAG...")
-        query = rag_query(cv, jd_text)
+        # One chunk about the role, found with the JD; two CV-writing chunks, found with the CV's own text.
+        plan = ((rag_query(cv, jd_text), 1, ["backend", "frontend"]), (cv_query(cv), 2, ["all"]))
         try:
             if retrieve is None:
                 raise ScoringError("no retriever")
-            answer = retrieve(query, 3)
-            chunks, backend = answer["results"], answer.get("backend", "bge-m3")
+            answers = [retrieve(query, top_k, roles) for query, top_k, roles in plan]
+            chunks = [chunk for answer in answers for chunk in answer["results"]]
+            backend = answers[0].get("backend", "bge-m3")
         except Exception:
-            chunks, backend = lexical_retrieve(query, kb or load_kb()), "BM25 dự phòng (máy chủ embedding chưa sẵn sàng)"
+            knowledge = kb or load_kb()
+            chunks = [chunk for query, top_k, roles in plan for chunk in lexical_retrieve(query, knowledge, top_k, roles)]
+            backend = "BM25 dự phòng (máy chủ embedding chưa sẵn sàng)"
         retrieval = {"backend": backend, "chunks": [{"id": c["id"], "title": c["title"], "score": c.get("score")}
                                                      for c in chunks]}
         context = "## Tri thức tham khảo nội bộ (dùng để viết gợi ý; không phải bằng chứng về ứng viên)\n" + \

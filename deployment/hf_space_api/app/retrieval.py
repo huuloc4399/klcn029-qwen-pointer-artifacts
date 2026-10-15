@@ -64,7 +64,8 @@ def download_embedding_gguf() -> tuple[Path, dict[str, str]]:
 class LlamaServerEmbedder:
     """OpenAI-compatible /v1/embeddings of a llama-server started with --embedding."""
 
-    def __init__(self, base_url: str, timeout_seconds: float = 30.0) -> None:
+    # The first call after a cold start pages the GGUF in from disk (slow on an external HDD).
+    def __init__(self, base_url: str, timeout_seconds: float = 120.0) -> None:
         self.base_url = base_url.rstrip("/")
         self.timeout_seconds = timeout_seconds
 
@@ -113,7 +114,17 @@ class Retriever:
                 self._vectors = [_normalize(vector) for vector in self.embedder.embed(texts)]
             return self._vectors
 
-    def retrieve(self, query: str, top_k: int = 3) -> list[dict[str, Any]]:
+    def warm(self) -> None:
+        """Embed the KB in the background at startup so the first user query does not pay for it."""
+        if self.embedder is None:
+            return
+        try:
+            self._document_vectors()
+        except (requests.RequestException, KeyError, ValueError, RuntimeError) as exc:
+            self.error = str(exc)[:200]
+
+    def retrieve(self, query: str, top_k: int = 3, roles: list[str] | None = None) -> list[dict[str, Any]]:
+        """Top-k chunks by cosine similarity; roles keeps chunks tagged with any of those roles."""
         if self.embedder is None:
             raise RuntimeError("Embedding server is not configured (EMBED_SERVER_URL)")
         try:
@@ -124,7 +135,8 @@ class Retriever:
             self.error = str(exc)[:200]
             raise RuntimeError("Máy chủ embedding chưa sẵn sàng.") from exc
         scored = sorted(((sum(a * b for a, b in zip(query_vector, vector)), row)
-                         for vector, row in zip(vectors, self.kb)), key=lambda item: -item[0])
+                         for vector, row in zip(vectors, self.kb)
+                         if not roles or set(roles) & set(row.get("roles", []))), key=lambda item: -item[0])
         return [{"id": row["id"], "title": row["title"], "text": row["text"], "criteria": row.get("criteria", []),
                  "roles": row.get("roles", []), "score": round(score, 4)} for score, row in scored[:top_k]]
 

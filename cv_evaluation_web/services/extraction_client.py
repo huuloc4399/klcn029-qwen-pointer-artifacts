@@ -108,11 +108,14 @@ class ExtractionAPIClient:
             raise ExtractionAPIError("Không kết nối được máy chủ trích xuất.") from exc
         return self._json(response)
 
-    def retrieve(self, query: str, top_k: int = 3) -> dict[str, Any]:
-        """Knowledge-base chunks for the RAG strategy (bge-m3 on the API host)."""
+    def retrieve(self, query: str, top_k: int = 3, roles: list[str] | None = None) -> dict[str, Any]:
+        """Knowledge-base chunks for the RAG strategy (bge-m3 on the API host), optionally by role tag."""
+        payload: dict[str, Any] = {"query": query[:4000], "top_k": top_k}
+        if roles:
+            payload["roles"] = roles
         try:
             response = requests.post(f"{self.base_url}/v1/retrieve", headers=self.headers,
-                                     json={"query": query[:4000], "top_k": top_k}, timeout=self.timeout_seconds)
+                                     json=payload, timeout=self.timeout_seconds)
         except requests.RequestException as exc:
             raise ExtractionAPIError("Không kết nối được máy chủ embedding.") from exc
         body = self._json(response)

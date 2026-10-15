@@ -109,7 +109,11 @@ qua endpoint `/v1/retrieve`. Lần đầu tải thêm khoảng 0,6 GB. Đây là
   truy xuất từ khóa (BM25);
 - `"retrieval"` trong `/health` cho biết trạng thái: `idle` (chưa có truy vấn), `ready`, `error` hoặc
   `disabled`;
-- muốn tắt hẳn, đặt `EMBED_ENABLED=0` trong `home.env`. Giữ cửa sổ mở; Ctrl+C dừng tất cả. Script giữ Windows không ngủ trong lúc chạy,
+- muốn tắt hẳn, đặt `EMBED_ENABLED=0` trong `home.env`.
+- khi khởi động, API tự embed sẵn kho tri thức. Vì model nằm trên ổ cứng ngoài, lần đầu sau khi khởi động
+  lại máy có thể mất khoảng một phút; trong lúc đó `"retrieval"` là `idle` và M3 tạm dùng BM25.
+- M3 truy xuất hai phần: 1 đoạn theo mảng (backend/frontend) bằng nội dung JD, và 2 đoạn hướng dẫn viết CV
+  bằng nội dung mục tiêu, dự án và kinh nghiệm của CV. Giữ cửa sổ mở; Ctrl+C dừng tất cả. Script giữ Windows không ngủ trong lúc chạy,
 nhưng vẫn cần:
 
 - cắm sạc;

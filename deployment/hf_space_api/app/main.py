@@ -82,6 +82,7 @@ class RetrieveRequest(BaseModel):
 
     query: str = Field(min_length=3, max_length=4000)
     top_k: int = Field(default=3, ge=1, le=6)
+    roles: list[Literal["all", "backend", "frontend"]] | None = Field(default=None, max_length=3)
 
 
 class ModelState:
@@ -127,6 +128,7 @@ def create_app(runtime_factory: Callable[[], Runtime] | None = None, *,
         # Load in the background so /health answers while the GGUF downloads (Spaces
         # mark a container unhealthy if the port stays closed during a long startup).
         threading.Thread(target=load_model, name="model-loader", daemon=True).start()
+        threading.Thread(target=retriever.warm, name="kb-embedder", daemon=True).start()
         yield
 
     app = FastAPI(title="KLCN029 CV extraction API", version=API_VERSION,
@@ -198,7 +200,7 @@ def create_app(runtime_factory: Callable[[], Runtime] | None = None, *,
     @app.post("/v1/retrieve", dependencies=[Depends(require_key)])
     def retrieve(request: RetrieveRequest) -> Any:
         try:
-            results = retriever.retrieve(request.query, request.top_k)
+            results = retriever.retrieve(request.query, request.top_k, request.roles)
         except RuntimeError as exc:
             return JSONResponse(status_code=503, content={"detail": str(exc)})
         return {"backend": EMBED_BACKEND, "kb_version": "kb_v1", "kb_sha256": retriever.kb_sha256, "results": results}
