@@ -204,8 +204,9 @@ nhãn người chấm, chấm rubric, so sánh chiến lược) chưa có số l
 - **Chỉ làm nếu còn thời gian:** hậu xử lý output trích xuất; hỗ trợ DOCX. Nếu làm hậu xử lý, phải đo
   lại trên GOLD40 và ghi rõ là kết quả hậu kiểm.
 - **Đánh giá đầu cuối không cần tập trích xuất riêng:** 24 CV dùng lập cặp CV–JD lấy từ GOLD40. Mỗi
-  chiến lược chấm chạy hai lần: trên CVSchema gold (đo riêng bước chấm) và trên output trích xuất (đo
-  toàn hệ thống). Chênh lệch giữa hai lần là ảnh hưởng của lỗi trích xuất.
+  chiến lược chấm chạy trên CVSchema gold (đo riêng bước chấm) và trên output trích xuất B0 (đo toàn hệ
+  thống). Phương pháp chính chạy thêm trên output P1, cấu hình của demo (xem 8.2, ý 2). Chênh lệch giữa
+  các lượt là ảnh hưởng của lỗi trích xuất.
 
 ### 8.2 Cấu hình trích xuất cho hệ thống: còn phải quyết định
 
@@ -232,7 +233,36 @@ Tiêu chí đề xuất khi đọc kết quả `format_shift_v1`:
 
 Dù chọn hướng nào, số liệu GOLD40 vẫn cho thấy B0 hơn P1 khoảng 13 điểm F1; báo cáo phải nêu điều này.
 
-Đánh giá đầu cuối ở mục 8.1 dùng output trích xuất của cấu hình được chọn ở đây.
+**Kết quả theo tiêu chí (15/10/2026).** Kết quả `format_shift_v1` nằm ở
+`training/evaluation/results/format_shift_v1/REPORT.md` và mục 5.3 của báo cáo phân tích nguyên nhân.
+
+- DiD của P0 so với B0: `headings` −2,03 [−9,26; +2,12]; `grouped_skills` −3,59 [−10,55; +0,68]. Cả hai khoảng
+  tin cậy đều chứa 0, nên **theo tiêu chí đã đặt trước thì giữ Pointer cho demo**, kèm ghi chú độ chính xác.
+- Điều tiêu chí không đo, nhưng cần nêu: P0 yếu thật khi văn bản dài bị ngắt nhiều dòng, như khi trích từ PDF.
+  Ở biến thể `wrapped_text`, summary còn 62,50% và chi tiết dự án còn 51,85%; còn B0 không giảm trên các CV
+  có output hợp lệ. Trên GOLD40, không summary nào nằm trọn một dòng (0/38), nên điểm yếu này xảy ra trên CV
+  thật.
+
+**Đề xuất, chờ nhóm chốt trước 20/10:**
+
+1. Demo giữ Pointer (P1) như hiện tại. Không tốn thêm công tạo GGUF và đo fidelity.
+2. **Đã chốt (15/10/2026).** Đánh giá đầu cuối ở mục 8.1 chạy phương pháp chính trên **ba loại đầu vào**
+   cho cùng các cặp CV–JD:
+
+   | Đầu vào của bước chấm | Đo được gì |
+   |---|---|
+   | CVSchema gold | Chất lượng riêng của bước chấm điểm |
+   | Output B0 trên GOLD40 | Toàn hệ thống với cấu hình trích xuất chính xác nhất đã đo |
+   | Output P1 trên GOLD40 | Toàn hệ thống với cấu hình đang chạy trên demo |
+
+   - Chênh lệch giữa B0 và P1 cho biết khoảng cách khoảng 13 điểm F1 trích xuất có làm điểm phù hợp
+     CV–JD sai đi bao nhiêu.
+   - Không cần chạy lại model trích xuất: output của cả hai trên 40 CV GOLD40 đã được lưu và khóa.
+   - Các chiến lược so sánh khác (module G) chạy trên CVSchema gold và output B0. Lượt P1 chỉ bắt buộc với
+     phương pháp chính.
+3. Báo cáo nêu rõ cấu hình nào dùng cho demo, cấu hình nào dùng cho đánh giá, và lý do.
+
+Đánh giá đầu cuối ở mục 8.1 dùng output trích xuất theo ý 2 ở trên.
 
 ### 8.3 Tập JD và phạm vi lập cặp
 
