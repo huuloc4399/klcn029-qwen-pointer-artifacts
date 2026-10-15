@@ -13,6 +13,9 @@ RUN mkdir -p /app/baseline_extraction
 COPY baseline_extraction/__init__.py /app/baseline_extraction/__init__.py
 COPY baseline_extraction/privacy.py /app/baseline_extraction/privacy.py
 COPY baseline_extraction/schema.py /app/baseline_extraction/schema.py
+# Rubric v2 (shared with the human raters) and the RAG knowledge base for strategies M1–M4.
+COPY downstream/rubric/rubric_v2.json /app/downstream/rubric/rubric_v2.json
+COPY downstream/rag/kb_v1.jsonl /app/downstream/rag/kb_v1.jsonl
 
 WORKDIR /app/cv_evaluation_web
 # One process owns the SQLite database and atomic job files. Threads provide enough

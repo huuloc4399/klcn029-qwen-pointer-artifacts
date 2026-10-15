@@ -108,6 +108,18 @@ class ExtractionAPIClient:
             raise ExtractionAPIError("Không kết nối được máy chủ trích xuất.") from exc
         return self._json(response)
 
+    def retrieve(self, query: str, top_k: int = 3) -> dict[str, Any]:
+        """Knowledge-base chunks for the RAG strategy (bge-m3 on the API host)."""
+        try:
+            response = requests.post(f"{self.base_url}/v1/retrieve", headers=self.headers,
+                                     json={"query": query[:4000], "top_k": top_k}, timeout=self.timeout_seconds)
+        except requests.RequestException as exc:
+            raise ExtractionAPIError("Không kết nối được máy chủ embedding.") from exc
+        body = self._json(response)
+        if not isinstance(body.get("results"), list):
+            raise ExtractionAPIError("Máy chủ embedding trả về kết quả không hợp lệ.")
+        return body
+
     def submit_feedback(self, record: dict[str, Any]) -> bool:
         """Store one rating on the API host; False when this result was already rated."""
         try:

@@ -41,3 +41,6 @@ services:
       # Key for /admin (satisfaction ratings dashboard), >= 16 characters; unset = page disabled.
       - key: CV_WEB_ADMIN_KEY
         sync: false
+      # Groq key for the rubric v2 strategies M1–M4; unset = only the rule-based baseline.
+      - key: GROQ_API_KEY
+        sync: false

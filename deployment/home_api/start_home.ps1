@@ -6,8 +6,11 @@
   1. Downloads (first run) and hash-checks the pinned GGUF into <Root>\data\hf.
   2. Starts llama-server on 127.0.0.1:LLAMA_PORT (default 8091) with that exact file
      (GPU layers: N_GPU_LAYERS). Refuses to start if that port or 7860 is already taken.
-  3. Starts the API on 127.0.0.1:7860 (LLAMA_SERVER_URL points it at llama-server).
-  4. Starts "cloudflared tunnel --url" and prints the public https://*.trycloudflare.com URL.
+  3. Starts a second llama-server with the pinned bge-m3 GGUF on 127.0.0.1:EMBED_PORT (default
+     8093, CPU only) for the web's RAG strategy (M3). Optional: if it fails, extraction still
+     runs and the web falls back to keyword retrieval. EMBED_ENABLED=0 in home.env skips it.
+  4. Starts the API on 127.0.0.1:7860 (LLAMA_SERVER_URL and EMBED_SERVER_URL point it at the servers).
+  5. Starts "cloudflared tunnel --url" and prints the public https://*.trycloudflare.com URL.
   Nothing listens on the network directly; only the tunnel reaches the API, which requires
   X-API-Key. The quick-tunnel URL changes on every start: update EXTRACTION_API_URL on Render.
   Keeps Windows awake while running. Ctrl+C stops everything.
@@ -88,6 +91,7 @@ function Start-Logged([string]$Name, [string]$File, [string[]]$Arguments, [strin
 
 Add-Type -Namespace Klcn029 -Name Power -MemberDefinition '[DllImport("kernel32.dll")] public static extern uint SetThreadExecutionState(uint esFlags);'
 $processes = @()
+$optional = @()  # helpers whose exit must not stop extraction (embedding server)
 try {
     [void][Klcn029.Power]::SetThreadExecutionState([uint32]2147483649)  # ES_CONTINUOUS | ES_SYSTEM_REQUIRED
 
@@ -126,6 +130,36 @@ try {
         return
     }
 
+    $embedPort = if ($env:EMBED_PORT) { [int]$env:EMBED_PORT } else { 8093 }
+    if ($env:EMBED_ENABLED -ne "0") {
+        Write-Host "== bge-m3 embedding server for RAG on 127.0.0.1:$embedPort (CPU; first run downloads 0.6 GB)"
+        Push-Location $Api
+        try { $embedGguf = & $Python -c "from app.retrieval import download_embedding_gguf; print(download_embedding_gguf()[0])" }
+        finally { Pop-Location }
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "bge-m3 download or hash check failed; RAG falls back to keyword retrieval on the web."
+        } else {
+            $embedGguf = ($embedGguf | Select-Object -Last 1).Trim()
+            Assert-PortFree $embedPort "embedding llama-server"
+            $embed = Start-Logged "llama-embed" (Join-Path $Root "llama\llama-server.exe") @(
+                "-m", "`"$embedGguf`"", "--embedding", "--pooling", "cls", "-c", "4096", "-b", "4096", "-ub", "4096",
+                "-ngl", "0", "--host", "127.0.0.1", "--port", "$embedPort")
+            $embedReady = $false
+            for ($i = 0; $i -lt 60 -and -not $embedReady; $i++) {
+                if ($embed.HasExited) { break }
+                $embedReady = Test-LlamaHealth $embedPort
+                if (-not $embedReady) { Start-Sleep 2 }
+            }
+            if ($embedReady) {
+                $optional += $embed
+                $env:EMBED_SERVER_URL = "http://127.0.0.1:$embedPort"
+            } else {
+                if (-not $embed.HasExited) { Stop-Process -Id $embed.Id -Force -ErrorAction SilentlyContinue }
+                Write-Warning "bge-m3 server did not start (see $Logs\llama-embed.err.log); RAG falls back to keyword retrieval."
+            }
+        }
+    }
+
     Write-Host "== API on 127.0.0.1:$apiPort"
     $processes += Start-Logged "api" $Python @("-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "$apiPort", "--workers", "1") $Api
 
@@ -153,7 +187,7 @@ try {
     }
 }
 finally {
-    foreach ($process in $processes) {
+    foreach ($process in $processes + $optional) {
         if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue }
     }
     [void][Klcn029.Power]::SetThreadExecutionState([uint32]2147483648)  # ES_CONTINUOUS: allow sleep again

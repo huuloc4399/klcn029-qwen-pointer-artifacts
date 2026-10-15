@@ -7,6 +7,7 @@ import base64
 import hashlib
 import hmac
 import json
+import logging
 import math
 import secrets
 import tempfile
@@ -22,6 +23,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from baseline_extraction.privacy import redact_text
 from baseline_extraction.schema import CVSchema
+from services import rubric_scoring
 from services.evaluator import evaluate
 from services.job_store import JobStore
 from services.pdf_extractor import PDFExtractionError, extract_pdf
@@ -57,6 +59,7 @@ ADMIN_KEY_MIN_LENGTH = 16
 ADMIN_LOGIN_PER_HOUR = 10
 ADMIN_SESSION_HOURS = 8
 ADMIN_LIST_LIMIT = 200
+LOGGER = logging.getLogger("cv_web")
 
 
 def minutes_range(seconds: float) -> str:
@@ -102,6 +105,9 @@ def create_app(test_config: dict | None = None) -> Flask:
         INFRA_NOTE=os.getenv("CV_WEB_INFRA_NOTE", "").strip(),
         # Admin page (/admin) for satisfaction ratings; disabled unless a key of >= 16 chars is set.
         ADMIN_KEY=os.getenv("CV_WEB_ADMIN_KEY", "").strip(),
+        # Rubric v2 scoring strategies M1–M4 on Groq; unset = only the rule-based baseline.
+        GROQ_API_KEY=os.getenv("GROQ_API_KEY", "").strip(),
+        GROQ_MODEL=os.getenv("GROQ_MODEL", rubric_scoring.GROQ_MODEL).strip(),
         PUBLIC_BASE_URL=(
             os.getenv("PUBLIC_BASE_URL", "")
             or (f"https://{os.getenv('RENDER_EXTERNAL_HOSTNAME')}" if os.getenv("RENDER_EXTERNAL_HOSTNAME") else "")
@@ -143,12 +149,20 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     app.jinja_env.globals["csrf_token"] = csrf_token
 
+    def llm_available() -> bool:
+        """M1–M4 need the CVSchema from the extraction API and a Groq key (or a test caller)."""
+        return app.config["PIPELINE_MODE"] in REMOTE_MODES and bool(
+            app.config["GROQ_API_KEY"] or app.config.get("GROQ_CALLER"))
+
     @app.context_processor
     def deployment_context():
         return {
             "research_enabled": app.config["RESEARCH_ENABLED"],
             "pipeline_mode": app.config["PIPELINE_MODE"],
             "infra_note": app.config["INFRA_NOTE"] or INFRA_NOTES.get(app.config["PIPELINE_MODE"], ""),
+            "llm_available": llm_available(),
+            "strategies": rubric_scoring.STRATEGIES,
+            "llm_strategies": rubric_scoring.LLM_STRATEGIES,
         }
 
     @app.before_request
@@ -227,6 +241,7 @@ def create_app(test_config: dict | None = None) -> Flask:
                 })
                 local_document["needs_ocr"] = bool(remote_document.get("ocr_pages", 0))
             document = document_from_payload(local_document)
+            public_document = document.public_dict()
             jd_text = job_store.jd_text(token)
             extraction_label = output.get("method_label") or "Qwen Pointer P0 + Parser v1"
             result = evaluate(
@@ -243,21 +258,7 @@ def create_app(test_config: dict | None = None) -> Flask:
                 "parser": output.get("parser") or {},
                 "model_manifest": output.get("manifest") or {},
             }
-            receipt = None
-            if job["research_consent"]:
-                receipt = store.save_opt_in(
-                    pdf_path=job_store.pdf_path(token),
-                    language=job["language"],
-                    participant_code=job["participant_code"],
-                    jd_text=jd_text,
-                    extraction=extraction,
-                    evaluation=result,
-                )
-            result_payload = {
-                "result": result,
-                "research_consent": bool(job["research_consent"]),
-                "research_receipt": receipt,
-                "pipeline": {
+            pipeline_info = {
                     "status": "success",
                     "cv_schema_version": "2.0",
                     "parser": (output.get("parser") or {}).get("parser_version"),
@@ -271,10 +272,86 @@ def create_app(test_config: dict | None = None) -> Flask:
                     "runpod_execution_ms": remote.get("executionTime"),
                     "document_route": remote_document.get("route"),
                     "ocr_quality_warning": bool(remote_document.get("ocr_quality_warning", False)),
-                },
             }
-            job_store.complete(token, result_payload)
+            if job.get("strategy") in rubric_scoring.LLM_STRATEGIES:
+                job_store.save_scoring_input(token, {
+                    "cv_schema": cv_schema, "document": public_document, "baseline": result,
+                    "extraction": extraction, "pipeline": pipeline_info,
+                })
+                message = "Đã trích xuất xong CV; đang bắt đầu chấm điểm theo rubric..."
+                job_store.update(token, status="SCORING", progress=message)
+                start_scoring(token)
+                return {"status": "SCORING", "message": message}
+            store_result(token, job, result, extraction, pipeline_info)
             return {"status": "COMPLETED", "result_url": url_for("job_result", token=token)}
+
+    def store_result(token: str, job: dict, result: dict, extraction: dict, pipeline_info: dict) -> None:
+        """Save an opt-in research copy if consented, then write result.json and delete the CV and JD."""
+        if job.get("strategy_note") and not result.get("scoring_note"):
+            result = {**result, "scoring_note": job["strategy_note"]}
+        receipt = None
+        if job["research_consent"]:
+            receipt = store.save_opt_in(
+                pdf_path=job_store.pdf_path(token),
+                language=job["language"],
+                participant_code=job["participant_code"],
+                jd_text=job_store.jd_text(token),
+                extraction=extraction,
+                evaluation=result,
+            )
+        job_store.complete(token, {
+            "result": result,
+            "research_consent": bool(job["research_consent"]),
+            "research_receipt": receipt,
+            "pipeline": pipeline_info,
+        })
+
+    scoring_threads: dict[str, threading.Thread] = {}
+    scoring_lock = threading.Lock()
+
+    def start_scoring(token: str) -> None:
+        """Rubric scoring runs in a background thread; polling restarts it after a web restart."""
+        with scoring_lock:
+            thread = scoring_threads.get(token)
+            if thread is not None and thread.is_alive():
+                return
+            thread = threading.Thread(target=run_scoring, args=(token,), name=f"scoring-{token[:8]}", daemon=True)
+            scoring_threads[token] = thread
+            thread.start()
+
+    def report_progress(token: str, message: str) -> None:
+        """The progress line is cosmetic; failing to write it must not stop scoring."""
+        try:
+            job_store.update(token, progress=message)
+        except OSError:
+            LOGGER.warning("Could not record scoring progress for a job")
+
+    def run_scoring(token: str) -> None:
+        try:
+            job, data = job_store.load(token), job_store.scoring_input(token)
+            if job is None or data is None or job_store.result(token) is not None:
+                return
+            strategy = job["strategy"]
+            caller = app.config.get("GROQ_CALLER") or rubric_scoring.groq_caller(
+                app.config["GROQ_API_KEY"], model=app.config["GROQ_MODEL"])
+            try:
+                result = rubric_scoring.score(
+                    strategy, cv_schema=data["cv_schema"], jd_text=job_store.jd_text(token), document=data["document"],
+                    call=caller, retrieve=getattr(remote_client, "retrieve", None), model=app.config["GROQ_MODEL"],
+                    progress=lambda message: report_progress(token, message))
+            except Exception as exc:  # the user still gets the rule-based result
+                if not isinstance(exc, rubric_scoring.ScoringError):
+                    LOGGER.exception("Rubric scoring failed")
+                reason = str(exc) if isinstance(exc, rubric_scoring.ScoringError) else "lỗi không mong đợi."
+                result = {**data["baseline"], "scoring_note": (
+                    f"Chưa chấm được bằng {rubric_scoring.STRATEGIES[strategy]}: {reason} "
+                    f"Kết quả dưới đây dùng {rubric_scoring.STRATEGIES[rubric_scoring.BASELINE].lower()}.")}
+            with finalize_lock:
+                if job_store.result(token) is None:
+                    store_result(token, job, result, data["extraction"], data["pipeline"])
+        finally:
+            with scoring_lock:
+                scoring_threads.pop(token, None)
 
     def sync_remote_job(token: str, remote: dict | None = None) -> dict:
         job = job_store.load(token)
@@ -284,6 +361,9 @@ def create_app(test_config: dict | None = None) -> Flask:
             return {"status": "COMPLETED", "result_url": url_for("job_result", token=token)}
         if job.get("status") == "FAILED":
             return {"status": "FAILED", "message": job.get("error", "Tác vụ thất bại.")}
+        if job.get("status") == "SCORING":
+            start_scoring(token)
+            return {"status": "SCORING", "message": job.get("progress") or "Đang chấm điểm theo rubric..."}
         if remote is None:
             try:
                 remote = remote_client.status(job["remote_job_id"])
@@ -427,6 +507,16 @@ def create_app(test_config: dict | None = None) -> Flask:
         participant_code = request.form.get("participant_code", "").strip()[:80]
         consent_evaluation = request.form.get("consent_evaluation") == "yes"
         consent_research = app.config["RESEARCH_ENABLED"] and request.form.get("consent_research") == "yes"
+        strategy = request.form.get("strategy", rubric_scoring.BASELINE).strip()
+        strategy_note = ""
+        if strategy not in rubric_scoring.STRATEGIES:
+            errors.append("Chiến lược chấm điểm không hợp lệ.")
+        elif strategy in rubric_scoring.LLM_STRATEGIES and not llm_available():
+            strategy = rubric_scoring.BASELINE
+        elif strategy in rubric_scoring.LLM_STRATEGIES and request.form.get("consent_llm") != "yes":
+            strategy_note = (f"Bạn đã chọn {rubric_scoring.STRATEGIES[strategy]} nhưng chưa đồng ý gửi CV đã che thông tin "
+                             f"sang Groq, nên hệ thống chỉ chấm bằng quy tắc trên máy chủ của nhóm.")
+            strategy = rubric_scoring.BASELINE
 
         if not consent_evaluation:
             errors.append("Bạn cần xác nhận đồng ý xử lý tạm thời để hệ thống đánh giá CV.")
@@ -475,6 +565,8 @@ def create_app(test_config: dict | None = None) -> Flask:
                     participant_code=participant_code,
                     research_consent=consent_research,
                     document=document.public_dict(),
+                    strategy=strategy,
+                    strategy_note=strategy_note,
                 )
                 if document.needs_ocr:
                     pdf_bytes = temporary_path.read_bytes()

@@ -6,6 +6,8 @@ import json
 import os
 import secrets
 import shutil
+import threading
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -15,6 +17,7 @@ class JobStore:
     def __init__(self, data_dir: str | Path) -> None:
         self.root = Path(data_dir).resolve() / "jobs"
         self.root.mkdir(parents=True, exist_ok=True)
+        self._lock = threading.Lock()  # serializes read-modify-write of job.json between threads
 
     @staticmethod
     def _now() -> str:
@@ -30,9 +33,29 @@ class JobStore:
 
     @staticmethod
     def _write_json(path: Path, payload: dict[str, Any]) -> None:
-        temporary = path.with_suffix(path.suffix + ".tmp")
+        # Unique temp name per write; on Windows the replace fails while another thread reads the file.
+        temporary = path.with_name(f"{path.name}.{secrets.token_hex(4)}.tmp")
         temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-        os.replace(temporary, path)
+        for attempt in range(1, 21):
+            try:
+                os.replace(temporary, path)
+                return
+            except PermissionError:
+                if attempt == 20:
+                    temporary.unlink(missing_ok=True)
+                    raise
+                time.sleep(0.01 * attempt)
+
+    @staticmethod
+    def _read_json(path: Path) -> dict[str, Any]:
+        for attempt in range(1, 21):
+            try:
+                return json.loads(path.read_text(encoding="utf-8"))
+            except PermissionError:
+                if attempt == 20:
+                    raise
+                time.sleep(0.01 * attempt)
+        raise AssertionError("unreachable")
 
     def create(
         self,
@@ -43,6 +66,8 @@ class JobStore:
         participant_code: str,
         research_consent: bool,
         document: dict[str, Any],
+        strategy: str = "baseline_rules",
+        strategy_note: str = "",
     ) -> str:
         token = secrets.token_hex(24)
         directory = self._directory(token)
@@ -62,6 +87,8 @@ class JobStore:
                     "participant_code": participant_code,
                     "research_consent": research_consent,
                     "document": document,
+                    "strategy": strategy,
+                    "strategy_note": strategy_note,
                 },
             )
         except Exception:
@@ -73,15 +100,16 @@ class JobStore:
         path = self._directory(token) / "job.json"
         if not path.is_file():
             return None
-        return json.loads(path.read_text(encoding="utf-8"))
+        return self._read_json(path)
 
     def update(self, token: str, **changes: Any) -> dict[str, Any]:
         directory = self._directory(token)
         path = directory / "job.json"
-        payload = json.loads(path.read_text(encoding="utf-8"))
-        payload.update(changes)
-        payload["updated_at"] = self._now()
-        self._write_json(path, payload)
+        with self._lock:
+            payload = self._read_json(path)
+            payload.update(changes)
+            payload["updated_at"] = self._now()
+            self._write_json(path, payload)
         return payload
 
     def find_by_remote_id(self, remote_job_id: str) -> str | None:
@@ -104,19 +132,31 @@ class JobStore:
         path = self._directory(token) / "result.json"
         if not path.is_file():
             return None
-        return json.loads(path.read_text(encoding="utf-8"))
+        return self._read_json(path)
+
+    def save_scoring_input(self, token: str, payload: dict[str, Any]) -> None:
+        """Extraction output kept until rubric scoring finishes (deleted with the job)."""
+        self._write_json(self._directory(token) / "scoring_input.json", payload)
+
+    def scoring_input(self, token: str) -> dict[str, Any] | None:
+        path = self._directory(token) / "scoring_input.json"
+        if not path.is_file():
+            return None
+        return self._read_json(path)
 
     def complete(self, token: str, result: dict[str, Any]) -> None:
         directory = self._directory(token)
         self._write_json(directory / "result.json", result)
         (directory / "cv.pdf").unlink(missing_ok=True)
         (directory / "jd.txt").unlink(missing_ok=True)
+        (directory / "scoring_input.json").unlink(missing_ok=True)
         self.update(token, status="COMPLETED")
 
     def fail(self, token: str, message: str) -> None:
         directory = self._directory(token)
         (directory / "cv.pdf").unlink(missing_ok=True)
         (directory / "jd.txt").unlink(missing_ok=True)
+        (directory / "scoring_input.json").unlink(missing_ok=True)
         self.update(token, status="FAILED", error=message[:500])
 
     def delete(self, token: str) -> None:

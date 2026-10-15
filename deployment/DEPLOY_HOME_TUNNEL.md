@@ -100,7 +100,16 @@ powershell -ExecutionPolicy Bypass -File deployment\home_api\start_home.ps1 -Roo
 ```
 
 Script in ra dòng `Public API URL: https://….trycloudflare.com`. Mở `<URL>/health`, chờ
-`"model": "ready"`. Giữ cửa sổ mở; Ctrl+C dừng tất cả. Script giữ Windows không ngủ trong lúc chạy,
+`"model": "ready"`.
+
+Script cũng chạy thêm một llama-server thứ hai với **bge-m3** (bản GGUF Q8_0 của ggml-org, ghim theo
+mã băm) trên CPU, cổng `EMBED_PORT` (mặc định 8093). Server này phục vụ chiến lược RAG (M3) của web
+qua endpoint `/v1/retrieve`. Lần đầu tải thêm khoảng 0,6 GB. Đây là thành phần tùy chọn:
+- nếu server không khởi động được, script chỉ cảnh báo, việc trích xuất vẫn chạy và web tự chuyển sang
+  truy xuất từ khóa (BM25);
+- `"retrieval"` trong `/health` cho biết trạng thái: `idle` (chưa có truy vấn), `ready`, `error` hoặc
+  `disabled`;
+- muốn tắt hẳn, đặt `EMBED_ENABLED=0` trong `home.env`. Giữ cửa sổ mở; Ctrl+C dừng tất cả. Script giữ Windows không ngủ trong lúc chạy,
 nhưng vẫn cần:
 
 - cắm sạc;
@@ -126,6 +135,9 @@ Trong Render → service → Environment:
 - `CV_WEB_INFRA_NOTE` = `Render vận hành web; máy tính của nhóm (kết nối qua Cloudflare Tunnel) vận hành model trích xuất và lưu đánh giá mức độ hài lòng.`
 - `CV_WEB_ADMIN_KEY` = khóa trang quản trị, chuỗi ngẫu nhiên ít nhất 16 ký tự, khác `API_KEY`
   (`python -c "import secrets; print(secrets.token_urlsafe(24))"`). Để trống thì trang quản trị bị tắt.
+- `GROQ_API_KEY` = khóa Groq để bật các chiến lược chấm M1–M4 theo rubric v2. Để trống thì web chỉ có
+  cách chấm theo quy tắc. Người dùng phải đánh dấu ô đồng ý riêng thì CV (đã bỏ họ tên, email, số điện
+  thoại và che link) mới được gửi sang Groq.
 
 Lưu lại; Render deploy lại trong vài phút. Mỗi lần chạy lại `start_home.ps1` chỉ cần sửa
 `EXTRACTION_API_URL`.
@@ -151,7 +163,9 @@ Lưu lại; Render deploy lại trong vài phút. Mỗi lần chạy lại `star
   Tệp `feedback_report_<ngày>.xlsx` được ghi cạnh tệp nguồn. Có thể truyền nhiều tệp (laptop và Oracle)
   để gộp; đánh giá trùng mã chỉ giữ một. Cần `openpyxl` (`python -m pip install openpyxl`). Không đưa
   tệp `.jsonl` hay `.xlsx` này lên kho mã nguồn (đã có trong `.gitignore`).
-- Cập nhật mã API: chạy lại `setup_home.ps1` (bỏ qua các tệp đã tải, build lại `api\`).
+- Cập nhật mã API: chạy lại `setup_home.ps1` (bỏ qua các tệp đã tải, build lại `api\`). Bản có
+  `/v1/retrieve` (ngày 15/10/2026) cần chạy lại bước này một lần; `home.env` cũ vẫn dùng được vì
+  `EMBED_ENABLED` và `EMBED_PORT` có giá trị mặc định.
 - Rút ổ ngoài khi dịch vụ đang chạy sẽ làm API dừng; dừng bằng Ctrl+C trước.
 - Khi máy Oracle sẵn sàng: chuyển `EXTRACTION_API_URL` sang tên miền của Oracle và xóa `CV_WEB_INFRA_NOTE`.
   Đánh giá đã lưu trên laptop không tự chuyển sang Oracle; giữ tệp `feedback.jsonl` để gộp khi phân tích.

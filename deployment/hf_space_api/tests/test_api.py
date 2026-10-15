@@ -34,6 +34,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 main = importlib.import_module("app.main")
 pipeline = importlib.import_module("app.pipeline")
+retrieval = importlib.import_module("app.retrieval")
 llm_runtime = importlib.import_module("app.llm_runtime")
 from baseline_extraction.schema import CVSchema  # noqa: E402
 
@@ -114,6 +115,43 @@ class SpaceApiTest(unittest.TestCase):
         target.write_text(target.read_text(encoding="utf-8") + "\n# edit\n", encoding="utf-8")
         with self.assertRaises(RuntimeError):
             pipeline.verify_runtime_sources(tampered)
+
+    def test_retrieve_ranks_kb_chunks_and_requires_key(self):
+        class BagOfWords:
+            """Deterministic stand-in for bge-m3: word counts over a fixed vocabulary."""
+
+            vocabulary = ["ats", "một", "cột", "frontend", "react", "backend", "rest", "sql", "dự", "án", "kết", "quả"]
+
+            def __init__(self):
+                self.calls = 0
+
+            def embed(self, texts):
+                self.calls += 1
+                return [[text.lower().count(word) + 0.01 for word in self.vocabulary] for text in texts]
+
+        embedder = BagOfWords()
+        retriever = retrieval.Retriever(embedder)
+        self.assertEqual(retriever.status, "idle")
+        self.assertTrue((BUNDLE / "rag/kb_v1.jsonl").is_file())
+        self.assertIn("rag/kb_v1.jsonl", pipeline.verify_runtime_sources(BUNDLE))
+        with self.client(retriever=retriever) as client:
+            self.assertEqual(client.post("/v1/retrieve", json={"query": "react"}).status_code, 401)
+            body = client.post("/v1/retrieve", headers=HEADERS,
+                               json={"query": "JD frontend React, cần CV một cột cho ATS", "top_k": 2}).json()
+            self.assertEqual(len(body["results"]), 2)
+            self.assertIn(body["results"][0]["id"], {"kb_frontend_core", "kb_ats_layout"})
+            self.assertGreaterEqual(body["results"][0]["score"], body["results"][1]["score"])
+            self.assertEqual(len(body["kb_sha256"]), 64)
+            client.post("/v1/retrieve", headers=HEADERS, json={"query": "backend REST SQL"})
+            self.assertEqual(embedder.calls, 3)  # KB embedded once, then one call per query
+            self.assertEqual(client.get("/health").json()["retrieval"], "ready")
+            self.assertEqual(client.post("/v1/retrieve", headers=HEADERS, json={"query": "ab"}).status_code, 422)
+
+    def test_retrieve_without_embedding_server_is_503(self):
+        with self.client(retriever=retrieval.Retriever(None)) as client:
+            response = client.post("/v1/retrieve", headers=HEADERS, json={"query": "backend REST"})
+            self.assertEqual(response.status_code, 503)
+            self.assertEqual(client.get("/health").json()["retrieval"], "disabled")
 
     def test_requires_api_key(self):
         with self.client() as client:

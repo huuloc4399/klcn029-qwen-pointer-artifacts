@@ -9,7 +9,9 @@ from __future__ import annotations
 import re
 
 MASKED = "[MASKED]"
-EMAIL = re.compile(r"(?<![\w.+-])[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}(?![\w.-])")
+# The address may end a sentence ("...@example.com."): a trailing dot is allowed, a dot that
+# continues the domain is not.
+EMAIL = re.compile(r"(?<![\w.+-])[\w.+-]+@[\w-]+(?:\.[\w-]+)*\.[A-Za-z]{2,}(?![\w-]|\.\w)")
 PHONE_CANDIDATE = re.compile(r"(?<!\w)\+?\d[\d\s().-]{7,}\d(?!\w)")
 URL = re.compile(r"(?i)\b(?:https?://|www\.)[^\s<>]+")
 HEADER_SKIP = {

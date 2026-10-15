@@ -240,6 +240,15 @@ input:focus, select:focus, textarea:focus { border-color: var(--green); box-shad
 .admin-filter .button { min-height: 40px; }
 .inline-check { display: flex; align-items: center; gap: 7px; padding-bottom: 9px; font-weight: 500; }
 .withdraw-form input[type="password"] { width: 100%; margin-top: 7px; padding: 12px 13px; border: 1px solid #d5dbe0; border-radius: 8px; }
+/* Rubric v2 strategies (M1–M4) */
+.strategy-list { display: grid; gap: 2px; }
+.strategy-option input { margin-top: 3px; }
+.criteria-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.criteria-list li { padding: 14px 16px; border: 1px solid var(--line); border-radius: 10px; }
+.criteria-list h3 { margin: 0 0 6px; font-size: 15px; }
+.criteria-list h3 small { color: var(--muted); font-weight: 600; }
+.criteria-list p { margin: 4px 0 0; font-size: 14px; }
+
 @media (max-width: 980px) {
   .kpi-row { grid-template-columns: repeat(3, 1fr); }
   .admin-grid, .admin-grid.groups { grid-template-columns: 1fr 1fr; }

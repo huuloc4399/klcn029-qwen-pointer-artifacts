@@ -40,6 +40,7 @@ COPIES = {
     "training/evaluation/parser.py": FROZEN / "parser.py",
     "training/evaluation/pointer_parser.py": FROZEN / "pointer_parser.py",
     "training/evaluation/deployment_policy.py": ROOT / "training/evaluation/deployment_policy.py",
+    "rag/kb_v1.jsonl": ROOT / "downstream/rag/kb_v1.jsonl",
 }
 SPACE_VARIABLES = ("GGUF_REPO_ID", "GGUF_FILENAME", "GGUF_REVISION", "GGUF_SHA256")
 SPACE_SECRETS = {"API_KEY": "API_KEY", "HF_TOKEN": "SPACE_HF_TOKEN"}  # Space secret <- local env var
@@ -61,7 +62,7 @@ def build(out: Path) -> dict[str, str]:
         shutil.copy2(source, destination)
     hashed = {
         str(path.relative_to(out)).replace("\\", "/"): sha256(path)
-        for path in sorted(out.rglob("*.py")) + [out / "prompt_contract.json"]
+        for path in sorted(out.rglob("*.py")) + [out / "prompt_contract.json", out / "rag/kb_v1.jsonl"]
     }
     (out / "RUNTIME_MANIFEST.json").write_text(
         json.dumps({"bundle": "klcn029_hf_space_api_v1", "files": hashed}, indent=2) + "\n", encoding="utf-8"

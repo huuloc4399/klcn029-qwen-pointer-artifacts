@@ -6,6 +6,7 @@ GET  /v1/jobs/{id}   RunPod-compatible status with output when COMPLETED, plus q
 POST /v1/feedback    store one satisfaction rating forwarded by the web app
 GET  /v1/feedback    stored ratings, most recent first (web admin page)
 GET  /v1/feedback/summary  rating count, mean and distribution
+POST /v1/retrieve    top-k knowledge-base chunks for a query (bge-m3 embeddings; RAG scoring M3)
 GET  /health         public liveness and model state (no CV data)
 
 Every /v1 route requires the X-API-Key header to equal the API_KEY Space secret.
@@ -30,6 +31,7 @@ from .feedback import DuplicateFeedbackError, FeedbackStore
 from .jobs import JobQueue, QueueFullError
 from .ocr import OCREngines
 from .pipeline import API_VERSION, Runtime, process_request, verify_runtime_sources
+from .retrieval import EMBED_BACKEND, Retriever, retriever_from_env
 
 
 LOGGER = logging.getLogger("klcn029.api")
@@ -75,6 +77,13 @@ class FeedbackRequest(BaseModel):
     context: FeedbackContext = Field(default_factory=FeedbackContext)
 
 
+class RetrieveRequest(BaseModel):
+    """A short query built by the web from the JD and the CV's skills; never a whole CV."""
+
+    query: str = Field(min_length=3, max_length=4000)
+    top_k: int = Field(default=3, ge=1, le=6)
+
+
 class ModelState:
     def __init__(self) -> None:
         self.status = "loading"
@@ -84,7 +93,7 @@ class ModelState:
 
 def create_app(runtime_factory: Callable[[], Runtime] | None = None, *,
                verify_sources: bool = True, max_pending: int | None = None,
-               feedback_dir: str | Path | None = None) -> FastAPI:
+               feedback_dir: str | Path | None = None, retriever: Retriever | None = None) -> FastAPI:
     if verify_sources:
         verify_runtime_sources()
     state = ModelState()
@@ -96,6 +105,7 @@ def create_app(runtime_factory: Callable[[], Runtime] | None = None, *,
         default_job_seconds=float(os.getenv("JOB_SECONDS_ESTIMATE", "330")),
     )
     feedback = FeedbackStore(feedback_dir or os.getenv("FEEDBACK_DIR", "/data/feedback"))
+    retriever = retriever or retriever_from_env()
 
     def load_model() -> None:
         try:
@@ -145,6 +155,7 @@ def create_app(runtime_factory: Callable[[], Runtime] | None = None, *,
             "job_seconds_estimate": round(jobs.estimate_seconds()),
             "threads": getattr(runtime, "threads", None),
             "gguf": getattr(runtime, "artifact", None),
+            "retrieval": retriever.status,
         }
 
     @app.post("/v1/jobs", status_code=202, dependencies=[Depends(require_key)])
@@ -183,6 +194,14 @@ def create_app(runtime_factory: Callable[[], Runtime] | None = None, *,
     @app.get("/v1/feedback/summary", dependencies=[Depends(require_key)])
     def feedback_summary() -> dict[str, Any]:
         return feedback.summary()
+
+    @app.post("/v1/retrieve", dependencies=[Depends(require_key)])
+    def retrieve(request: RetrieveRequest) -> Any:
+        try:
+            results = retriever.retrieve(request.query, request.top_k)
+        except RuntimeError as exc:
+            return JSONResponse(status_code=503, content={"detail": str(exc)})
+        return {"backend": EMBED_BACKEND, "kb_version": "kb_v1", "kb_sha256": retriever.kb_sha256, "results": results}
 
     return app
 
