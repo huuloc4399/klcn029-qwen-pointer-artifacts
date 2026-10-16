@@ -199,6 +199,21 @@ class RunStrategiesTests(unittest.TestCase):
         self.assertEqual(table["p_grounded"]["evidence_valid_rate"], 1.0)
         self.assertEqual(table["baseline_rules"]["requirements"]["agreement"], 1.0)
 
+    def test_p_ablations_reuse_p_answers_and_repeats_do_not(self):
+        fake = FakeGroq()
+        self.go(fake, strategies=("p_grounded", "p_no_verify", "p_no_abstain", "p_no_concept_check"), inputs=("gold",))
+        self.assertEqual(fake.calls, 2)  # one call per pair, all from p_grounded
+        records = {(r["strategy"], r["pair_id"]): r for r in self.predictions()}
+        self.assertEqual((records[("p_grounded", "T1")]["api_calls"], records[("p_no_abstain", "T1")]["api_calls"]), (1, 0))
+        self.assertEqual(records[("p_no_abstain", "T1")]["cached_calls"], 1)
+        self.assertGreater(records[("p_no_abstain", "T1")]["input_tokens"], 0)  # the method's own cost is kept
+        again = FakeGroq()
+        rs.run(run_dir=self.tmp / "run_r", pairs=PAIRS[:1], strategies=["m1_zero_shot"], inputs=["gold"], repeats=2,
+               config=CONFIG, call=again, retrieve=rs.bm25_retriever(self.rubric_scoring), load_cv=load_cv,
+               load_document=lambda cv: DOCUMENT, jd_text=lambda jd: JD, requirements=lambda jd: REQUIREMENTS,
+               log=lambda m: None)
+        self.assertEqual(again.calls, 2)  # each repeat asks the LLM
+
     def test_requirement_agreement_splits_dictionary_and_concept_requirements(self):
         label = {"jd_id": "J", "requirements": {"R1": {"status": "met"}, "R2": {"status": "unclear"}}}
         pred = {"jd_id": "J", "requirements": {"R1": {"status": "met"}, "R2": {"status": "mentioned_only"}}}
