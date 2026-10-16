@@ -54,3 +54,6 @@ downstream/data/labels_v1/
 # Original postings as copied from job sites; only the team rewrite is versioned
 downstream/data/jd_v1/raw/
 downstream/results/
+
+# Real CV content prepared for the scoring experiments
+downstream/data/cv_inputs_v1/

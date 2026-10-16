@@ -139,10 +139,52 @@ Thư mục đầu ra gồm:
   người kia không, met so với missing, và mức phù hợp lệch từ 2. File có trích dẫn CV nên phải để trong
   `labels_v1/`. Người phân xử điền cột `decision` và `adjudicator_note`.
 
+## Module G: chạy các chiến lược chấm trong cùng điều kiện
+
+Bước 1, một lần: tạo đầu vào CVSchema gold, output B0 và output P1 cho 24 CV, kèm phân tích PDF.
+B0 và P1 được parse đúng như bản đo GOLD40 đã khóa (cùng ZIP, cùng parser đóng băng). Output không
+hợp lệ được giữ là thiếu, không thay bằng gold.
+
+```bash
+python -m downstream.eval.cv_inputs
+```
+
+Bước 2: chạy các chiến lược. Các chiến lược LLM cần biến môi trường `GROQ_API_KEY`.
+
+```bash
+python -m downstream.eval.run_strategies run --run-id dev_v1 --split dev --inputs gold b0 --strategies baseline_rules m1_zero_shot m2_few_shot m3_rag m4_multi_agent
+```
+
+- Mọi chiến lược nhận cùng cặp, cùng đầu vào, cùng JD, rubric v2 và phân tích PDF. Code chấm là code
+  của web (`cv_evaluation_web/services/rubric_scoring.py`, `rule_rubric.py`).
+- `run_config.json` lưu model, nhiệt độ, seed, cách truy xuất, mã băm của rubric, kho tri thức,
+  `pairs.csv`, đầu vào và code chấm. Chạy tiếp một run với điều kiện khác sẽ bị từ chối.
+- Kết quả ghi nối vào `predictions.jsonl`. Khi Groq báo hết hạn mức, lệnh dừng và lưu lại; chạy lại
+  cùng lệnh để tiếp tục từ chỗ dừng. `--max-calls` giới hạn số lần gọi mỗi lần chạy, `--min-interval`
+  giãn cách giữa các lần gọi, `--repeats 3` chạy lặp để đo độ ổn định, `--pairs P001 P002` chạy thử vài cặp.
+- `--retriever bge-m3 --embed-url http://127.0.0.1:8093` dùng bge-m3 trên laptop như web; mặc định
+  `bm25`. Hai cách không trộn trong một run.
+
+Bước 3: so với nhãn người.
+
+```bash
+python -m downstream.eval.run_strategies report --run-id dev_v1 --labels downstream/data/labels_v1/FINAL.jsonl
+```
+
+`REPORT.md` có, cho từng loại đầu vào và từng chiến lược:
+
+- kappa bậc hai và MAE của điểm tiêu chí;
+- Spearman giữa điểm tổng và mức phù hợp 1–5, Spearman giữa điểm tổng và tổng rubric của người;
+- tỉ lệ tuân thủ rubric, độ lệch giữa các lần chạy, số lần gọi, token và thời gian;
+- khoảng tin cậy bootstrap theo CV và chênh lệch so với `--reference` (mặc định `m3_rag`).
+
+Tập test chỉ chạy một lần, sau khi cấu hình đã khóa trên dev. `downstream/results/` và
+`downstream/data/cv_inputs_v1/` chứa nội dung CV nên đã được gitignore.
+
 ### Quy tắc
 
 - `labels_v1/` chứa trích dẫn từ CV thật nên đã được gitignore. Lưu ở thư mục riêng của nhóm.
 - Sau vòng chấm thử, mọi thay đổi rubric phải tăng `rubric_version` và tạo lại file. File cũ sẽ bị
   `check` báo lệch phiên bản.
 
-Test: `python -m unittest downstream/tests/test_rating_workbook.py downstream/tests/test_iaa.py -v`
+Test: `python -m unittest discover -s downstream/tests -t . -v`
