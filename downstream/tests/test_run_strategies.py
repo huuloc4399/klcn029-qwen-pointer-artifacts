@@ -109,6 +109,30 @@ class RunStrategiesTests(unittest.TestCase):
         with self.assertRaises(SystemExit):
             self.go(FakeGroq(), config={**CONFIG, "model": "other-model"})
 
+    def test_reuse_copies_unchanged_strategies_and_refuses_changed_code(self):
+        hashes = {"rubric_scoring.py": "m", "rule_rubric.py": "r", "evaluator.py": "e", "grounded_scoring.py": "g"}
+        old = {**CONFIG, "scorer_code_sha256": hashes}
+        self.go(FakeGroq(), strategies=("m1_zero_shot",), config=old)
+        source = self.tmp / "run"
+        new = {**CONFIG, "scorer_code_sha256": {**hashes, "grounded_scoring.py": "g2", "evaluator.py": "e2"}}
+        fake = FakeGroq()
+        counts = rs.run(run_dir=self.tmp / "run2", pairs=PAIRS, strategies=["m1_zero_shot", "p_grounded"],
+                        inputs=["gold", "b0"], repeats=1, config=new, call=fake,
+                        retrieve=rs.bm25_retriever(self.rubric_scoring), load_cv=load_cv,
+                        load_document=lambda cv: DOCUMENT, jd_text=lambda jd: JD, requirements=lambda jd: REQUIREMENTS,
+                        log=lambda m: None, reuse_from=source, reuse_strategies=["m1_zero_shot"])
+        self.assertEqual(fake.calls, 3)  # only P runs: 3 valid pair inputs, one call each
+        self.assertEqual(counts["skipped"], 4)  # M1's 3 results and 1 invalid extraction, all copied
+        records = rs._read_jsonl(self.tmp / "run2/predictions.jsonl")
+        self.assertTrue(all(r.get("reused_from") == "run" for r in records if r["strategy"] == "m1_zero_shot"))
+        config = json.loads((self.tmp / "run2/run_config.json").read_text(encoding="utf-8"))
+        self.assertEqual(config["reused"][0]["records"], 4)
+        with self.assertRaisesRegex(SystemExit, "rule_rubric.py"):  # the baseline's own code changed
+            rs.reuse_records(self.tmp / "run2", source, ["baseline_rules"],
+                             {**new, "scorer_code_sha256": {**hashes, "rule_rubric.py": "r2"}}, {"T1"}, ["gold"])
+        with self.assertRaisesRegex(SystemExit, "model"):
+            rs.reuse_records(self.tmp / "run2", source, ["m1_zero_shot"], {**new, "model": "other"}, {"T1"}, ["gold"])
+
     def test_quota_stops_the_run_and_the_rerun_retries_the_failed_pair(self):
         quota = self.rubric_scoring.ScoringError("Dịch vụ Groq đang quá tải hoặc vượt hạn mức miễn phí.")
         with self.assertRaises(rs.QuotaExhausted):
@@ -174,6 +198,18 @@ class RunStrategiesTests(unittest.TestCase):
         self.assertEqual(table["p_grounded"]["abstention"], 0.0)
         self.assertEqual(table["p_grounded"]["evidence_valid_rate"], 1.0)
         self.assertEqual(table["baseline_rules"]["requirements"]["agreement"], 1.0)
+
+    def test_requirement_agreement_splits_dictionary_and_concept_requirements(self):
+        label = {"jd_id": "J", "requirements": {"R1": {"status": "met"}, "R2": {"status": "unclear"}}}
+        pred = {"jd_id": "J", "requirements": {"R1": {"status": "met"}, "R2": {"status": "mentioned_only"}}}
+        out = rs.requirement_agreement([(label, pred)], {("J", "R1"): "dictionary", ("J", "R2"): "concept"})
+        self.assertEqual(out["n"], 2)
+        self.assertEqual((out["by_kind"]["dictionary"]["n"], out["by_kind"]["dictionary"]["agreement"]), (1, 1.0))
+        self.assertEqual((out["by_kind"]["concept"]["n"], out["by_kind"]["concept"]["agreement"]), (1, 0.0))
+        self.assertNotIn("by_kind", rs.requirement_agreement([(label, pred)]))
+        kinds = rs.requirement_kinds(["JD009"])  # its "Responsive web design" is outside the skill dictionary
+        self.assertIn("concept", kinds.values())
+        self.assertIn("dictionary", kinds.values())
 
     def test_compliance_needs_evidence_for_llm_scores(self):
         criteria = [c["id"] for c in self.rubric_scoring.load_rubric()["criteria"]]

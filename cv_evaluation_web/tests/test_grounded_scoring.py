@@ -113,9 +113,29 @@ class VerificationTests(unittest.TestCase):
                          "met")  # Spring Boot is also in the project, where it implies a REST API
         loose = {"text": "Kubernetes", "quote": "Docker"}  # a related tool is not the required one
         self.assertEqual(gs.verify_requirement(self.cv, loose, "met")[0], "missing")
-        # Requirements outside the skill dictionary (Linux, soft skills with synonyms) are only checked for
-        # the quote being in the CV; whether it is relevant stays the LLM's judgement.
-        self.assertEqual(gs.verify_requirement(self.cv, {"text": "Linux", "quote": "Docker"}, "met")[0], "mentioned_only")
+
+    def test_concept_requirements_need_their_own_words(self):
+        """Outside the skill dictionary code can only check words: a related technology is not the concept."""
+        cv = {"skills": {"hard_skills": ["HTML", "CSS", "Java", "Docker"], "soft_skills": []},
+              "projects": [{"name": "Shop", "details": "Built responsive layouts with Flexbox and media queries for "
+                                                         "mobile screens. Designed the database for a web application."}],
+              "activities": ["Trưởng nhóm, làm việc nhóm 5 người"]}
+        def check(text, quote, given="met"):
+            return gs.verify_requirement(cv, {"text": text, "quote": quote}, given)[0]
+        responsive = "Responsive web design"
+        self.assertEqual(check(responsive, "CSS", "mentioned_only"), "unclear")
+        generic_only = "Designed the database for a web application"
+        self.assertEqual(check(responsive, generic_only), "unclear")
+        self.assertEqual(check(responsive, "Built responsive layouts with Flexbox"), "met")
+        self.assertEqual(check(responsive, "media queries for mobile screens"), "met")  # another wording of it
+        self.assertEqual(check("OOP", "Java", "mentioned_only"), "unclear")
+        self.assertEqual(check("Linux", "Docker", "mentioned_only"), "unclear")
+        self.assertEqual(check("HTML5/CSS3", "HTML", "mentioned_only"), "mentioned_only")  # version numbers ignored
+        self.assertEqual(check("Teamwork", "làm việc nhóm 5 người"), "met")  # Vietnamese wording
+        self.assertEqual(check("Design patterns", "Designed the database"), "unclear")
+        # The ablation accepts any located quote, as P did before the check.
+        self.assertEqual(gs.verify_requirement(cv, {"text": responsive, "quote": "CSS"}, "mentioned_only", False)[0],
+                         "mentioned_only")
 
     def test_c8_bands(self):
         reqs = lambda *s: [{"type": t, "status": st} for t, st in s]  # noqa: E731
@@ -130,6 +150,17 @@ class VerificationTests(unittest.TestCase):
             {"req_id": "J-M04", "type": "must", "text": "Unit testing"}])}
         self.assertEqual(out, {"J-M01": "met", "J-M02": "met", "J-M03": "mentioned_only", "J-N01": "missing",
                                "J-M04": "met"})
+
+    def test_keyword_concepts_ignore_generic_words(self):
+        cv = {"skills": {"hard_skills": ["CSS"]},
+              "projects": [{"name": "A", "details": "Designed the database for a web application"}]}
+        responsive = [{"req_id": "R", "type": "must", "text": "Responsive web design"}]
+
+        def status(c):
+            return requirement_statuses(c, responsive)[0]["status"]
+        self.assertEqual(status(cv), "missing")
+        cv["projects"][0]["details"] = "Built responsive layouts with Flexbox"
+        self.assertEqual(status(cv), "met")
 
 
 class ScoringTests(unittest.TestCase):

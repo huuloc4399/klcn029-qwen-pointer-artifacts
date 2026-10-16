@@ -11,7 +11,8 @@ import re
 from typing import Any
 
 from services import rubric_scoring as rs
-from services.evaluator import _fold, _lexical_overlap, extract_skills, skills_with_implied
+from services.evaluator import (_fold, _lexical_overlap, concept_phrases, extract_skills, requirement_hits,
+                                requirement_terms, skills_with_implied)
 
 ROLE_WORDS = ("developer", "engineer", "backend", "back-end", "frontend", "front-end", "fullstack", "full-stack",
               "lap trinh", "ky su", "intern", "thuc tap", "software", "web", "mobile", "data", "tester", "qa")
@@ -52,9 +53,6 @@ def _project_level(project: dict[str, Any]) -> int:
 
 USAGE_SECTIONS = ("experience", "projects", "certifications", "activities", "awards")
 LISTING_SECTIONS = ("skills", "summary", "education")
-STOPWORDS = {"and", "or", "the", "with", "for", "of", "in", "to", "a", "an", "e.g", "other", "experience", "knowledge",
-             "skills", "skill", "basic", "good", "understanding", "va", "hoac", "co", "cac", "kinh", "nghiem", "kien",
-             "thuc", "ky", "nang", "biet", "su", "dung", "ve", "voi", "la"}
 
 
 def _values(node: Any) -> str:
@@ -73,9 +71,11 @@ def _section_text(cv: dict[str, Any], sections: tuple[str, ...]) -> str:
 def requirement_statuses(cv_schema: dict[str, Any], requirements: list[dict[str, str]]) -> list[dict[str, Any]]:
     """Keyword method (K) for module D: met / mentioned_only / missing / unclear per JD requirement.
 
-    A requirement's terms are its dictionary skills, or else its content words. Found where skills are
-    used (projects, experience, certificates) → met; only in skills, summary or education →
-    mentioned_only; nowhere → missing; no term to look for → unclear.
+    A requirement's terms are its dictionary skills, or else its distinctive words (generic words such as
+    web, design, development left out) or another wording of it (teamwork = làm việc nhóm); half of the
+    words, or one other wording, must be found. Found where skills are used (projects, experience,
+    certificates) → met; only in skills, summary or education → mentioned_only; nowhere → missing; no
+    term to look for → unclear.
     """
     cv = rs.cv_payload(cv_schema)
     usage, listing = _section_text(cv, USAGE_SECTIONS), _section_text(cv, LISTING_SECTIONS)
@@ -87,13 +87,13 @@ def requirement_statuses(cv_schema: dict[str, Any], requirements: list[dict[str,
                 return bool(set(skills) & skills_with_implied(text))
             in_usage, in_listing = found(usage), found(listing)
         else:
-            words = [w for w in re.findall(r"[a-z0-9+#.]{3,}", _fold(req["text"])) if w not in STOPWORDS]
-            if not words:
+            def found(text: str) -> bool:
+                hits, terms, phrase = requirement_hits(text, req["text"])
+                return phrase or (terms > 0 and hits >= max(1, (terms + 1) // 2))
+            if not (requirement_terms(req["text"]) or concept_phrases(req["text"])):
                 out.append({**req, "status": "unclear"})
                 continue
-            need = max(1, (len(words) + 1) // 2)
-            in_usage = sum(w in usage for w in words) >= need
-            in_listing = sum(w in listing for w in words) >= need
+            in_usage, in_listing = found(usage), found(listing)
         status = "met" if in_usage else "mentioned_only" if in_listing else "missing"
         out.append({**req, "status": status})
     return out

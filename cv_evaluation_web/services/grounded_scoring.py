@@ -10,6 +10,9 @@ P keeps M3's model, rubric and retrieved knowledge, and changes what happens aro
    again once for that criterion alone; still none → needs_verification. A requirement claimed "met"
    must be quoted from where the skill is used (projects, experience, certificates); quoted only from
    the skills list or summary it becomes mentioned_only; a quote that is not in the CV makes it missing.
+   For a requirement outside the skill dictionary (a concept such as "Responsive web design" or "OOP"),
+   code can only check words: a quote with none of the requirement's distinctive words and no other
+   wording of it (CSS for responsive design, Java for OOP) becomes unclear rather than accepted.
 3. Missing versus misread. When the extracted CV holds far less text than the PDF's text layer, content
    may have been lost, so a "missing" judgement is not trusted: the criterion becomes
    needs_verification and the requirement unclear, instead of scoring 0.
@@ -19,7 +22,8 @@ P keeps M3's model, rubric and retrieved knowledge, and changes what happens aro
    The total is shown only when C ≥ COVERAGE_MIN and C3, C4 or C5, and C8 are scored.
 
 The ablations of module E switch parts off: verify=False keeps every LLM score as given (no
-verification, no second ask); abstain=False never marks needs_verification.
+verification, no second ask); abstain=False never marks needs_verification; concept_check=False accepts
+a located quote for a concept requirement whatever words it holds (P as before the concept check).
 """
 
 from __future__ import annotations
@@ -30,12 +34,14 @@ import unicodedata
 from typing import Any, Callable
 
 from services import rubric_scoring as rs
-from services.evaluator import extract_skills, skills_with_implied
+from services.evaluator import (concept_phrases, extract_skills, requirement_hits, requirement_terms,
+                                skills_with_implied)
 
 STRATEGIES = {
     "p_grounded": "P · Chấm có kiểm chứng bằng chứng",
     "p_no_verify": "P − kiểm chứng (ablation)",
     "p_no_abstain": "P − từ chối chấm (ablation)",
+    "p_no_concept_check": "P − kiểm tra yêu cầu khái niệm (ablation)",
 }
 LLM_CRITERIA = ("C1_structure", "C2_it_content", "C3_skills", "C4_projects", "C5_experience", "C6_certs_activities")
 REQUIREMENT_CRITERION = "C8_jd_fit"
@@ -150,7 +156,8 @@ def verify_criterion(cv: dict[str, Any], item: dict[str, Any], criterion: str) -
     return {**item, "evidence_checked": checked, "valid_evidence": len(valid)}
 
 
-def verify_requirement(cv: dict[str, Any], req: dict[str, Any], given: str) -> tuple[str, str]:
+def verify_requirement(cv: dict[str, Any], req: dict[str, Any], given: str,
+                       concept_check: bool = True) -> tuple[str, str]:
     """(verified status, reason) for one requirement."""
     quote = str(req.get("quote") or "")
     if given in ("missing", "unclear"):
@@ -161,6 +168,11 @@ def verify_requirement(cv: dict[str, Any], req: dict[str, Any], given: str) -> t
     skills = extract_skills(str(req.get("text") or ""))
     if skills and not set(skills) & skills_with_implied(quote):
         return "missing", "trích dẫn không nhắc tới yêu cầu"
+    text = str(req.get("text") or "")
+    if not skills and concept_check and (requirement_terms(text) or concept_phrases(text)):
+        hits, _, phrase = requirement_hits(quote, text)
+        if not (hits or phrase):
+            return "unclear", "trích dẫn không nêu chính yêu cầu, chỉ là công nghệ liên quan"
     if given == "met" and not found & USAGE_SECTIONS:
         return "mentioned_only", "chỉ thấy trong danh sách kỹ năng hoặc mục tiêu"
     return given, ""
@@ -243,6 +255,7 @@ def score(strategy: str, *, cv_schema: dict[str, Any], jd_text: str, document: d
     if strategy not in STRATEGIES:
         raise ValueError(f"Unknown P strategy {strategy}")
     verify, abstain = strategy != "p_no_verify", strategy != "p_no_abstain"
+    concept_check = strategy != "p_no_concept_check"
     rubric = rubric or rs.load_rubric()
     weights = {c["id"]: float(c["weight"]) for c in rubric["criteria"]}
     names = {c["id"]: c["name"] for c in rubric["criteria"]}
@@ -320,7 +333,8 @@ def score(strategy: str, *, cv_schema: dict[str, Any], jd_text: str, document: d
     for req in listed:
         answer = given.get(req["req_id"], {})
         claimed = answer.get("status") if answer.get("status") in REQ_STATUSES else "unclear"
-        status, why = verify_requirement(cv, {**answer, "text": req["text"]}, claimed) if verify else (claimed, "")
+        status, why = verify_requirement(cv, {**answer, "text": req["text"]}, claimed, concept_check) \
+            if verify else (claimed, "")
         if flags and status == "missing":
             status, why = "unclear", "trích xuất có thể đã mất nội dung"
         req_out.append({"req_id": req["req_id"], "type": req["type"], "text": req["text"], "claimed": claimed,

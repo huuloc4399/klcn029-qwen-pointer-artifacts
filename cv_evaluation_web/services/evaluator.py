@@ -141,6 +141,79 @@ def skills_with_implied(text: str) -> set[str]:
     return found | {target for target, sources in SKILL_IMPLIES.items() if found & set(sources)}
 
 
+# ---------- requirements outside the skill dictionary (concepts such as "Responsive web design", "OOP") ----------
+
+# Function words, and words too common in IT CVs to tell which requirement is meant: "web design" must not
+# match "designed the database for a web application".
+REQUIREMENT_STOPWORDS = {
+    "and", "or", "the", "with", "for", "of", "in", "on", "to", "a", "an", "e.g", "eg", "etc", "other", "similar",
+    "experience", "knowledge", "skills", "skill", "basic", "good", "strong", "understanding", "ability", "using",
+    "based", "web", "design", "development", "develop", "developing", "application", "applications", "app", "apps",
+    "system", "systems", "software", "programming", "technology", "technologies", "tool", "tools", "concept",
+    "concepts", "practice", "practices", "principles", "production", "platform", "platforms", "layer", "layers",
+    "va", "hoac", "co", "cac", "kinh", "nghiem", "kien", "thuc", "ky", "nang", "biet", "su", "dung", "ve", "voi",
+    "la", "phat", "trien", "cong", "nghe", "lam", "viec", "thiet", "ke", "he", "thong", "moi", "nhung", "mot",
+}
+# Wordings that name the same requirement in other words or the other language; folded, matched as phrases.
+# Kept to translations, abbreviations and techniques that are part of the concept itself, never loose
+# associations (CSS is not evidence of responsive design, Java is not evidence of OOP).
+CONCEPT_SYNONYMS: dict[str, tuple[str, ...]] = {
+    "teamwork": ("teamwork", "team work", "lam viec nhom"),
+    "lam viec nhom": ("teamwork", "team work", "lam viec nhom"),
+    "problem solving": ("problem solving", "problem-solving", "giai quyet van de"),
+    "giai quyet van de": ("problem solving", "problem-solving", "giai quyet van de"),
+    "giao tiep": ("communication", "giao tiep"),
+    "communication": ("communication", "giao tiep"),
+    "english": ("english", "tieng anh", "ielts", "toeic", "toefl"),
+    "oop": ("oop", "object oriented", "object-oriented", "huong doi tuong"),
+    "responsive": ("responsive", "media query", "media queries", "mobile first", "mobile-first", "mobile friendly",
+                   "mobile-friendly", "tuong thich di dong", "tuong thich voi di dong"),
+}
+_WORD = re.compile(r"[a-z0-9+#.]+")
+
+
+def _fold_words(text: str) -> str:
+    return _fold(str(text or "")).replace("đ", "d")
+
+
+def _bare(word: str) -> str:
+    """Word without edge dots or a version number: html5 → html, oauth2 → oauth (but not s3 or es6)."""
+    word = word.strip(".")
+    bare = re.sub(r"(?<=[a-z])\d+$", "", word)
+    return bare if len(bare) >= 3 else word
+
+
+def requirement_terms(text: str) -> list[str]:
+    """The requirement's distinctive words (3+ characters, no stop or generic words), in order."""
+    words = [_bare(w) for w in _WORD.findall(_fold_words(text))]
+    return list(dict.fromkeys(w for w in words if len(w) >= 3 and w not in REQUIREMENT_STOPWORDS))
+
+
+def concept_phrases(text: str) -> set[str]:
+    """Other wordings of the requirement, from CONCEPT_SYNONYMS."""
+    folded = f" {' '.join(_WORD.findall(_fold_words(text)))} "
+    return {p for key, phrases in CONCEPT_SYNONYMS.items() if f" {key} " in folded for p in phrases}
+
+
+def _term_found(term: str, words: set[str]) -> bool:
+    """Exact for short terms; longer ones also match inflected forms (pattern → patterns, debug → debugging)."""
+    if len(term) <= 4:
+        return term in words
+    stem = term[:-1] if term.endswith("s") else term
+    return any(w.startswith(stem) for w in words)
+
+
+def requirement_hits(text: str, requirement: str) -> tuple[int, int, bool]:
+    """(distinctive terms of the requirement found in the text, number of terms, another wording found)."""
+    folded = _fold_words(text)
+    words = {_bare(w) for w in _WORD.findall(folded)}
+    spaced = f" {' '.join(_WORD.findall(folded))} "
+    terms = requirement_terms(requirement)
+    phrases = concept_phrases(requirement)
+    phrase_found = any(f" {' '.join(_WORD.findall(p))} " in spaced for p in phrases)
+    return sum(_term_found(t, words) for t in terms), len(terms), phrase_found
+
+
 def _lexical_overlap(cv_text: str, jd_text: str) -> float:
     def tokens(value: str) -> set[str]:
         return {

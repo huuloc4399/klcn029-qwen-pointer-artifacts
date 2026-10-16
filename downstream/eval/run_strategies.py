@@ -14,6 +14,10 @@ downstream/results/<run_id>/predictions.jsonl and skips what is already there, s
 the Groq rate limit continues where it stopped. The fixed conditions (model, rubric, knowledge base,
 inputs, scorer code, pairs) are hashed into run_config.json; resuming with different conditions is
 refused. The results folder quotes CVs and is git-ignored; copy REPORT.md out for the thesis.
+
+After a change to one scorer file, a new run can take over the finished predictions of strategies whose
+code did not change (checked by hash), e.g. M1–M4 when only grounded_scoring.py changed:
+--reuse-from dev_v1 --reuse-strategies m1_zero_shot m2_few_shot m3_rag m4_multi_agent.
 """
 
 from __future__ import annotations
@@ -183,13 +187,60 @@ class QuotaExhausted(RuntimeError):
     pass
 
 
+def strategy_files(strategy: str) -> tuple[str, ...]:
+    """Scorer files whose code decides a strategy's output: M1–M4 live in rubric_scoring.py alone."""
+    rubric_scoring, _ = _web()
+    if strategy == rubric_scoring.BASELINE:
+        return "rubric_scoring.py", "rule_rubric.py", "evaluator.py"
+    if strategy in rubric_scoring.STRATEGIES:
+        return ("rubric_scoring.py",)
+    return tuple(p.name for p in SCORER_FILES)
+
+
+def reuse_records(run_dir: Path, source_dir: Path, strategies: list[str], conditions_now: dict[str, Any],
+                  pair_ids: set[str], inputs: list[str]) -> int:
+    """Copy finished predictions of another run whose conditions and strategy code are the same.
+
+    Everything but the scorer hashes must match, and so must the hashes of the files each reused strategy
+    runs on; otherwise the copy is refused. Copied records keep their content and gain "reused_from".
+    """
+    source = json.loads((source_dir / "run_config.json").read_text(encoding="utf-8"))
+    then = source["conditions"]
+    other = sorted(k for k in set(then) | set(conditions_now)
+                   if k != "scorer_code_sha256" and then.get(k) != conditions_now.get(k))
+    if other:
+        raise SystemExit(f"Cannot reuse {source_dir.name}: conditions differ ({', '.join(other)}).")
+    for strategy in strategies:
+        changed = [f for f in strategy_files(strategy)
+                   if then["scorer_code_sha256"].get(f) != conditions_now["scorer_code_sha256"].get(f)]
+        if changed:
+            raise SystemExit(f"Cannot reuse {strategy} from {source_dir.name}: {', '.join(changed)} changed since.")
+    out = run_dir / "predictions.jsonl"
+    have = {_key(r) for r in _read_jsonl(out) if r["status"] in ("ok", "extraction_invalid")}
+    previous = latest(_read_jsonl(source_dir / "predictions.jsonl")).values()
+    copied = [{**r, "reused_from": source["run_id"]} for r in previous
+              if r["strategy"] in strategies and r["input"] in inputs and r["pair_id"] in pair_ids
+              and r["status"] in ("ok", "extraction_invalid") and _key(r) not in have]
+    with out.open("a", encoding="utf-8") as handle:
+        for record in copied:
+            handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+    config_path = run_dir / "run_config.json"
+    saved = json.loads(config_path.read_text(encoding="utf-8"))
+    saved.setdefault("reused", []).append({
+        "from": source["run_id"], "source_git_commit": source.get("git_commit"), "strategies": sorted(strategies),
+        "records": len(copied), "at": datetime.now(timezone.utc).isoformat(timespec="seconds")})
+    config_path.write_text(json.dumps(saved, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return len(copied)
+
+
 def run(*, run_dir: Path, pairs: list[dict[str, str]], strategies: list[str], inputs: list[str], repeats: int,
         config: dict[str, Any], call: Callable | None, retrieve: Callable | None,
         load_cv: Callable[[str, str], dict | None] = cv_inputs.load,
         load_document: Callable[[str], dict] = cv_inputs.load_document,
         jd_text: Callable[[str], str] = lambda jd: (JD_TEXT / f"{jd}.txt").read_text(encoding="utf-8"),
         requirements: Callable[[str], list[dict[str, str]]] = jd_requirements,
-        max_calls: int | None = None, log: Callable[[str], None] = print) -> dict[str, int]:
+        max_calls: int | None = None, log: Callable[[str], None] = print,
+        reuse_from: Path | None = None, reuse_strategies: Iterable[str] = ()) -> dict[str, int]:
     rubric_scoring, score_rules = _web()
     grounded = _grounded()
     from services.rule_rubric import requirement_statuses
@@ -211,6 +262,10 @@ def run(*, run_dir: Path, pairs: list[dict[str, str]], strategies: list[str], in
                  "git_commit": _git_commit(), "conditions": fixed, "strategies": sorted(strategies),
                  "inputs": sorted(inputs), "repeats": repeats, "pair_ids": [p["pair_id"] for p in pairs]}
     config_path.write_text(json.dumps(saved, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    if reuse_from is not None:
+        reused = [s for s in reuse_strategies if s in strategies]
+        n = reuse_records(run_dir, reuse_from, reused, fixed, {p["pair_id"] for p in pairs}, inputs)
+        log(f"Dùng lại {n} kết quả của {reuse_from.name} cho {', '.join(reused)}.")
 
     done = {_key(r) for r in _read_jsonl(out) if r["status"] in ("ok", "extraction_invalid")}
     counts = {"ok": 0, "skipped": 0, "extraction_invalid": 0, "error": 0}
@@ -301,19 +356,41 @@ def abstention(rows: list[tuple[dict, dict]]) -> float | None:
 REQ_STATUSES = ["met", "mentioned_only", "missing", "unclear"]
 
 
-def requirement_agreement(rows: list[tuple[dict, dict]]) -> dict[str, Any]:
-    """Model requirement statuses against the human ones, matched by req_id."""
-    human, model = [], []
-    for label, pred in rows:
-        for req_id, value in (label.get("requirements") or {}).items():
-            got = (pred.get("requirements") or {}).get(req_id)
-            if got and value.get("status") in REQ_STATUSES and got["status"] in REQ_STATUSES:
-                human.append(value["status"])
-                model.append(got["status"])
+# Requirement kinds: "dictionary" names a skill the dictionary knows, so code can check the quote names it;
+# "concept" (Responsive web design, OOP, Teamwork) can only be checked by words.
+REQUIREMENT_KINDS = ("dictionary", "concept")
+
+
+def requirement_kinds(jd_ids: Iterable[str]) -> dict[tuple[str, str], str]:
+    _web()
+    from services.evaluator import extract_skills
+    return {(jd_id, r["req_id"]): "dictionary" if extract_skills(r["text"]) else "concept"
+            for jd_id in sorted(set(jd_ids)) if (JD_GOLD / f"{jd_id}.json").is_file() for r in jd_requirements(jd_id)}
+
+
+def _requirement_stats(human: list[str], model: list[str]) -> dict[str, Any]:
     present = lambda s: "co" if s in ("met", "mentioned_only") else "khong"  # noqa: E731
     return {"n": len(human), "kappa": iaa.kappa(human, model, REQ_STATUSES),
             "agreement": iaa._mean(h == m for h, m in zip(human, model)),
             "kappa_present": iaa.kappa([present(s) for s in human], [present(s) for s in model], ["co", "khong"])}
+
+
+def requirement_agreement(rows: list[tuple[dict, dict]],
+                          kinds: dict[tuple[str, str], str] | None = None) -> dict[str, Any]:
+    """Model requirement statuses against the human ones, matched by req_id; per kind when kinds are given."""
+    triples = []
+    for label, pred in rows:
+        for req_id, value in (label.get("requirements") or {}).items():
+            got = (pred.get("requirements") or {}).get(req_id)
+            if got and value.get("status") in REQ_STATUSES and got["status"] in REQ_STATUSES:
+                kind = (kinds or {}).get((pred.get("jd_id") or label.get("jd_id"), req_id))
+                triples.append((kind, value["status"], got["status"]))
+    out = _requirement_stats([h for _, h, _ in triples], [m for _, _, m in triples])
+    if kinds is not None:
+        out["by_kind"] = {kind: _requirement_stats([h for k, h, _ in triples if k == kind],
+                                                   [m for k, _, m in triples if k == kind])
+                          for kind in REQUIREMENT_KINDS}
+    return out
 
 
 def agreement(rows: list[tuple[dict, dict]], weights: dict[str, float]) -> dict[str, float | None]:
@@ -394,6 +471,7 @@ def report(run_dir: Path, labels_path: Path, *, reference: str | None = "m3_rag"
     for record in records.values():
         groups.setdefault((record["input"], record["strategy"]), []).append(record)
     order = [s for s in all_strategies() if any(k[1] == s for k in groups)]
+    kinds = requirement_kinds(r["jd_id"] for r in records.values())
     out: dict[str, Any] = {"run_id": config["run_id"], "labels": label_info["file"], "conditions": config["conditions"],
                            "reference": reference, "bootstrap_reps": reps, "seed": seed, "inputs": {}}
     for source in [i for i in INPUTS if any(k[0] == i for k in groups)]:
@@ -419,7 +497,7 @@ def report(run_dir: Path, labels_path: Path, *, reference: str | None = "m3_rag"
                 "per_criterion_mae": {c: iaa._mean(abs(h - m) for h, m in zip(*_criterion_pairs(rows, c))) for c in criteria},
                 "mean_total": iaa._mean(r["total_score"] for r in ok),
                 "total_shown_rate": iaa._mean(r.get("total_shown", True) for r in ok),
-                "requirements": requirement_agreement(rows),
+                "requirements": requirement_agreement(rows, kinds),
                 "evidence_valid_rate": iaa._mean(
                     r["verification"]["evidence_valid"] / r["verification"]["evidence_total"]
                     for r in ok if r.get("verification") and r["verification"]["evidence_total"]),
@@ -485,6 +563,17 @@ def markdown(out: dict[str, Any], rubric: dict) -> str:
             lines.append(f"| {strategy} | {req['n']} | {f(req['kappa'])} | {pct(req['agreement'])} | "
                          f"{f(req['kappa_present'])} | {pct(v['abstention'])} | {pct(v['total_shown_rate'])} | "
                          f"{pct(v['evidence_valid_rate'])} |")
+        lines += ["", "Yêu cầu JD theo loại: từ điển (code kiểm được trích dẫn có nêu kỹ năng) và khái niệm "
+                  "(Responsive, OOP, Teamwork…, code chỉ kiểm được theo từ):", "",
+                  "| Chiến lược | Từ điển: số | Kappa 4 trạng thái | Kappa có/không | Khái niệm: số | Kappa 4 trạng thái | "
+                  "Kappa có/không |", "|---|---|---|---|---|---|---|"]
+        for strategy, v in data["strategies"].items():
+            by = v["requirements"].get("by_kind") or {}
+            cells = []
+            for kind in REQUIREMENT_KINDS:
+                k = by.get(kind) or {"n": 0, "kappa": None, "kappa_present": None}
+                cells += [str(k["n"]), f(k["kappa"]), f(k["kappa_present"])]
+            lines.append(f"| {strategy} | " + " | ".join(cells) + " |")
         lines += ["", "Kappa bậc hai theo tiêu chí:", "",
                   "| Chiến lược | " + " | ".join(cr["id"].split("_")[0] for cr in rubric["criteria"]) + " |",
                   "|---|" + "---|" * len(rubric["criteria"])]
@@ -513,6 +602,9 @@ def main() -> int:
     r.add_argument("--max-calls", type=int, help="stop after this many Groq calls; rerun to continue")
     r.add_argument("--max-wait", type=float, default=90.0,
                    help="longest rate-limit wait in seconds; a longer one (daily quota) stops the run")
+    r.add_argument("--reuse-from", help="copy finished predictions from this run id when conditions and code match")
+    r.add_argument("--reuse-strategies", nargs="+", default=[],
+                   help="strategies to copy with --reuse-from (their scorer files must be unchanged)")
     p = sub.add_parser("report")
     p.add_argument("--run-id", required=True)
     p.add_argument("--labels", type=Path, required=True, help="FINAL.jsonl, or a rater workbook/JSONL")
@@ -544,7 +636,9 @@ def main() -> int:
                         inputs_root=cv_inputs.OUT, pairs_path=PAIRS)
     try:
         counts = run(run_dir=run_dir, pairs=pairs, strategies=args.strategies, inputs=args.inputs,
-                     repeats=args.repeats, config=config, call=call, retrieve=retrieve, max_calls=args.max_calls)
+                     repeats=args.repeats, config=config, call=call, retrieve=retrieve, max_calls=args.max_calls,
+                     reuse_from=RESULTS / args.reuse_from if args.reuse_from else None,
+                     reuse_strategies=args.reuse_strategies)
     except QuotaExhausted as exc:
         print(f"Dừng: {exc} Kết quả đã lưu; chạy lại cùng lệnh sau để tiếp tục.")
         return 2
