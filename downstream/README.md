@@ -165,6 +165,19 @@ python -m downstream.eval.run_strategies run --run-id dev_v1 --split dev --input
 - `--retriever bge-m3 --embed-url http://127.0.0.1:8093` dùng bge-m3 trên laptop như web; mặc định
   `bm25`. Hai cách không trộn trong một run.
 
+Phương pháp đề xuất P (module E) nằm ở `cv_evaluation_web/services/grounded_scoring.py`. Chạy bằng
+`--strategies p_grounded p_no_verify p_no_abstain`: P đầy đủ và hai ablation, bỏ kiểm chứng và bỏ từ chối chấm.
+
+- P đặt trên M3 (cùng model, rubric và tri thức RAG). LLM trả trích dẫn kèm đường dẫn trường CV cho C1–C6,
+  và trạng thái cho từng yêu cầu của JD gold, cùng `req_id` với file chấm của người.
+- Code kiểm tra trích dẫn có thật trong CV. Điểm thiếu bằng chứng được hỏi lại một lần; vẫn thiếu thì
+  chuyển thành `needs_verification`.
+- C8 được tính từ trạng thái yêu cầu đã kiểm chứng.
+- Khi CV trích xuất được ít chữ hơn hẳn PDF (tỉ lệ < `LOW_TEXT_RATIO` = 0,25, chọn trên dev, không dùng
+  nhãn), "không có" được đổi thành "cần xác minh".
+- Điểm tổng chỉ hiện khi độ bao phủ ≥ `COVERAGE_MIN` = 0,80.
+- `baseline_rules` xuất thêm trạng thái từng yêu cầu bằng từ khóa (phương pháp K của module D) để so với P.
+
 Bước 3: so với nhãn người.
 
 ```bash

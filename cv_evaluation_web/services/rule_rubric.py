@@ -50,6 +50,55 @@ def _project_level(project: dict[str, Any]) -> int:
     return 4 if level == 3 and (NUMBER.search(details) or "[LINK]" in details) else level
 
 
+USAGE_SECTIONS = ("experience", "projects", "certifications", "activities", "awards")
+LISTING_SECTIONS = ("skills", "summary", "education")
+STOPWORDS = {"and", "or", "the", "with", "for", "of", "in", "to", "a", "an", "e.g", "other", "experience", "knowledge",
+             "skills", "skill", "basic", "good", "understanding", "va", "hoac", "co", "cac", "kinh", "nghiem", "kien",
+             "thuc", "ky", "nang", "biet", "su", "dung", "ve", "voi", "la"}
+
+
+def _values(node: Any) -> str:
+    if isinstance(node, dict):
+        return " ".join(_values(v) for v in node.values())
+    if isinstance(node, list):
+        return " ".join(_values(v) for v in node)
+    return "" if node is None else str(node)
+
+
+def _section_text(cv: dict[str, Any], sections: tuple[str, ...]) -> str:
+    """Folded text of those sections' values (field names left out so they cannot match)."""
+    return _fold(" \n ".join(_values(cv.get(k)) for k in sections))
+
+
+def requirement_statuses(cv_schema: dict[str, Any], requirements: list[dict[str, str]]) -> list[dict[str, Any]]:
+    """Keyword method (K) for module D: met / mentioned_only / missing / unclear per JD requirement.
+
+    A requirement's terms are its dictionary skills, or else its content words. Found where skills are
+    used (projects, experience, certificates) → met; only in skills, summary or education →
+    mentioned_only; nowhere → missing; no term to look for → unclear.
+    """
+    cv = rs.cv_payload(cv_schema)
+    usage, listing = _section_text(cv, USAGE_SECTIONS), _section_text(cv, LISTING_SECTIONS)
+    out = []
+    for req in requirements:
+        skills = extract_skills(req["text"])
+        if skills:
+            def found(text: str) -> bool:
+                return any(skill in extract_skills(text) for skill in skills)
+            in_usage, in_listing = found(usage), found(listing)
+        else:
+            words = [w for w in re.findall(r"[a-z0-9+#.]{3,}", _fold(req["text"])) if w not in STOPWORDS]
+            if not words:
+                out.append({**req, "status": "unclear"})
+                continue
+            need = max(1, (len(words) + 1) // 2)
+            in_usage = sum(w in usage for w in words) >= need
+            in_listing = sum(w in listing for w in words) >= need
+        status = "met" if in_usage else "mentioned_only" if in_listing else "missing"
+        out.append({**req, "status": status})
+    return out
+
+
 def score_rules(*, cv_schema: dict[str, Any], jd_text: str, document: dict[str, Any],
                 rubric: dict[str, Any] | None = None) -> dict[str, Any]:
     rubric = rubric or rs.load_rubric()

@@ -298,6 +298,28 @@ def cv_query(cv: dict[str, Any]) -> str:
     return "\n".join(part for part in parts if part.strip())[:1500] or "CV chưa có mô tả dự án hay kinh nghiệm"
 
 
+def rag_context(cv: dict[str, Any], jd_text: str, retrieve: Retrieve | None,
+                kb: list[dict[str, Any]] | None) -> tuple[str, dict[str, Any]]:
+    """Prompt section with the retrieved knowledge, and what was retrieved (M3 and P share it)."""
+    # One chunk about the role, found with the JD; two CV-writing chunks, found with the CV's own text.
+    plan = ((rag_query(cv, jd_text), 1, ["backend", "frontend"]), (cv_query(cv), 2, ["all"]))
+    try:
+        if retrieve is None:
+            raise ScoringError("no retriever")
+        answers = [retrieve(query, top_k, roles) for query, top_k, roles in plan]
+        chunks = [chunk for answer in answers for chunk in answer["results"]]
+        backend = answers[0].get("backend", "bge-m3")
+    except Exception:
+        knowledge = kb or load_kb()
+        chunks = [chunk for query, top_k, roles in plan for chunk in lexical_retrieve(query, knowledge, top_k, roles)]
+        backend = "BM25 dự phòng (máy chủ embedding chưa sẵn sàng)"
+    retrieval = {"backend": backend, "chunks": [{"id": c["id"], "title": c["title"], "score": c.get("score")}
+                                                 for c in chunks]}
+    context = "## Tri thức tham khảo nội bộ (dùng để viết gợi ý; không phải bằng chứng về ứng viên)\n" + \
+              "\n\n".join(f"[{c['id']}] {c['title']}\n{c['text']}" for c in chunks)
+    return context, retrieval
+
+
 # ---- strategies -----------------------------------------------------------------------------
 
 def score(strategy: str, *, cv_schema: dict[str, Any], jd_text: str, document: dict[str, Any], call: Caller,
@@ -335,22 +357,7 @@ def score(strategy: str, *, cv_schema: dict[str, Any], jd_text: str, document: d
         scores, _ = run(llm_criteria, context=f"## Ví dụ chấm mẫu\n{FEW_SHOT_EXAMPLE}")
     elif strategy == "m3_rag":
         progress("Đang truy xuất tri thức tham khảo cho M3 · RAG...")
-        # One chunk about the role, found with the JD; two CV-writing chunks, found with the CV's own text.
-        plan = ((rag_query(cv, jd_text), 1, ["backend", "frontend"]), (cv_query(cv), 2, ["all"]))
-        try:
-            if retrieve is None:
-                raise ScoringError("no retriever")
-            answers = [retrieve(query, top_k, roles) for query, top_k, roles in plan]
-            chunks = [chunk for answer in answers for chunk in answer["results"]]
-            backend = answers[0].get("backend", "bge-m3")
-        except Exception:
-            knowledge = kb or load_kb()
-            chunks = [chunk for query, top_k, roles in plan for chunk in lexical_retrieve(query, knowledge, top_k, roles)]
-            backend = "BM25 dự phòng (máy chủ embedding chưa sẵn sàng)"
-        retrieval = {"backend": backend, "chunks": [{"id": c["id"], "title": c["title"], "score": c.get("score")}
-                                                     for c in chunks]}
-        context = "## Tri thức tham khảo nội bộ (dùng để viết gợi ý; không phải bằng chứng về ứng viên)\n" + \
-                  "\n\n".join(f"[{c['id']}] {c['title']}\n{c['text']}" for c in chunks)
+        context, retrieval = rag_context(cv, jd_text, retrieve, kb)
         progress("Đang chấm 7 tiêu chí bằng M3 · RAG...")
         scores, _ = run(llm_criteria, context=context)
     else:

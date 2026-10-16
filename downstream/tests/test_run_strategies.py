@@ -23,9 +23,13 @@ CV = {
     "education": [{"degree": "Bachelor", "university": "HUIT", "gpa": None, "year_graduated": 2026}],
     "certifications": [], "activities": [], "awards": [],
 }
-DOCUMENT = {"page_count": 1, "native_text_pages": 1, "character_count": 2400, "block_count": 20,
+DOCUMENT = {"page_count": 1, "native_text_pages": 1, "character_count": 700, "block_count": 20,
             "likely_multi_column": False, "needs_ocr": False}
 JD = "Java Backend Intern. Yêu cầu: Java, Spring Boot, MySQL, REST API, Git."
+REQUIREMENTS = [{"req_id": "JD1-M01", "type": "must", "text": "Java"},
+                {"req_id": "JD1-M02", "type": "must", "text": "Spring Boot"},
+                {"req_id": "JD1-M03", "type": "must", "text": "Docker"},
+                {"req_id": "JD1-N01", "type": "nice", "text": "Kubernetes"}]
 PAIRS = [{"pair_id": "T1", "cv_id": "CV1", "jd_id": "JD1", "split": "dev"},
          {"pair_id": "T2", "cv_id": "CV2", "jd_id": "JD1", "split": "dev"}]
 CONFIG = {"model": "fake-model", "temperature": 0, "seed": 42, "retriever": "bm25", "split": "dev",
@@ -40,6 +44,15 @@ class FakeGroq:
         self.calls += 1
         if self.fail_after is not None and self.calls > self.fail_after:
             raise self.error
+        if "criteria" in schema["properties"]:  # method P
+            quote = {"field": "projects[0].details", "quote": "Built a REST API for 200 users"}
+            items = {c: {"status": "scored", "score": self.score, "evidence": [quote], "reason": "r", "suggestion": "s"}
+                     for c in schema["properties"]["criteria"]["required"]}
+            reqs = [{"req_id": r["req_id"], "text": r["text"], "type": r["type"], "field": "projects[0].details",
+                     "status": "met" if r["text"] == "Spring Boot" else "missing",
+                     "quote": "with Spring Boot and MySQL" if r["text"] == "Spring Boot" else "", "note": ""}
+                    for r in REQUIREMENTS]
+            return {"criteria": items, "requirements": reqs}, {"input_tokens": 3000, "output_tokens": 600}
         answer = {cid: {"score": self.score, "evidence": "Built a REST API", "suggestion": "Thêm kết quả đo được."}
                   for cid in schema["properties"] if cid != "overall_comment"}
         if "overall_comment" in schema["properties"]:
@@ -68,7 +81,7 @@ class RunStrategiesTests(unittest.TestCase):
         return rs.run(run_dir=self.tmp / "run", pairs=PAIRS, strategies=list(strategies), inputs=list(inputs),
                       repeats=1, config=config, call=call, retrieve=rs.bm25_retriever(self.rubric_scoring),
                       load_cv=load_cv, load_document=lambda cv: DOCUMENT, jd_text=lambda jd: JD,
-                      log=lambda m: None, **kw)
+                      requirements=lambda jd: REQUIREMENTS, log=lambda m: None, **kw)
 
     def predictions(self):
         return rs._read_jsonl(self.tmp / "run/predictions.jsonl")
@@ -135,6 +148,32 @@ class RunStrategiesTests(unittest.TestCase):
         text = (self.tmp / "run/REPORT.md").read_text(encoding="utf-8")
         self.assertIn("Chênh lệch so với `m3_rag`", text)
         self.assertNotIn("Built a REST API", text)
+
+    def test_method_p_and_keyword_requirements_reach_the_report(self):
+        self.go(FakeGroq(score=3), strategies=("baseline_rules", "p_grounded"), inputs=("gold",))
+        records = {r["strategy"]: r for r in self.predictions() if r["pair_id"] == "T1"}
+        p = records["p_grounded"]
+        self.assertEqual(p["calls"], 1)
+        self.assertEqual(p["requirements"]["JD1-M02"]["status"], "met")
+        self.assertEqual(p["criteria"]["C8_jd_fit"]["score"], 1)  # 1 of 3 must = 33%
+        self.assertEqual(records["baseline_rules"]["requirements"]["JD1-M03"]["status"], "met")  # "deployed with Docker"
+        human = {"C1_structure": 3, "C2_it_content": 3, "C3_skills": 3, "C4_projects": 3, "C5_experience": 0,
+                 "C7_ats": 4, "C8_jd_fit": 1}
+        rows = []
+        for pair in PAIRS:
+            row = label(pair["pair_id"], pair["cv_id"], human, 3)
+            row["requirements"] = {"JD1-M01": {"status": "met"}, "JD1-M02": {"status": "met"},
+                                   "JD1-M03": {"status": "met"}, "JD1-N01": {"status": "missing"}}
+            rows.append(json.dumps(row))
+        labels = self.tmp / "labels.jsonl"
+        labels.write_text("".join(row + "\n" for row in rows), encoding="utf-8")
+        out = rs.report(self.tmp / "run", labels, reference="baseline_rules", reps=20)
+        table = out["inputs"]["gold"]["strategies"]
+        self.assertEqual(table["p_grounded"]["requirements"]["n"], 8)
+        self.assertEqual(table["p_grounded"]["requirements"]["agreement"], 0.5)  # the fake judges Java and Docker missing
+        self.assertEqual(table["p_grounded"]["abstention"], 0.0)
+        self.assertEqual(table["p_grounded"]["evidence_valid_rate"], 1.0)
+        self.assertEqual(table["baseline_rules"]["requirements"]["agreement"], 1.0)
 
     def test_compliance_needs_evidence_for_llm_scores(self):
         criteria = [c["id"] for c in self.rubric_scoring.load_rubric()["criteria"]]

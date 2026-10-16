@@ -40,7 +40,9 @@ RESULTS = ROOT / "downstream/results"
 PAIRS = ROOT / "downstream/data/pairs_v1/pairs.csv"
 JD_TEXT = ROOT / "downstream/data/jd_v1"
 WEB = ROOT / "cv_evaluation_web"
-SCORER_FILES = (WEB / "services/rubric_scoring.py", WEB / "services/rule_rubric.py", WEB / "services/evaluator.py")
+JD_GOLD = ROOT / "downstream/data/jd_gold_v1"
+SCORER_FILES = (WEB / "services/rubric_scoring.py", WEB / "services/rule_rubric.py", WEB / "services/evaluator.py",
+                WEB / "services/grounded_scoring.py")
 INPUTS = cv_inputs.SOURCES
 
 
@@ -51,6 +53,24 @@ def _web():
     from services import rubric_scoring
     from services.rule_rubric import score_rules
     return rubric_scoring, score_rules
+
+
+def _grounded():
+    _web()
+    from services import grounded_scoring
+    return grounded_scoring
+
+
+def all_strategies() -> dict[str, str]:
+    rubric_scoring, _ = _web()
+    return {**rubric_scoring.STRATEGIES, **_grounded().STRATEGIES}
+
+
+def jd_requirements(jd_id: str) -> list[dict[str, str]]:
+    """The JD gold's atomic requirements, with the req_ids of the rating workbook."""
+    from downstream.data.build_rating_workbook import requirements
+    jd = json.loads((JD_GOLD / f"{jd_id}.json").read_text(encoding="utf-8"))
+    return [{"req_id": rid, "type": kind, "text": text} for rid, kind, text in requirements(jd_id, jd)]
 
 
 def _sha_file(path: Path) -> str:
@@ -114,8 +134,10 @@ def throttled(call: Callable, min_interval: float, sleep: Callable[[float], None
 def conditions(*, model: str, retriever: str, split: str, inputs_root: Path, pairs_path: Path) -> dict[str, Any]:
     """What must stay identical for predictions to be comparable inside one run."""
     rubric_scoring, _ = _web()
+    grounded = _grounded()
     return {
         "model": model,
+        "p_coverage_min": grounded.COVERAGE_MIN, "p_low_text_ratio": grounded.LOW_TEXT_RATIO,
         "temperature": 0, "seed": 42, "reasoning_effort": "none",
         "retriever": retriever,
         "split": split,
@@ -141,8 +163,15 @@ def _read_jsonl(path: Path) -> list[dict[str, Any]]:
 def _compact(result: dict[str, Any]) -> dict[str, Any]:
     return {
         "total_score": result["total_score"], "verdict": result["verdict"],
-        "criteria": {c["id"]: {"score": c["score"], "scored_by": c["scored_by"], "initial_score": c.get("initial_score"),
-                               "evidence": c["evidence"], "suggestion": c["suggestion"]} for c in result["criteria"]},
+        "total_shown": result.get("total_shown", True), "coverage": result.get("coverage", 1.0),
+        "criteria": {c["id"]: {"status": c.get("status", "scored"), "score": c["score"], "scored_by": c["scored_by"],
+                               "initial_score": c.get("initial_score"), "evidence": c["evidence"],
+                               "suggestion": c["suggestion"], "evidence_checked": c.get("evidence_checked"),
+                               "rescored": c.get("rescored", False)} for c in result["criteria"]},
+        "requirements": {r["req_id"]: {"type": r["type"], "status": r["status"], "claimed": r.get("claimed"),
+                                       "quote": r.get("quote", ""), "check_note": r.get("check_note", "")}
+                         for r in result.get("requirements") or []},
+        "verification": result.get("verification"), "content_flags": result.get("content_flags", []),
         "overall_comment": result.get("overall_comment", ""),
         "retrieval": result.get("retrieval"),
         "calls": result.get("calls", 0), "input_tokens": result.get("input_tokens", 0),
@@ -159,8 +188,11 @@ def run(*, run_dir: Path, pairs: list[dict[str, str]], strategies: list[str], in
         load_cv: Callable[[str, str], dict | None] = cv_inputs.load,
         load_document: Callable[[str], dict] = cv_inputs.load_document,
         jd_text: Callable[[str], str] = lambda jd: (JD_TEXT / f"{jd}.txt").read_text(encoding="utf-8"),
+        requirements: Callable[[str], list[dict[str, str]]] = jd_requirements,
         max_calls: int | None = None, log: Callable[[str], None] = print) -> dict[str, int]:
     rubric_scoring, score_rules = _web()
+    grounded = _grounded()
+    from services.rule_rubric import requirement_statuses
     run_dir.mkdir(parents=True, exist_ok=True)
     config_path, out = run_dir / "run_config.json", run_dir / "predictions.jsonl"
     fixed = {k: v for k, v in config.items()}
@@ -201,6 +233,7 @@ def run(*, run_dir: Path, pairs: list[dict[str, str]], strategies: list[str], in
                         elif strategy == rubric_scoring.BASELINE:
                             result = score_rules(cv_schema=cv_schema, jd_text=jd_text(pair["jd_id"]),
                                                  document=load_document(pair["cv_id"]), rubric=rubric)
+                            result["requirements"] = requirement_statuses(cv_schema, requirements(pair["jd_id"]))
                             record.update(status="ok", **_compact(result))
                         else:
                             if call is None:
@@ -209,9 +242,13 @@ def run(*, run_dir: Path, pairs: list[dict[str, str]], strategies: list[str], in
                                 log(f"Dừng sau {calls_used} lần gọi (--max-calls). Chạy lại cùng lệnh để tiếp tục.")
                                 return counts
                             try:
-                                result = rubric_scoring.score(strategy, cv_schema=cv_schema, jd_text=jd_text(pair["jd_id"]),
-                                                              document=load_document(pair["cv_id"]), call=call,
-                                                              retrieve=retrieve, rubric=rubric, model=config["model"])
+                                common = dict(cv_schema=cv_schema, jd_text=jd_text(pair["jd_id"]),
+                                              document=load_document(pair["cv_id"]), call=call, retrieve=retrieve,
+                                              rubric=rubric, model=config["model"])
+                                if strategy in grounded.STRATEGIES:
+                                    result = grounded.score(strategy, requirements=requirements(pair["jd_id"]), **common)
+                                else:
+                                    result = rubric_scoring.score(strategy, **common)
                             except rubric_scoring.ScoringError as exc:
                                 record.update(status="error", error=str(exc))
                                 handle.write(json.dumps(record, ensure_ascii=False) + "\n")
@@ -241,16 +278,42 @@ def latest(predictions: Iterable[dict[str, Any]]) -> dict[tuple, dict[str, Any]]
 
 
 def _criterion_pairs(rows: list[tuple[dict, dict]], criterion: str | None = None) -> tuple[list[int], list[int]]:
-    """(human, model) scores where the human could score the criterion (scored or missing_in_cv)."""
+    """(human, model) scores where the human could score the criterion (scored or missing_in_cv) and
+    the model gave a score (P may abstain)."""
     human, model = [], []
     for label, pred in rows:
         for cid, value in label["criteria"].items():
             if criterion not in (None, cid) or value["status"] not in iaa.SCORED or value["score"] is None:
                 continue
-            if cid in pred["criteria"]:
+            if cid in pred["criteria"] and pred["criteria"][cid]["score"] is not None:
                 human.append(value["score"])
                 model.append(pred["criteria"][cid]["score"])
     return human, model
+
+
+def abstention(rows: list[tuple[dict, dict]]) -> float | None:
+    """Share of the criteria a human could score on which the model abstained."""
+    flags = [pred["criteria"].get(cid, {}).get("score") is None
+             for label, pred in rows for cid, value in label["criteria"].items() if value["status"] in iaa.SCORED]
+    return iaa._mean(flags)
+
+
+REQ_STATUSES = ["met", "mentioned_only", "missing", "unclear"]
+
+
+def requirement_agreement(rows: list[tuple[dict, dict]]) -> dict[str, Any]:
+    """Model requirement statuses against the human ones, matched by req_id."""
+    human, model = [], []
+    for label, pred in rows:
+        for req_id, value in (label.get("requirements") or {}).items():
+            got = (pred.get("requirements") or {}).get(req_id)
+            if got and value.get("status") in REQ_STATUSES and got["status"] in REQ_STATUSES:
+                human.append(value["status"])
+                model.append(got["status"])
+    present = lambda s: "co" if s in ("met", "mentioned_only") else "khong"  # noqa: E731
+    return {"n": len(human), "kappa": iaa.kappa(human, model, REQ_STATUSES),
+            "agreement": iaa._mean(h == m for h, m in zip(human, model)),
+            "kappa_present": iaa.kappa([present(s) for s in human], [present(s) for s in model], ["co", "khong"])}
 
 
 def agreement(rows: list[tuple[dict, dict]], weights: dict[str, float]) -> dict[str, float | None]:
@@ -264,6 +327,7 @@ def agreement(rows: list[tuple[dict, dict]], weights: dict[str, float]) -> dict[
         "spearman_fit": iaa.spearman([h for h, _ in fit], [m for _, m in fit]),
         "spearman_total": iaa.spearman([h for h, _ in totals], [m for _, m in totals]),
         "mean_abs_total_diff": iaa._mean(abs(h - m) for h, m in totals),
+        "abstention": abstention(rows),
     }
 
 
@@ -299,14 +363,18 @@ def _bootstrap(rows_by_group: dict[str, list[tuple[dict, dict]]], weights: dict[
 
 
 def compliance(pred: dict[str, Any], criteria: list[str]) -> bool:
-    """All 8 criteria, integer scores 0–4, and evidence for every LLM score above 0."""
+    """All 8 criteria; an integer 0–4, or no score only as needs_verification; evidence for every LLM score above 0."""
     items = pred.get("criteria") or {}
     if set(items) != set(criteria):
         return False
     for value in items.values():
+        if value["score"] is None:
+            if value.get("status") != "needs_verification":
+                return False
+            continue
         if not isinstance(value["score"], int) or not 0 <= value["score"] <= 4:
             return False
-        if value["scored_by"] in ("llm", "critic") and value["score"] > 0 and not str(value["evidence"]).strip():
+        if value["scored_by"] in ("llm", "critic", "llm_verified") and value["score"] > 0 and not str(value["evidence"]).strip():
             return False
     return True
 
@@ -325,7 +393,7 @@ def report(run_dir: Path, labels_path: Path, *, reference: str | None = "m3_rag"
     groups: dict[tuple[str, str], list[dict]] = {}
     for record in records.values():
         groups.setdefault((record["input"], record["strategy"]), []).append(record)
-    order = [s for s in rubric_scoring.STRATEGIES if any(k[1] == s for k in groups)]
+    order = [s for s in all_strategies() if any(k[1] == s for k in groups)]
     out: dict[str, Any] = {"run_id": config["run_id"], "labels": label_info["file"], "conditions": config["conditions"],
                            "reference": reference, "bootstrap_reps": reps, "seed": seed, "inputs": {}}
     for source in [i for i in INPUTS if any(k[0] == i for k in groups)]:
@@ -350,6 +418,11 @@ def report(run_dir: Path, labels_path: Path, *, reference: str | None = "m3_rag"
                 "per_criterion_qwk": {c: iaa.kappa(*_criterion_pairs(rows, c), iaa.SCORES, weighted=True) for c in criteria},
                 "per_criterion_mae": {c: iaa._mean(abs(h - m) for h, m in zip(*_criterion_pairs(rows, c))) for c in criteria},
                 "mean_total": iaa._mean(r["total_score"] for r in ok),
+                "total_shown_rate": iaa._mean(r.get("total_shown", True) for r in ok),
+                "requirements": requirement_agreement(rows),
+                "evidence_valid_rate": iaa._mean(
+                    r["verification"]["evidence_valid"] / r["verification"]["evidence_total"]
+                    for r in ok if r.get("verification") and r["verification"]["evidence_total"]),
                 "compliance": iaa._mean(compliance(r, criteria) for r in ok),
                 "repeat_std_total": iaa._mean(spread) if spread else None,
                 "calls_per_pair": iaa._mean(r["calls"] for r in ok),
@@ -404,6 +477,14 @@ def markdown(out: dict[str, Any], rubric: dict) -> str:
                          for m in ("diff_vs_ref.qwk", "diff_vs_ref.mae", "diff_vs_ref.spearman_fit") if m in g]
                 if parts:
                     lines.append(f"- {strategy}: " + ", ".join(parts))
+        lines += ["", "Yêu cầu JD (so với trạng thái người chấm theo req_id), từ chối chấm và bằng chứng:", "",
+                  "| Chiến lược | Số yêu cầu | Kappa 4 trạng thái | Trùng | Kappa có/không | Tỉ lệ từ chối chấm | "
+                  "Tỉ lệ hiện điểm tổng | Trích dẫn hợp lệ |", "|---|---|---|---|---|---|---|---|"]
+        for strategy, v in data["strategies"].items():
+            req = v["requirements"]
+            lines.append(f"| {strategy} | {req['n']} | {f(req['kappa'])} | {pct(req['agreement'])} | "
+                         f"{f(req['kappa_present'])} | {pct(v['abstention'])} | {pct(v['total_shown_rate'])} | "
+                         f"{pct(v['evidence_valid_rate'])} |")
         lines += ["", "Kappa bậc hai theo tiêu chí:", "",
                   "| Chiến lược | " + " | ".join(cr["id"].split("_")[0] for cr in rubric["criteria"]) + " |",
                   "|---|" + "---|" * len(rubric["criteria"])]
@@ -446,9 +527,9 @@ def main() -> int:
         print((run_dir / "REPORT.md").read_text(encoding="utf-8"))
         return 0 if out["human_label_pairs"] else 1
 
-    unknown = [s for s in args.strategies if s not in rubric_scoring.STRATEGIES]
+    unknown = [s for s in args.strategies if s not in all_strategies()]
     if unknown:
-        parser.error(f"unknown strategies {unknown}; choose from {list(rubric_scoring.STRATEGIES)}")
+        parser.error(f"unknown strategies {unknown}; choose from {list(all_strategies())}")
     pairs = load_pairs(split=args.split)
     if args.pairs:
         pairs = [p for p in pairs if p["pair_id"] in set(args.pairs)]
