@@ -222,6 +222,16 @@ class ScoringUnitTests(unittest.TestCase):
         with mock.patch.object(rubric_scoring.requests, "post", return_value=Response(429)):
             with self.assertRaises(rubric_scoring.ScoringError):
                 rubric_scoring.groq_caller("key", sleep=lambda _: None)([], {}, 10)
+        # A per-minute limit is waited out when the caller allows it; a daily quota fails at once.
+        sleeps = []
+        with mock.patch.object(rubric_scoring.requests, "post", side_effect=[Response(429, headers={"retry-after": "45"}), ok]):
+            rubric_scoring.groq_caller("key", max_wait=90, sleep=sleeps.append)([], {}, 10)
+        self.assertEqual(sleeps, [45.0])
+        sleeps = []
+        with mock.patch.object(rubric_scoring.requests, "post", return_value=Response(429, headers={"retry-after": "3600"})):
+            with self.assertRaisesRegex(rubric_scoring.ScoringError, "hạn mức.*3600 giây"):
+                rubric_scoring.groq_caller("key", max_wait=90, sleep=sleeps.append)([], {}, 10)
+        self.assertEqual(sleeps, [])
 
     def test_scores_are_clamped_and_missing_criteria_rejected(self):
         cleaned = rubric_scoring._clean_scores({"C1_structure": {"score": 7, "evidence": "e", "suggestion": "s"}},

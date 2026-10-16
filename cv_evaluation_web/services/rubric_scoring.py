@@ -189,8 +189,13 @@ def build_user_message(facts: dict[str, Any], cv: dict[str, Any], jd_text: str, 
 
 
 def groq_caller(api_key: str, *, model: str = GROQ_MODEL, timeout_seconds: float = 90.0,
-                max_attempts: int = 3, sleep: Callable[[float], None] = time.sleep) -> Caller:
-    """JSON-schema chat completion with retries on rate limits; falls back to json_object mode."""
+                max_attempts: int = 3, max_wait: float = 20.0, sleep: Callable[[float], None] = time.sleep) -> Caller:
+    """JSON-schema chat completion with retries on rate limits; falls back to json_object mode.
+
+    A rate-limited call waits as long as Groq's retry-after asks, up to max_wait. The web keeps
+    max_wait short so a visitor is not held; the offline runner allows a full per-minute window.
+    A longer wait (a daily quota) fails at once and says how long to wait.
+    """
 
     def call(messages: list[dict[str, str]], schema: dict[str, Any], max_tokens: int):
         response_format: dict[str, Any] = {"type": "json_schema",
@@ -217,7 +222,10 @@ def groq_caller(api_key: str, *, model: str = GROQ_MODEL, timeout_seconds: float
                     wait = float(response.headers.get("retry-after", 0))
                 except ValueError:
                     wait = 0
-                sleep(min(20.0, max(wait, 3.0 * attempt)))
+                if wait > max_wait:
+                    raise ScoringError(f"Groq báo vượt hạn mức miễn phí; cần chờ khoảng {math.ceil(wait)} giây "
+                                       "trước khi gọi tiếp.")
+                sleep(min(max_wait, max(wait, 3.0 * attempt)))
                 continue
             if response.status_code in (401, 403):
                 raise ScoringError("Máy chủ web chưa được cấu hình đúng khóa Groq.")

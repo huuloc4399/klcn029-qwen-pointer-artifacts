@@ -511,6 +511,8 @@ def main() -> int:
     r.add_argument("--model", default=None)
     r.add_argument("--min-interval", type=float, default=2.5, help="seconds between Groq calls")
     r.add_argument("--max-calls", type=int, help="stop after this many Groq calls; rerun to continue")
+    r.add_argument("--max-wait", type=float, default=90.0,
+                   help="longest rate-limit wait in seconds; a longer one (daily quota) stops the run")
     p = sub.add_parser("report")
     p.add_argument("--run-id", required=True)
     p.add_argument("--labels", type=Path, required=True, help="FINAL.jsonl, or a rater workbook/JSONL")
@@ -535,7 +537,8 @@ def main() -> int:
         pairs = [p for p in pairs if p["pair_id"] in set(args.pairs)]
     model = args.model or os.getenv("GROQ_MODEL") or rubric_scoring.GROQ_MODEL
     key = os.getenv("GROQ_API_KEY", "").strip()
-    call = throttled(rubric_scoring.groq_caller(key, model=model), args.min_interval) if key else None
+    call = throttled(rubric_scoring.groq_caller(key, model=model, max_attempts=6, max_wait=args.max_wait),
+                     args.min_interval) if key else None
     retrieve = bge_m3_retriever(args.embed_url) if args.retriever == "bge-m3" else bm25_retriever(rubric_scoring)
     config = conditions(model=model, retriever=args.retriever, split=args.split,
                         inputs_root=cv_inputs.OUT, pairs_path=PAIRS)
