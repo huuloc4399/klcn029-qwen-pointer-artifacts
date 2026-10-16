@@ -112,10 +112,37 @@ Lệnh `check` lặp lại các kiểm tra trong Excel. Ngoài ra nó bắt thê
 giá trị dán đè qua danh sách thả xuống, dòng bị xóa hoặc đổi thứ tự, và file được tạo cho một phiên bản
 rubric khác. `export` từ chối xuất khi còn lỗi; thêm `--allow-incomplete` để chỉ xuất các cặp đã xong.
 
+### Đo đồng thuận giữa hai người chấm
+
+```bash
+python -m downstream.eval.iaa downstream/data/labels_v1/pilot_rater_A.xlsx downstream/data/labels_v1/pilot_rater_B.xlsx --out-dir downstream/data/labels_v1/iaa_pilot
+```
+
+Đầu vào là file Excel (chỉ dùng các cặp `check` không báo lỗi) hoặc file JSONL đã xuất. Hai file được
+ghép theo `pair_id`; yêu cầu JD ghép theo `(pair_id, req_id)`.
+
+| Đại lượng | Chỉ số |
+|---|---|
+| Điểm 0–4 từng tiêu chí | Kappa có trọng số bậc hai, tỉ lệ trùng, lệch ≤1, MAE, điểm trung bình mỗi người (độ lệch hệ thống) |
+| Trạng thái tiêu chí | Cohen's kappa trên 4 trạng thái |
+| Trạng thái yêu cầu JD | Cohen's kappa 4 trạng thái; kappa gộp "có trong CV" (met, mentioned_only) với phần còn lại; riêng must |
+| Mức phù hợp 1–5 | Spearman, kappa bậc hai |
+| Điểm tổng rubric 0–100 | Spearman, chênh tuyệt đối trung bình |
+
+Khoảng tin cậy 95% lấy bằng bootstrap theo CV (`--bootstrap 2000 --seed 42`), vì hai cặp của cùng một CV
+không độc lập. Kappa để trống khi cả hai người cho cùng một mức ở mọi cặp; khi đó xem tỉ lệ trùng.
+
+Thư mục đầu ra gồm:
+
+- `IAA_REPORT.md` và `iaa_report.json`: chỉ có số liệu tổng hợp, dùng được cho báo cáo.
+- `disagreements.csv`: các mục cần người thứ ba phân xử. Gồm điểm lệch từ 2 mức, một người chấm được còn
+  người kia không, met so với missing, và mức phù hợp lệch từ 2. File có trích dẫn CV nên phải để trong
+  `labels_v1/`. Người phân xử điền cột `decision` và `adjudicator_note`.
+
 ### Quy tắc
 
 - `labels_v1/` chứa trích dẫn từ CV thật nên đã được gitignore. Lưu ở thư mục riêng của nhóm.
 - Sau vòng chấm thử, mọi thay đổi rubric phải tăng `rubric_version` và tạo lại file. File cũ sẽ bị
   `check` báo lệch phiên bản.
 
-Test: `python -m unittest downstream/tests/test_rating_workbook.py -v`
+Test: `python -m unittest downstream/tests/test_rating_workbook.py downstream/tests/test_iaa.py -v`
