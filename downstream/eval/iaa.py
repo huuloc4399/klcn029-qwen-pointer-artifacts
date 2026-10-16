@@ -386,9 +386,9 @@ def markdown(report: dict[str, Any], rubric: dict) -> str:
               f"{_ci(ci, 'kappa.requirements_present')}.",
               f"- Riêng yêu cầu bắt buộc ({r['n_must']}): kappa {_f(r['kappa_must'])}.",
               "",
-              "| A \\| B | Số dòng |",
-              "|---|---|"]
-    lines += [f"| {k} | {n} |" for k, n in r["confusion"].items()]
+              "| Người A | Người B | Số dòng |",
+              "|---|---|---|"]
+    lines += [f"| {k.split(' | ')[0]} | {k.split(' | ')[1]} | {n} |" for k, n in r["confusion"].items()]
     o, t = m["overall_fit"], m["rubric_total"]
     lines += ["",
               "## Mức phù hợp tổng thể và điểm tổng",
