@@ -46,7 +46,7 @@ JD_TEXT = ROOT / "downstream/data/jd_v1"
 WEB = ROOT / "cv_evaluation_web"
 JD_GOLD = ROOT / "downstream/data/jd_gold_v1"
 SCORER_FILES = (WEB / "services/rubric_scoring.py", WEB / "services/rule_rubric.py", WEB / "services/evaluator.py",
-                WEB / "services/grounded_scoring.py")
+                WEB / "services/grounded_scoring.py", WEB / "services/requirement_rules.py")
 INPUTS = cv_inputs.SOURCES
 
 
@@ -188,12 +188,13 @@ class QuotaExhausted(RuntimeError):
 
 
 def strategy_files(strategy: str) -> tuple[str, ...]:
-    """Scorer files whose code decides a strategy's output: M1–M4 live in rubric_scoring.py alone."""
+    """Scorer files whose code decides a strategy's output: M1–M4 live in rubric_scoring.py, with the JD
+    requirement rules of their prompts in requirement_rules.py."""
     rubric_scoring, _ = _web()
     if strategy == rubric_scoring.BASELINE:
-        return "rubric_scoring.py", "rule_rubric.py", "evaluator.py"
+        return "rubric_scoring.py", "rule_rubric.py", "evaluator.py", "requirement_rules.py"
     if strategy in rubric_scoring.STRATEGIES:
-        return ("rubric_scoring.py",)
+        return "rubric_scoring.py", "requirement_rules.py"
     return tuple(p.name for p in SCORER_FILES)
 
 

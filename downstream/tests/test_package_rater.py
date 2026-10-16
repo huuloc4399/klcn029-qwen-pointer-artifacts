@@ -59,6 +59,9 @@ class PackageRaterTests(unittest.TestCase):
             for rule in ("Chấm từ dưới lên", "C7 · Khả năng đáp ứng ATS", "Ctrl+A rồi Ctrl+C", "ít nhất 4/5 kỹ năng",
                          "Trước khi chọn missing"):
                 self.assertIn(rule, text)
+            for rule in package_rater.requirement_rules().RULES:  # word for word what the model prompts hold
+                self.assertIn(rule, text)
+            self.assertIn("Ghi chú bắt buộc", text)
 
     def test_missing_pdf_stops_packaging(self):
         with tempfile.TemporaryDirectory() as folder:

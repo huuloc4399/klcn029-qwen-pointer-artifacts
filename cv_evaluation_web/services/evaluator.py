@@ -12,6 +12,7 @@ import unicodedata
 from dataclasses import asdict, dataclass
 
 from .pdf_extractor import DocumentAnalysis
+from .requirement_rules import CONCEPTS, SKILL_IMPLIES, SOFT_SKILLS
 
 
 SKILL_ALIASES: dict[str, tuple[str, ...]] = {
@@ -122,21 +123,8 @@ def extract_skills(text: str) -> list[str]:
     return found
 
 
-# Direct implication from the rater guide: using the key technology means using the required one.
-# Loose associations (Docker → Linux, Git → CI/CD) are deliberately absent.
-SKILL_IMPLIES: dict[str, tuple[str, ...]] = {
-    "Java": ("Spring Boot",),
-    "PHP": ("Laravel",),
-    "Python": ("Django", "FastAPI", "Flask"),
-    "Node.js": ("Express", "NestJS"),
-    "JavaScript": ("React", "Vue.js", "Angular"),
-    "C#": ("ASP.NET MVC",),
-    "REST API": ("FastAPI", "Express", "Spring Boot", "Django"),
-}
-
-
 def skills_with_implied(text: str) -> set[str]:
-    """Skills named in the text plus those it directly implies."""
+    """Skills named in the text plus those it directly implies (SKILL_IMPLIES from requirement_rules)."""
     found = set(extract_skills(text))
     return found | {target for target, sources in SKILL_IMPLIES.items() if found & set(sources)}
 
@@ -154,26 +142,31 @@ REQUIREMENT_STOPWORDS = {
     "va", "hoac", "co", "cac", "kinh", "nghiem", "kien", "thuc", "ky", "nang", "biet", "su", "dung", "ve", "voi",
     "la", "phat", "trien", "cong", "nghe", "lam", "viec", "thiet", "ke", "he", "thong", "moi", "nhung", "mot",
 }
-# Wordings that name the same requirement in other words or the other language; folded, matched as phrases.
-# Kept to translations, abbreviations and techniques that are part of the concept itself, never loose
-# associations (CSS is not evidence of responsive design, Java is not evidence of OOP).
-CONCEPT_SYNONYMS: dict[str, tuple[str, ...]] = {
-    "teamwork": ("teamwork", "team work", "lam viec nhom"),
-    "lam viec nhom": ("teamwork", "team work", "lam viec nhom"),
-    "problem solving": ("problem solving", "problem-solving", "giai quyet van de"),
-    "giai quyet van de": ("problem solving", "problem-solving", "giai quyet van de"),
-    "giao tiep": ("communication", "giao tiep"),
-    "communication": ("communication", "giao tiep"),
-    "english": ("english", "tieng anh", "ielts", "toeic", "toefl"),
-    "oop": ("oop", "object oriented", "object-oriented", "huong doi tuong"),
-    "responsive": ("responsive", "media query", "media queries", "mobile first", "mobile-first", "mobile friendly",
-                   "mobile-friendly", "tuong thich di dong", "tuong thich voi di dong"),
-}
 _WORD = re.compile(r"[a-z0-9+#.]+")
 
 
 def _fold_words(text: str) -> str:
     return _fold(str(text or "")).replace("đ", "d")
+
+
+def _phrase(text: str) -> str:
+    return " ".join(_WORD.findall(_fold_words(text)))
+
+
+def _concept_synonyms() -> dict[str, tuple[str, ...]]:
+    """JD wording → CV wordings that name the requirement itself, from the rules' concepts and soft skills.
+    Base technologies (CSS for responsive design, Java for OOP) are never among them."""
+    table: dict[str, tuple[str, ...]] = {}
+    for concept in CONCEPTS:
+        for key in concept["jd"]:
+            table[_phrase(key)] = tuple(_phrase(w) for w in concept["cv"])
+    for pair in SOFT_SKILLS:
+        for key in pair:
+            table[_phrase(key)] = tuple(_phrase(w) for w in pair)
+    return table
+
+
+CONCEPT_SYNONYMS = _concept_synonyms()
 
 
 def _bare(word: str) -> str:
@@ -190,8 +183,8 @@ def requirement_terms(text: str) -> list[str]:
 
 
 def concept_phrases(text: str) -> set[str]:
-    """Other wordings of the requirement, from CONCEPT_SYNONYMS."""
-    folded = f" {' '.join(_WORD.findall(_fold_words(text)))} "
+    """The CV wordings that count for a concept or soft-skill requirement (CONCEPT_SYNONYMS); empty otherwise."""
+    folded = f" {_phrase(text)} "
     return {p for key, phrases in CONCEPT_SYNONYMS.items() if f" {key} " in folded for p in phrases}
 
 
@@ -203,15 +196,28 @@ def _term_found(term: str, words: set[str]) -> bool:
     return any(w.startswith(stem) for w in words)
 
 
+def _phrase_in(spaced: str, phrase: str) -> bool:
+    """Whole-word phrase match that also accepts a plural last word (media query → media queries)."""
+    *head, last = phrase.split()
+    stem = last[:-1] + "(?:y|ies)" if last.endswith("y") else re.escape(last) + "(?:s|es)?"
+    pattern = "".join(re.escape(w) + " " for w in head) + stem
+    return re.search(rf"(?<![a-z0-9+#.]){pattern}(?![a-z0-9+#])", spaced) is not None
+
+
 def requirement_hits(text: str, requirement: str) -> tuple[int, int, bool]:
-    """(distinctive terms of the requirement found in the text, number of terms, another wording found)."""
+    """(distinctive terms of the requirement found in the text, number of terms, a listed wording found).
+
+    For a concept the rules list (Responsive, OOP, database design, Linux, English, soft skills) only its
+    listed wordings count, so "MySQL database" does not pass for database design; terms are then (0, 0).
+    """
     folded = _fold_words(text)
-    words = {_bare(w) for w in _WORD.findall(folded)}
     spaced = f" {' '.join(_WORD.findall(folded))} "
-    terms = requirement_terms(requirement)
     phrases = concept_phrases(requirement)
-    phrase_found = any(f" {' '.join(_WORD.findall(p))} " in spaced for p in phrases)
-    return sum(_term_found(t, words) for t in terms), len(terms), phrase_found
+    if phrases:
+        return 0, 0, any(_phrase_in(spaced, p) for p in phrases)
+    words = {_bare(w) for w in _WORD.findall(folded)}
+    terms = requirement_terms(requirement)
+    return sum(_term_found(t, words) for t in terms), len(terms), False
 
 
 def _lexical_overlap(cv_text: str, jd_text: str) -> float:
