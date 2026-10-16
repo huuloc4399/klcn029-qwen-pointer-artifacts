@@ -11,7 +11,7 @@ import re
 from typing import Any
 
 from services import rubric_scoring as rs
-from services.evaluator import _fold, _lexical_overlap, extract_skills
+from services.evaluator import _fold, _lexical_overlap, extract_skills, skills_with_implied
 
 ROLE_WORDS = ("developer", "engineer", "backend", "back-end", "frontend", "front-end", "fullstack", "full-stack",
               "lap trinh", "ky su", "intern", "thuc tap", "software", "web", "mobile", "data", "tester", "qa")
@@ -84,7 +84,7 @@ def requirement_statuses(cv_schema: dict[str, Any], requirements: list[dict[str,
         skills = extract_skills(req["text"])
         if skills:
             def found(text: str) -> bool:
-                return any(skill in extract_skills(text) for skill in skills)
+                return bool(set(skills) & skills_with_implied(text))
             in_usage, in_listing = found(usage), found(listing)
         else:
             words = [w for w in re.findall(r"[a-z0-9+#.]{3,}", _fold(req["text"])) if w not in STOPWORDS]

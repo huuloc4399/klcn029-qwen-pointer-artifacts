@@ -22,7 +22,10 @@ SKILL_ALIASES: dict[str, tuple[str, ...]] = {
     "C#": ("c#", "c sharp"),
     "C++": ("c++",),
     ".NET": (".net", "dotnet"),
-    "ASP.NET MVC": ("asp.net mvc", "asp net mvc"),
+    "ASP.NET MVC": ("asp.net mvc", "asp net mvc", "asp.net core", "asp.net"),
+    "PHP": ("php",),
+    "Express": ("express.js", "expressjs"),
+    "NestJS": ("nestjs", "nest.js"),
     "Spring Boot": ("spring boot",),
     "React": ("react", "reactjs", "react.js"),
     "Angular": ("angular",),
@@ -117,6 +120,25 @@ def extract_skills(text: str) -> list[str]:
         if any(_contains_alias(text, alias) for alias in aliases):
             found.append(canonical)
     return found
+
+
+# Direct implication from the rater guide: using the key technology means using the required one.
+# Loose associations (Docker → Linux, Git → CI/CD) are deliberately absent.
+SKILL_IMPLIES: dict[str, tuple[str, ...]] = {
+    "Java": ("Spring Boot",),
+    "PHP": ("Laravel",),
+    "Python": ("Django", "FastAPI", "Flask"),
+    "Node.js": ("Express", "NestJS"),
+    "JavaScript": ("React", "Vue.js", "Angular"),
+    "C#": ("ASP.NET MVC",),
+    "REST API": ("FastAPI", "Express", "Spring Boot", "Django"),
+}
+
+
+def skills_with_implied(text: str) -> set[str]:
+    """Skills named in the text plus those it directly implies."""
+    found = set(extract_skills(text))
+    return found | {target for target, sources in SKILL_IMPLIES.items() if found & set(sources)}
 
 
 def _lexical_overlap(cv_text: str, jd_text: str) -> float:

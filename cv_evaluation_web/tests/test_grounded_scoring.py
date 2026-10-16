@@ -84,7 +84,17 @@ class VerificationTests(unittest.TestCase):
         self.assertEqual(gs.check_quote(self.cv, "summary", "Built a REST API"), "other")
         self.assertEqual(gs.check_quote(self.cv, "projects[0].details", FAKE["quote"]), "none")
         self.assertEqual(gs.check_quote(self.cv, "projects[0].details", "Built a REST API … unit tests with JUnit"), "field")
-        self.assertEqual(gs.check_quote(self.cv, "projects[0].details", "API"), "none")  # too short to prove anything
+        self.assertEqual(gs.check_quote(self.cv, "projects[0].details", "x"), "none")  # too short to prove anything
+        # Seen on dev pairs: lists quoted with commas, one-word skills, sentence-final dots.
+        self.assertEqual(gs.check_quote(self.cv, "skills.hard_skills", "Java, Spring Boot, MySQL"), "field")
+        self.assertEqual(gs.check_quote(self.cv, "skills.hard_skills", "Git"), "field")
+        self.assertEqual(gs.check_quote(self.cv, "projects[0].details", "unit tests with JUnit."), "field")
+        self.assertEqual(gs.check_quote(self.cv, "skills.hard_skills", "Jav"), "none")  # whole words only
+
+    def test_word_boundaries(self):
+        cv = {"skills": {"hard_skills": ["JavaScript", "C#", ".NET"]}}
+        self.assertEqual(gs.check_quote(cv, "skills", "Java"), "none")
+        self.assertEqual(gs.check_quote(cv, "skills", "C#, .NET"), "field")
 
     def test_requirement_checks(self):
         met = {"text": "Spring Boot", "quote": "with Spring Boot and MySQL"}
@@ -96,6 +106,16 @@ class VerificationTests(unittest.TestCase):
         off_topic = {"text": "Docker", "quote": "Built a REST API for 200 users"}
         self.assertEqual(gs.verify_requirement(self.cv, off_topic, "met")[0], "missing")
         self.assertEqual(gs.verify_requirement(self.cv, {"text": "Git", "quote": ""}, "unclear")[0], "unclear")
+        # Direct implication from the rater guide: a Spring Boot project shows Java and a REST API.
+        implied = {"text": "Java", "quote": "with Spring Boot and MySQL"}
+        self.assertEqual(gs.verify_requirement(self.cv, implied, "met")[0], "met")
+        self.assertEqual(gs.verify_requirement(self.cv, {"text": "REST API", "quote": "Spring Boot"}, "met")[0],
+                         "met")  # Spring Boot is also in the project, where it implies a REST API
+        loose = {"text": "Kubernetes", "quote": "Docker"}  # a related tool is not the required one
+        self.assertEqual(gs.verify_requirement(self.cv, loose, "met")[0], "missing")
+        # Requirements outside the skill dictionary (Linux, soft skills with synonyms) are only checked for
+        # the quote being in the CV; whether it is relevant stays the LLM's judgement.
+        self.assertEqual(gs.verify_requirement(self.cv, {"text": "Linux", "quote": "Docker"}, "met")[0], "mentioned_only")
 
     def test_c8_bands(self):
         reqs = lambda *s: [{"type": t, "status": st} for t, st in s]  # noqa: E731

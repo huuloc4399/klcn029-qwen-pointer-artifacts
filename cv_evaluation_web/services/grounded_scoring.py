@@ -30,7 +30,7 @@ import unicodedata
 from typing import Any, Callable
 
 from services import rubric_scoring as rs
-from services.evaluator import extract_skills
+from services.evaluator import extract_skills, skills_with_implied
 
 STRATEGIES = {
     "p_grounded": "P · Chấm có kiểm chứng bằng chứng",
@@ -44,7 +44,7 @@ COVERAGE_MIN = 0.80          # lock on dev before the test run
 # Extracted CV text / PDF text-layer characters below this → content may have been lost. Chosen on the dev
 # CVs without labels: about 0.75 x the lowest ratio of the gold CVSchemas (0.34), so gold is never flagged.
 LOW_TEXT_RATIO = 0.25
-MIN_QUOTE = 4
+MIN_QUOTE = 2
 USAGE_SECTIONS = {"experience", "projects", "certifications", "activities", "awards"}
 LISTING_SECTIONS = {"skills", "summary", "education"}
 REQ_STATUSES = ("met", "mentioned_only", "missing", "unclear")
@@ -69,8 +69,17 @@ _PATH = re.compile(r"([A-Za-z_]+)|\[(\d+)\]|\.(\d+)")
 
 
 def norm(text: str) -> str:
+    """Words only: case, accents kept; punctuation and list separators dropped (a list joined by spaces
+    and the same list quoted with commas compare equal); '+', '#' and inner dots kept for C++, C#, .NET."""
     text = unicodedata.normalize("NFC", str(text)).translate(_QUOTES).casefold()
-    return re.sub(r"\s+", " ", text).strip(" .,;:-\"'")
+    text = re.sub(r"[^\w+#.]+", " ", text)
+    text = re.sub(r"\.(?=\s|$)", " ", text)  # a full stop, not the dot of node.js or .net
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _has(text: str, part: str) -> bool:
+    """Whole-word containment, so 'java' is not found inside 'javascript'."""
+    return f" {part} " in f" {text} "
 
 
 def _flatten(node: Any) -> str:
@@ -103,7 +112,7 @@ def locate(cv: dict[str, Any], quote: str) -> set[str]:
     if not parts:
         return set()
     return {section for section, value in cv.items()
-            if all(part in norm(_flatten(value)) for part in parts)}
+            if all(_has(norm(_flatten(value)), part) for part in parts)}
 
 
 def check_quote(cv: dict[str, Any], field: str, quote: str) -> str:
@@ -112,7 +121,7 @@ def check_quote(cv: dict[str, Any], field: str, quote: str) -> str:
     if not parts:
         return "none"
     section, text = resolve(cv, field)
-    if text is not None and all(part in norm(text) for part in parts):
+    if text is not None and all(_has(norm(text), part) for part in parts):
         return "field"
     found = locate(cv, quote)
     if section in found:
@@ -150,7 +159,7 @@ def verify_requirement(cv: dict[str, Any], req: dict[str, Any], given: str) -> t
     if not found:
         return "missing", "trích dẫn không có trong CV"
     skills = extract_skills(str(req.get("text") or ""))
-    if skills and not any(skill in extract_skills(quote) for skill in skills):
+    if skills and not set(skills) & skills_with_implied(quote):
         return "missing", "trích dẫn không nhắc tới yêu cầu"
     if given == "met" and not found & USAGE_SECTIONS:
         return "mentioned_only", "chỉ thấy trong danh sách kỹ năng hoặc mục tiêu"
@@ -203,6 +212,10 @@ def requirement_text(requirements: list[dict[str, str]] | None) -> str:
     return "## Yêu cầu của JD cần xét (giữ nguyên req_id, text và type)\n" + "\n".join(lines)
 
 
+def requirement_section(requirements: list[dict[str, str]] | None) -> str:
+    return requirement_text(requirements) + "\n\n" + rs.REQUIREMENT_GUIDE
+
+
 def _clean(raw: dict[str, Any], criteria: tuple[str, ...]) -> dict[str, dict[str, Any]]:
     source = raw.get("criteria") if isinstance(raw.get("criteria"), dict) else raw
     out = {}
@@ -244,7 +257,7 @@ def score(strategy: str, *, cv_schema: dict[str, Any], jd_text: str, document: d
     def ask(criteria: tuple[str, ...], extra: str = "", with_requirements: bool = True) -> dict[str, Any]:
         user = rs.build_user_message(facts, cv, jd_text, rs.rubric_text(rubric, criteria), context)
         if with_requirements:
-            user += "\n\n" + requirement_text(requirements)
+            user += "\n\n" + requirement_section(requirements)
         if extra:
             user += "\n\n" + extra
         schema = p_schema(None)
