@@ -23,7 +23,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from baseline_extraction.privacy import redact_text
 from baseline_extraction.schema import CVSchema
-from services import rubric_scoring
+from services import grounded_scoring, rubric_scoring
 from services.evaluator import evaluate
 from services.rule_rubric import score_rules
 from services.job_store import JobStore
@@ -86,6 +86,10 @@ def progress_message(status: str, remote: dict) -> str:
     return f"Qwen đang trích xuất CV của bạn. Dự kiến còn khoảng {minutes_range(eta)}."
 
 
+WEB_STRATEGIES = {**rubric_scoring.STRATEGIES, "p_grounded": grounded_scoring.STRATEGIES["p_grounded"]}
+WEB_LLM_STRATEGIES = (*rubric_scoring.LLM_STRATEGIES, "p_grounded")
+
+
 def create_app(test_config: dict | None = None) -> Flask:
     app = Flask(__name__)
     app.config.update(
@@ -106,7 +110,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         INFRA_NOTE=os.getenv("CV_WEB_INFRA_NOTE", "").strip(),
         # Admin page (/admin) for satisfaction ratings; disabled unless a key of >= 16 chars is set.
         ADMIN_KEY=os.getenv("CV_WEB_ADMIN_KEY", "").strip(),
-        # Rubric v2 scoring strategies M1–M4 on Groq; unset = only the rule-based baseline.
+        # Rubric v2 scoring strategies M1–M4 and P on Groq; unset = only the rule-based baseline.
         GROQ_API_KEY=os.getenv("GROQ_API_KEY", "").strip(),
         GROQ_MODEL=os.getenv("GROQ_MODEL", rubric_scoring.GROQ_MODEL).strip(),
         PUBLIC_BASE_URL=(
@@ -151,7 +155,7 @@ def create_app(test_config: dict | None = None) -> Flask:
     app.jinja_env.globals["csrf_token"] = csrf_token
 
     def llm_available() -> bool:
-        """M1–M4 need the CVSchema from the extraction API and a Groq key (or a test caller)."""
+        """M1–M4 and P need the CVSchema from the extraction API and a Groq key (or a test caller)."""
         return app.config["PIPELINE_MODE"] in REMOTE_MODES and bool(
             app.config["GROQ_API_KEY"] or app.config.get("GROQ_CALLER"))
 
@@ -162,8 +166,8 @@ def create_app(test_config: dict | None = None) -> Flask:
             "pipeline_mode": app.config["PIPELINE_MODE"],
             "infra_note": app.config["INFRA_NOTE"] or INFRA_NOTES.get(app.config["PIPELINE_MODE"], ""),
             "llm_available": llm_available(),
-            "strategies": rubric_scoring.STRATEGIES,
-            "llm_strategies": rubric_scoring.LLM_STRATEGIES,
+            "strategies": WEB_STRATEGIES,
+            "llm_strategies": WEB_LLM_STRATEGIES,
         }
 
     @app.before_request
@@ -244,7 +248,7 @@ def create_app(test_config: dict | None = None) -> Flask:
             document = document_from_payload(local_document)
             public_document = document.public_dict()
             jd_text = job_store.jd_text(token)
-            # The rule-based rubric v2 result is the baseline strategy and the fallback when M1–M4 fail.
+            # The rule-based rubric v2 result is the baseline strategy and the fallback when M1–M4 or P fail.
             result = score_rules(cv_schema=cv_schema, jd_text=jd_text, document=public_document)
             extraction = {
                 **document.public_dict(),
@@ -269,7 +273,7 @@ def create_app(test_config: dict | None = None) -> Flask:
                     "document_route": remote_document.get("route"),
                     "ocr_quality_warning": bool(remote_document.get("ocr_quality_warning", False)),
             }
-            if job.get("strategy") in rubric_scoring.LLM_STRATEGIES:
+            if job.get("strategy") in WEB_LLM_STRATEGIES:
                 job_store.save_scoring_input(token, {
                     "cv_schema": cv_schema, "document": public_document, "baseline": result,
                     "extraction": extraction, "pipeline": pipeline_info,
@@ -330,8 +334,9 @@ def create_app(test_config: dict | None = None) -> Flask:
             strategy = job["strategy"]
             caller = app.config.get("GROQ_CALLER") or rubric_scoring.groq_caller(
                 app.config["GROQ_API_KEY"], model=app.config["GROQ_MODEL"])
+            scorer = grounded_scoring if strategy in grounded_scoring.STRATEGIES else rubric_scoring
             try:
-                result = rubric_scoring.score(
+                result = scorer.score(
                     strategy, cv_schema=data["cv_schema"], jd_text=job_store.jd_text(token), document=data["document"],
                     call=caller, retrieve=getattr(remote_client, "retrieve", None), model=app.config["GROQ_MODEL"],
                     progress=lambda message: report_progress(token, message))
@@ -340,8 +345,8 @@ def create_app(test_config: dict | None = None) -> Flask:
                     LOGGER.exception("Rubric scoring failed")
                 reason = str(exc) if isinstance(exc, rubric_scoring.ScoringError) else "lỗi không mong đợi."
                 result = {**data["baseline"], "scoring_note": (
-                    f"Chưa chấm được bằng {rubric_scoring.STRATEGIES[strategy]}: {reason} "
-                    f"Kết quả dưới đây dùng {rubric_scoring.STRATEGIES[rubric_scoring.BASELINE].lower()}.")}
+                    f"Chưa chấm được bằng {WEB_STRATEGIES[strategy]}: {reason} "
+                    f"Kết quả dưới đây dùng {WEB_STRATEGIES[rubric_scoring.BASELINE].lower()}.")}
             with finalize_lock:
                 if job_store.result(token) is None:
                     store_result(token, job, result, data["extraction"], data["pipeline"])
@@ -505,12 +510,12 @@ def create_app(test_config: dict | None = None) -> Flask:
         consent_research = app.config["RESEARCH_ENABLED"] and request.form.get("consent_research") == "yes"
         strategy = request.form.get("strategy", rubric_scoring.BASELINE).strip()
         strategy_note = ""
-        if strategy not in rubric_scoring.STRATEGIES:
+        if strategy not in WEB_STRATEGIES:
             errors.append("Chiến lược chấm điểm không hợp lệ.")
-        elif strategy in rubric_scoring.LLM_STRATEGIES and not llm_available():
+        elif strategy in WEB_LLM_STRATEGIES and not llm_available():
             strategy = rubric_scoring.BASELINE
-        elif strategy in rubric_scoring.LLM_STRATEGIES and request.form.get("consent_llm") != "yes":
-            strategy_note = (f"Bạn đã chọn {rubric_scoring.STRATEGIES[strategy]} nhưng chưa đồng ý gửi CV đã che thông tin "
+        elif strategy in WEB_LLM_STRATEGIES and request.form.get("consent_llm") != "yes":
+            strategy_note = (f"Bạn đã chọn {WEB_STRATEGIES[strategy]} nhưng chưa đồng ý gửi CV đã che thông tin "
                              f"sang Groq, nên hệ thống chỉ chấm bằng quy tắc trên máy chủ của nhóm.")
             strategy = rubric_scoring.BASELINE
 

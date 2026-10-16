@@ -53,14 +53,15 @@
 
       {% if llm_available %}
       <div class="form-card">
-        <div class="step-title"><span>3</span><div><h3>Chọn cách chấm điểm</h3><p>Các chiến lược M1–M4 chấm theo rubric 8 tiêu chí của nhóm bằng mô hình ngôn ngữ lớn trên Groq.</p></div></div>
+        <div class="step-title"><span>3</span><div><h3>Chọn cách chấm điểm</h3><p>M1–M4 và P chấm theo rubric 8 tiêu chí của nhóm bằng mô hình ngôn ngữ lớn trên Groq.</p></div></div>
         {% set descriptions = {
           'baseline_rules': 'Quy tắc cố định chạy trên máy chủ của nhóm; không gửi dữ liệu ra dịch vụ khác.',
           'm1_zero_shot': 'Mô hình chấm theo rubric, không có ví dụ mẫu.',
           'm2_few_shot': 'Mô hình chấm theo rubric, kèm một ví dụ chấm mẫu.',
           'm3_rag': 'Mô hình chấm kèm tri thức tham khảo do bge-m3 truy xuất.',
-          'm4_multi_agent': 'Ba tác tử: nhân sự, kỹ thuật và phản biện. Chậm hơn vì cần 3 lượt gọi.'} %}
-        {% set chosen = form.get('strategy', 'm1_zero_shot') if form else 'm1_zero_shot' %}
+          'm4_multi_agent': 'Ba tác tử: nhân sự, kỹ thuật và phản biện. Chậm hơn vì cần 3 lượt gọi.',
+          'p_grounded': 'Phương pháp đề xuất của nhóm: mỗi điểm phải có trích dẫn tìm thấy trong CV; thiếu căn cứ thì báo cần xác minh thay vì cho 0.'} %}
+        {% set chosen = form.get('strategy', 'p_grounded') if form else 'p_grounded' %}
         <div class="strategy-list">
           {% for key, label in strategies.items() %}<label class="check-row strategy-option"><input type="radio" name="strategy" value="{{ key }}" {% if key == chosen %}checked{% endif %}><span><strong>{{ label }}</strong><small>{{ descriptions[key] }}</small></span></label>{% endfor %}
         </div>
@@ -70,7 +71,7 @@
       <div class="form-card consent-card">
         <div class="step-title"><span>{{ 4 if llm_available else 3 }}</span><div><h3>Xác nhận sử dụng dữ liệu</h3><p>Các lựa chọn dưới đây hoàn toàn tách biệt.</p></div></div>
         <label class="check-row required-check"><input type="checkbox" name="consent_evaluation" value="yes" required><span><strong>Tôi đồng ý để hệ thống xử lý tạm thời CV và JD nhằm trả kết quả đánh giá.</strong><small>{{ infra_note }} Nếu không chọn đóng góp nghiên cứu, tệp tạm sẽ bị xóa sau khi hoàn tất hoặc hết hạn xử lý.</small></span></label>
-        {% if llm_available %}<label class="check-row"><input type="checkbox" name="consent_llm" value="yes" {% if form and form.get('consent_llm') == 'yes' %}checked{% endif %}><span><strong>Tôi đồng ý gửi nội dung CV đã trích xuất và JD sang dịch vụ Groq để chấm bằng chiến lược M1–M4.</strong><small>Hệ thống bỏ họ tên, email, số điện thoại và che các đường link trước khi gửi. Nếu không chọn ô này, CV chỉ được chấm bằng quy tắc trên máy chủ của nhóm.</small></span></label>{% endif %}
+        {% if llm_available %}<label class="check-row"><input type="checkbox" name="consent_llm" value="yes" {% if form and form.get('consent_llm') == 'yes' %}checked{% endif %}><span><strong>Tôi đồng ý gửi nội dung CV đã trích xuất và JD sang dịch vụ Groq để chấm bằng chiến lược M1–M4 hoặc P.</strong><small>Hệ thống bỏ họ tên, email, số điện thoại và che các đường link trước khi gửi. Nếu không chọn ô này, CV chỉ được chấm bằng quy tắc trên máy chủ của nhóm.</small></span></label>{% endif %}
         {% if research_enabled %}<label class="check-row research-check"><input type="checkbox" name="consent_research" value="yes"><span><strong>Tôi tự nguyện đóng góp CV, JD và kết quả cho nghiên cứu của nhóm.</strong><small>Không ảnh hưởng đến điểm đánh giá. Bạn sẽ nhận mã rút dữ liệu sau khi gửi và có thể yêu cầu xóa bất cứ lúc nào.</small></span></label>
         {% else %}<p class="privacy-note">Bản thử nghiệm này không lưu CV cho nghiên cứu: mọi tệp chỉ được xử lý tạm thời rồi xóa.</p>{% endif %}
         <p class="privacy-note">Bằng việc tiếp tục, bạn xác nhận CV thuộc quyền sử dụng của mình. Xem <a href="{{ url_for('privacy') }}" target="_blank">chính sách dữ liệu nghiên cứu</a>.</p>

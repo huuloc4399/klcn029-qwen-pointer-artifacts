@@ -168,6 +168,45 @@ class StrategyFlowTests(unittest.TestCase):
         self.assertIn("Chấm theo quy tắc trên máy chủ của nhóm", page)
         self.assertIn("Chi tiết 8 tiêu chí", page)
 
+    def test_p_verifies_quotes_and_shows_requirements(self):
+        good = {"field": "projects[0].details", "quote": "Built a REST API with FastAPI and PostgreSQL"}
+        invented = {"field": "projects[0].details", "quote": "Led a team of ten engineers"}
+        items = {c: {"status": "scored", "score": 3, "evidence": [good], "reason": "r", "suggestion": f"gợi ý {c}"}
+                 for c in ("C1_structure", "C2_it_content", "C3_skills", "C5_experience", "C6_certs_activities")}
+        items["C4_projects"] = {"status": "scored", "score": 4, "evidence": [invented], "reason": "r", "suggestion": "s"}
+        reqs = [{"req_id": "R1", "text": "FastAPI", "type": "must", "status": "met", "field": "projects[0].details",
+                 "quote": "with FastAPI and PostgreSQL", "note": ""},
+                {"req_id": "R2", "text": "Docker", "type": "must", "status": "met", "field": "projects[0].details",
+                 "quote": "Deployed with Docker", "note": ""}]
+
+        class FakeP:
+            def __init__(self):
+                self.calls = []
+
+            def __call__(self, messages, schema, max_tokens):
+                self.calls.append({"messages": messages, "schema": schema})
+                if len(self.calls) == 1:
+                    return {"criteria": copy.deepcopy(items), "requirements": copy.deepcopy(reqs)}, {"input_tokens": 3000,
+                                                                                                    "output_tokens": 700}
+                return {"criteria": {"C4_projects": {**items["C4_projects"], "evidence": [invented]}}}, \
+                    {"input_tokens": 3000, "output_tokens": 100}
+
+        home = self.client().get("/").get_data(as_text=True)
+        self.assertIn('value="p_grounded" checked', home)  # the proposed method is the default
+        fake = FakeP()
+        page, _ = self.run_job(self.client(groq=fake), "p_grounded")
+        self.assertEqual(len(fake.calls), 2)  # C4's invented quote is asked again, once
+        self.assertIn("P · Chấm có kiểm chứng bằng chứng", page)
+        self.assertIn("cần xác minh", page)
+        self.assertIn("trích dẫn đã đối chiếu với CV", page)
+        self.assertIn("Từng yêu cầu của JD", page)
+        self.assertIn("Chưa thấy trong CV", page)  # Docker's quote is not in the CV
+        self.assertIn("tính từ từng yêu cầu của JD", page)
+        self.assertIn("trích dẫn tìm thấy đúng trong CV", page)
+        sent = json.dumps(fake.calls[0]["messages"], ensure_ascii=False)
+        self.assertNotIn("dev.person@example.com", sent)
+        self.assertIn("Tự tách JD thành các yêu cầu", sent)
+
     def test_without_groq_key_only_rules_are_offered(self):
         client = self.client(groq_key=False)
         home = client.get("/").get_data(as_text=True)
