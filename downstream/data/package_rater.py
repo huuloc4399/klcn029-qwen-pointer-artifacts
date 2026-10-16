@@ -33,6 +33,8 @@ JD_TEXT = ROOT / "downstream/data/jd_v1"
 CV_MANIFEST = ROOT / "baseline_extraction/data/manifest.csv"
 OUT_DIR = ROOT / "downstream/data/labels_v1/packages"
 NAVY = RGBColor(0x17, 0x36, 0x5D)
+# Bump when the guide's rules change; raters quote it so the coordinator knows which rules they used.
+GUIDE_VERSION = "2026-10-16 (sau vòng chấm thử)"
 
 
 def cv_pdf_paths(cv_ids: set[str], manifest: Path = CV_MANIFEST) -> dict[str, Path]:
@@ -62,9 +64,14 @@ def guide(path: Path, *, rater: str, round_name: str, workbook_name: str, meta: 
         for item in items:
             doc.add_paragraph(item, style="List Number")
 
+    def checklist(items: list[str]) -> None:
+        """Numbered (1), (2)… restarting for each list, so the level rules can cite them."""
+        for number, item in enumerate(items, 1):
+            doc.add_paragraph(f"({number}) {item}", style="List Bullet")
+
     heading(f"Hướng dẫn chấm cặp CV–JD · {round_name} · Người chấm {rater}", 15)
     doc.add_paragraph(f"Số cặp: {meta['pair_count']} · Số CV: {len(cv_ids)} · Rubric: {meta['rubric_version']} · "
-                      f"Hạn nộp: {deadline} · Liên hệ khi file lỗi: {coordinator}")
+                      f"Hướng dẫn bản {GUIDE_VERSION} · Hạn nộp: {deadline} · Liên hệ khi file lỗi: {coordinator}")
 
     heading("1. Mục đích")
     doc.add_paragraph(
@@ -131,6 +138,12 @@ def guide(path: Path, *, rater: str, round_name: str, workbook_name: str, meta: 
         "(WooCommerce, Magento…); tự xây một website bán hàng không tính → missing, ghi chú.",
         "Yêu cầu về lĩnh vực (tài chính – ngân hàng, fintech) → dự án phải thuộc lĩnh vực đó. Chỉ có một tính năng liên quan "
         "trong dự án khác lĩnh vực (tích hợp cổng thanh toán trong web bán hàng) → unclear, ghi chú.",
+        "Yêu cầu là một nhóm kỹ thuật kèm ví dụ trong ngoặc ('Hiệu năng web (critical rendering path, code splitting, "
+        "lazy loading)') → met khi dự án hoặc kinh nghiệm nêu ít nhất một kỹ thuật cụ thể trong ngoặc hoặc cùng loại "
+        "(lazy loading, memoization, nén ảnh); chỉ ghi chung chung 'tối ưu hiệu năng' → unclear, ghi chú; không có → missing.",
+        "Trước khi chọn missing: dùng Ctrl+F trong PDF tìm tên công nghệ, cả tên viết tắt và cách viết khác (TS, "
+        "TypeScript; Postgres, PostgreSQL; JS, JavaScript). Ở vòng chấm thử, phần lớn các ca một người chọn met còn "
+        "người kia chọn missing là do bỏ sót khi đọc.",
         "Với missing: để trống muc_bang_chung và trich_dan; lý do (nếu cần) ghi ở ghi_chu.",
     ])
 
@@ -150,6 +163,76 @@ def guide(path: Path, *, rater: str, round_name: str, workbook_name: str, meta: 
         "C8: tính tỉ lệ = (số met + 0,5 × số mentioned_only) / số yêu cầu bắt buộc, không tính các dòng unclear. Làm đúng "
         "theo khoảng: dưới 0,2 → 0; 0,2 đến dưới 0,4 → 1; 0,4 đến dưới 0,6 → 2; 0,6 đến dưới 0,8 → 3; từ 0,8 → 4 "
         "(cần thêm vài yêu cầu ưu tiên). Ví dụ 0,59 → 2.",
+    ])
+
+    heading("Cách chọn mức điểm (bổ sung sau vòng chấm thử)", 11.5)
+    doc.add_paragraph(
+        "Ở vòng chấm thử, mức 4 được dùng cho phần lớn CV ở C1, C2, C3 và C7. Khi gần như CV nào cũng được 4, điểm "
+        "không còn phân biệt được CV tốt với CV trung bình. Các quy tắc dưới đây không đổi mô tả mức trong sheet "
+        "RUBRIC; chúng chỉ nói cách kiểm tra từng điều kiện.")
+    bullets([
+        "Chấm từ dưới lên: đọc mô tả mức 2; CV thỏa hết điều kiện của mức 2 thì xét mức 3, rồi mức 4. Dừng ở mức cao "
+        "nhất mà CV thỏa mọi điều kiện. Thiếu một điều kiện là chưa đạt mức đó.",
+        "Mức 4 nghĩa là theo tiêu chí này CV gần như không còn gì để sửa. Khi cho 4, ghi ở ly_do vì sao CV đạt từng "
+        "điều kiện của mức 4.",
+        "Thấy mình sắp cho 4 ở một tiêu chí cho hầu hết CV: dừng lại, đọc lại mô tả mức 4 và các danh sách kiểm tra dưới đây.",
+    ])
+
+    heading("C1 · Cấu trúc và hình thức (chỉ xem cách trình bày, không xem nội dung chuyên môn hay máy đọc)", 11)
+    checklist([
+        "Có đủ các mục chính không: mục tiêu hoặc giới thiệu, kỹ năng, dự án hoặc kinh nghiệm, học vấn?",
+        "Định dạng có nhất quán không: cách ghi ngày tháng, gạch đầu dòng, cỡ và kiểu chữ giữa các mục?",
+        "Đếm lỗi chính tả và lỗi khoảng trắng hoặc dòng tràn sang trang mới.",
+        "Độ dài 1–2 trang, không dày đặc chữ?",
+        "Thông tin quan trọng với vị trí (kỹ năng, dự án hoặc kinh nghiệm CNTT) có đặt trước thông tin ít liên quan "
+        "(sở thích, thông tin phụ) không?",
+    ])
+    bullets([
+        "Mức 4: đạt cả (1)–(5) và không có lỗi chính tả nào. Mức 3: đạt (1), (2), (4) và chỉ có lỗi nhỏ (vài lỗi chính tả, "
+        "khoảng trắng, một dòng tràn trang). Mức 2: đủ mục nhưng (2) hoặc (4) không đạt. Mức 1 và 0 theo sheet RUBRIC.",
+        "Ghi vào ly_do kết quả từng câu, ví dụ: 'đủ mục; ngày tháng lúc ghi 03/2025 lúc ghi Mar 2025; 2 lỗi chính tả → 2'.",
+    ])
+
+    heading("C2 · Nội dung chuyên môn CNTT (chấm độc lập với JD)", 11)
+    checklist([
+        "Mục tiêu hoặc giới thiệu có nêu một hướng cụ thể (Backend, Frontend, Mobile…) không?",
+        "Dự án và kinh nghiệm có cùng hướng đó không?",
+        "Dự án hoặc kinh nghiệm có ít nhất một dấu hiệu chiều sâu kỹ thuật: thiết kế (CSDL, API, kiến trúc), kiểm thử "
+        "(unit test, integration test) hoặc triển khai (deploy, Docker, CI/CD)? Chỉ ghi ở mục kỹ năng thì không tính.",
+    ])
+    bullets([
+        "Mức 4: đạt cả (1)–(3). Mức 3: đạt (1) và (2). Mức 2: có nội dung CNTT nhưng không đạt (1), hoặc dự án lệch hướng đã nêu.",
+    ])
+
+    heading("C3 · Kỹ năng chuyên môn và bổ trợ", 11)
+    checklist([
+        "Lấy tối đa 5 kỹ năng chuyên môn chính (đầu danh sách, hoặc những kỹ năng CV nhấn mạnh). Đếm bao nhiêu kỹ năng "
+        "xuất hiện trong dự án, kinh nghiệm hoặc chứng chỉ.",
+        "Danh sách kỹ năng có được nhóm rõ không (ngôn ngữ, framework, CSDL, công cụ…)?",
+        "Có kỹ năng bổ trợ không? Có ngữ cảnh cụ thể không: vai trò trong nhóm ('trưởng nhóm 4 người'), thuyết trình đồ "
+        "án, chứng chỉ ngoại ngữ có điểm?",
+    ])
+    bullets([
+        "Mức 4: ít nhất 4/5 kỹ năng có minh chứng, danh sách được nhóm, và kỹ năng bổ trợ có ngữ cảnh. Mức 3: ít nhất 3/5 "
+        "có minh chứng và có kỹ năng bổ trợ (chưa cần ngữ cảnh). Mức 2: dưới 3/5 có minh chứng, hoặc không có kỹ năng bổ trợ.",
+        "Ghi số đếm vào ly_do, ví dụ: '3/5 có minh chứng (Java, Spring Boot, MySQL); soft skill chỉ liệt kê → 3'.",
+    ])
+
+    heading("C7 · Khả năng đáp ứng ATS (máy đọc được): kiểm tra bắt buộc", 11)
+    checklist([
+        "Mở PDF, nhấn Ctrl+A rồi Ctrl+C, dán vào Notepad (không dán vào công cụ online). Có chép ra được chữ không? "
+        "Không, hoặc gần như không → 0.",
+        "Chữ dán ra có đúng thứ tự đọc không, hay các mục bị trộn, cột trái và cột phải xen nhau từng dòng? Bị trộn ở "
+        "nhiều chỗ, hoặc thông tin quan trọng (kỹ năng, liên hệ, ngày tháng) chỉ nằm trong hình hay biểu tượng → 1.",
+        "Đếm các vấn đề còn lại: (a) bố cục hai cột; (b) thanh, sao hay vòng tròn đo kỹ năng bằng đồ họa; (c) tiêu đề "
+        "mục lạ, không phải Mục tiêu, Kỹ năng, Kinh nghiệm, Dự án, Học vấn hay tương đương tiếng Anh; (d) ngày tháng "
+        "không nhất quán; (e) biểu tượng thay chữ (icon điện thoại không kèm số).",
+    ])
+    bullets([
+        "Mức 4: chép đúng thứ tự và không có vấn đề nào ở (3). Mức 3: chỉ có hai cột đơn giản mà chữ dán ra vẫn đúng "
+        "thứ tự, hoặc chỉ một lỗi nhỏ. Mức 2: còn một vấn đề rõ (thanh đồ họa kỹ năng, tiêu đề lạ, hai cột làm thứ tự "
+        "dán ra bị xáo một phần). Mức 1: nhiều vấn đề, hoặc theo (2).",
+        "Ghi vào ly_do kết quả (1)–(3), ví dụ: 'chép được; thứ tự đúng; có thanh đồ họa kỹ năng → 2'.",
     ])
 
     heading("6. Trích dẫn")
@@ -189,7 +272,7 @@ def package(rater: str, *, split: str | None = None, pairs: Path = PAIRS, jd_gol
             coordinator: str = "điều phối viên của nhóm", pdf_paths=cv_pdf_paths, guide_only: bool = False) -> Path:
     """Write the rater's zip; with guide_only, write only <stem>_00_DOC_TRUOC.docx (rule changes in the guide)."""
     round_name = "Vòng chấm thử" if split == "dev" else "Vòng chính" if split in (None, "test") else f"Tập {split}"
-    stem = f"{'pilot' if split == 'dev' else 'full' if split is None else split}_rater_{rater}"
+    stem = f"{ {'dev': 'pilot', None: 'full', 'test': 'main'}.get(split, split)}_rater_{rater}"
     workbook_name = f"{stem}.xlsx"
     with tempfile.TemporaryDirectory() as folder:
         work = Path(folder)

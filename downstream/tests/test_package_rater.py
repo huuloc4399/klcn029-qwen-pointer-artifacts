@@ -11,6 +11,7 @@ import unittest
 import zipfile
 from pathlib import Path
 
+from docx import Document
 from openpyxl import load_workbook
 
 from downstream.data import build_rating_workbook as builder
@@ -53,6 +54,11 @@ class PackageRaterTests(unittest.TestCase):
                                            out_dir=folder / "out", pdf_paths=no_pdfs, guide_only=True)
             self.assertEqual(target.name, "pilot_rater_B_00_DOC_TRUOC.docx")
             self.assertEqual(sorted(p.name for p in (folder / "out").iterdir()), [target.name])
+            text = "\n".join(p.text for p in Document(target).paragraphs)
+            self.assertIn(package_rater.GUIDE_VERSION, text)
+            for rule in ("Chấm từ dưới lên", "C7 · Khả năng đáp ứng ATS", "Ctrl+A rồi Ctrl+C", "ít nhất 4/5 kỹ năng",
+                         "Trước khi chọn missing"):
+                self.assertIn(rule, text)
 
     def test_missing_pdf_stops_packaging(self):
         with tempfile.TemporaryDirectory() as folder:
