@@ -32,18 +32,9 @@ JD_GOLD = ROOT / "downstream/data/jd_gold_v1"
 JD_TEXT = ROOT / "downstream/data/jd_v1"
 CV_MANIFEST = ROOT / "baseline_extraction/data/manifest.csv"
 OUT_DIR = ROOT / "downstream/data/labels_v1/packages"
-
-
-def requirement_rules():
-    """The JD requirement rules the model prompts use (cv_evaluation_web/services/requirement_rules.py)."""
-    web = str(ROOT / "cv_evaluation_web")
-    if web not in sys.path:
-        sys.path.insert(0, web)
-    from services import requirement_rules as rules
-    return rules
 NAVY = RGBColor(0x17, 0x36, 0x5D)
 # Bump when the guide's rules change; raters quote it so the coordinator knows which rules they used.
-GUIDE_VERSION = "2026-10-17 (sau vòng chấm thử; quy tắc yêu cầu JD dùng chung với prompt model)"
+GUIDE_VERSION = "2026-10-17, bản 3 (sau phân xử vòng chấm thử)"
 
 
 def cv_pdf_paths(cv_ids: set[str], manifest: Path = CV_MANIFEST) -> dict[str, Path]:
@@ -111,31 +102,79 @@ def guide(path: Path, *, rater: str, round_name: str, workbook_name: str, meta: 
     steps([
         "Sheet CAP_CV_JD: lấy cặp tiếp theo theo cột thu_tu. Mở CV_PDF/<cv_id>.pdf và đọc JD ở sheet JD.",
         "Sheet YEU_CAU_JD: với mỗi yêu cầu của JD, chọn trang_thai: met (có dùng trong dự án, kinh nghiệm, chứng chỉ), "
-        "mentioned_only (chỉ liệt kê ở mục kỹ năng/mục tiêu), missing (không có, hoặc CV có thứ khác thay cho yêu cầu), "
-        "unclear (chỉ có dấu hiệu, chưa đủ để khẳng định; ghi lý do ở ghi_chu). Xem quy tắc ngay dưới đây. Với met và "
-        "mentioned_only, chép nguyên văn đoạn CV vào trich_dan.",
+        "mentioned_only (chỉ liệt kê ở mục kỹ năng/mục tiêu), missing (không thấy), unclear (không đủ để quyết định, "
+        "ghi lý do ở ghi_chu). Với met và mentioned_only, chép nguyên văn đoạn CV vào trich_dan.",
         "Sheet TIEU_CHI: chấm 0–4 cho 8 tiêu chí theo mô tả ở sheet RUBRIC. Chấm C8 (phù hợp JD) sau cùng, dựa vào bước 2.",
         "Sheet TONG_THE: chọn muc_phu_hop 1–5, viết tối đa 3 gợi ý sửa CV quan trọng nhất (mỗi gợi ý chọn một tiêu chí), "
         "ghi số phút đã dùng cho cặp.",
         "Kiểm tra cột kiem_tra hiện OK ở mọi dòng của cặp. Sheet TIEN_DO cho biết cặp đã xong chưa.",
     ])
 
-    rules = requirement_rules()
-    heading(f"Quy tắc xét yêu cầu JD (bản {rules.VERSION})", 11.5)
-    doc.add_paragraph(
-        "Danh sách dưới đây là đúng văn bản đưa vào prompt của mọi phương pháp chấm tự động, để người và máy theo cùng "
-        "một quy tắc. Có thắc mắc về một quy tắc thì hỏi điều phối viên, không tự diễn giải khác.")
-    bullets(list(rules.RULES))
-
-    heading("Thao tác khi chấm yêu cầu", 11.5)
+    heading("Một số trường hợp khó ở YEU_CAU_JD", 11.5)
     bullets([
+        "Bỏ qua mức độ: JD ghi 'thành thạo Java', CV ghi 'Java' trong mục kỹ năng → mentioned_only như bình thường. "
+        "Mức độ thành thạo được phản ánh ở tiêu chí C3.",
+        "CV nêu một khả năng khác cùng lĩnh vực → missing và ghi lý do ở ghi_chu. Ví dụ JD cần giao tiếp tiếng Anh "
+        "(viết và nói), CV chỉ ghi đọc hiểu tài liệu kỹ thuật.",
+        "Yêu cầu có lựa chọn thay thế ('Jest hoặc Jasmine', 'React hoặc Vue') → CV có một trong các lựa chọn là đủ.",
+        "Bao hàm trực tiếp (dùng công nghệ trong CV thì bắt buộc dùng kỹ năng được yêu cầu) → xem như CV có kỹ năng đó: "
+        "trong dự án/kinh nghiệm → met, chỉ ở mục kỹ năng → mentioned_only; ghi ở ghi_chu đã suy ra từ đâu. Gồm: "
+        "Spring Boot → Java; Laravel → PHP; Django, FastAPI, Flask → Python; Express, NestJS → Node.js; React, Vue, "
+        "Angular → JavaScript; ASP.NET → C#; dựng backend/API bằng FastAPI, Express, Spring Boot, Django → REST API. "
+        "Ví dụ: 'Integrated a PhoBERT-based chatbot through a FastAPI backend' → REST API: met, ghi chú 'suy ra từ FastAPI backend'.",
+        "Liên quan lỏng (thường đi cùng nhưng không bắt buộc) → unclear và ghi lý do. Ví dụ: Docker → Linux; MySQL → thiết kế "
+        "hay tối ưu CSDL; Git → CI/CD; React → TypeScript; Java, C# → OOP (trừ khi CV nêu OOP, class, kế thừa, design pattern).",
+        "Câu tự nhận kinh nghiệm ('Experienced in X', 'Có kinh nghiệm với X') ở mục kỹ năng hoặc giới thiệu mà không gắn với "
+        "dự án cụ thể → mentioned_only. Nếu X xuất hiện trong một dự án, trích đoạn dự án đó → met.",
+        "Ngoại ngữ và kỹ năng mềm: có chứng chỉ (TOEIC, IELTS) hoặc việc làm cụ thể (thuyết trình bằng tiếng Anh, làm trưởng "
+        "nhóm) → met; chỉ tự ghi ở mục kỹ năng hoặc giới thiệu → mentioned_only. CV viết bằng tiếng Anh không phải bằng chứng "
+        "về tiếng Anh → unclear, ghi chú 'chỉ suy ra từ ngôn ngữ của CV'.",
+        "Kỹ năng mềm chỉ tính khi đúng tên hoặc đồng nghĩa: tư duy logic = logical thinking; giải quyết vấn đề = problem-solving; "
+        "tư duy phân tích = analytical thinking; làm việc nhóm = teamwork; giao tiếp = communication. Kỹ năng khác không thay "
+        "thế nhau (problem-solving không tính cho tư duy logic) → missing.",
+        "Công cụ cụ thể nhưng CV dùng công cụ khác cùng loại (GitHub thay GitLab, MySQL thay PostgreSQL, Trello thay Jira) → "
+        "missing, ghi chú 'dùng X thay vì Y'. Chỉ tính thay thế khi JD đã ghi 'hoặc', 'or similar', 'tương đương'.",
+        "Yêu cầu là một loại công cụ kèm ví dụ ('E-commerce platforms: Shopify, WordPress or other') → chỉ tính công cụ cùng loại "
+        "(WooCommerce, Magento…); tự xây một website bán hàng không tính → missing, ghi chú.",
+        "Yêu cầu về lĩnh vực (tài chính – ngân hàng, fintech) → dự án phải thuộc lĩnh vực đó. Chỉ có một tính năng liên quan "
+        "trong dự án khác lĩnh vực (tích hợp cổng thanh toán trong web bán hàng) → unclear, ghi chú.",
+        "Yêu cầu là một nhóm kỹ thuật kèm ví dụ trong ngoặc ('Hiệu năng web (critical rendering path, code splitting, "
+        "lazy loading)') → met khi dự án hoặc kinh nghiệm nêu ít nhất một kỹ thuật cụ thể trong ngoặc hoặc cùng loại "
+        "(lazy loading, memoization, nén ảnh); chỉ ghi chung chung 'tối ưu hiệu năng' → unclear, ghi chú; không có → missing.",
         "Trước khi chọn missing: dùng Ctrl+F trong PDF tìm tên công nghệ, cả tên viết tắt và cách viết khác (TS, "
         "TypeScript; Postgres, PostgreSQL; JS, JavaScript). Ở vòng chấm thử, phần lớn các ca một người chọn met còn "
         "người kia chọn missing là do bỏ sót khi đọc.",
-        "Ghi chú bắt buộc ở ghi_chu: mọi dòng unclear (CV có gì, vì sao chưa đủ); dòng missing mà Ctrl+F vẫn thấy từ "
-        "khóa (vì sao không tính, ví dụ 'chỉ có CSS' hoặc 'dùng MySQL thay vì PostgreSQL'); và mọi dòng đổi trạng thái khi "
-        "rà lại (đổi từ gì, vì sao).",
-        "Với met và mentioned_only: chép nguyên văn đoạn CV vào trich_dan. Với missing: để trống muc_bang_chung và trich_dan.",
+        "Với missing: để trống muc_bang_chung và trich_dan; lý do (nếu cần) ghi ở ghi_chu.",
+    ])
+
+    heading("Yêu cầu khái niệm và khi nào chọn unclear (bổ sung bản 3)", 11.5)
+    doc.add_paragraph(
+        "Ở vòng chấm thử, không ai dùng unclear, và phần lớn bất đồng nằm ở các yêu cầu là khái niệm hoặc kỹ thuật "
+        "(Responsive, OOP, thiết kế giao diện) chứ không phải tên công nghệ. Các quy tắc dưới đây được chốt khi phân xử "
+        "vòng thử; chúng cụ thể hóa quy tắc 'liên quan lỏng → unclear' ở trên.")
+    bullets([
+        "Yêu cầu là khái niệm hoặc kỹ thuật cần CV nêu chính khái niệm đó, hoặc một kỹ thuật cụ thể thuộc nó. Ví dụ "
+        "Responsive: responsive, mobile-first, media query, giao diện tương thích di động. Có trong dự án → met; chỉ ở mục "
+        "kỹ năng → mentioned_only.",
+        "Chỉ có công nghệ nền mà không nêu khái niệm → unclear, ghi chú 'chỉ có X'. Ví dụ: CSS → Responsive; HTML → "
+        "Semantic/SEO-friendly HTML; CSS → Modern CSS (Tailwind, Flexbox, Grid); HTML, CSS → thiết kế giao diện web; "
+        "thư viện biểu đồ (Chart.js) → Responsive.",
+        "Template hoặc framework giao diện (Thymeleaf, Blade, Bootstrap) → HTML/CSS: liên quan lỏng → unclear. HTML/CSS chỉ "
+        "met hoặc mentioned_only khi CV ghi HTML, CSS (hoặc HTML5, CSS3).",
+        "Tích hợp API của mô hình ngôn ngữ (Gemini, OpenAI) → LLM prompting: unclear. Met khi CV nêu thiết kế prompt, "
+        "prompt engineering hoặc kỹ thuật tương đương.",
+        "OOP: CV nêu OOP, class, kế thừa, design pattern trong dự án → met. Chỉ có trong danh sách môn học hoặc mục kỹ năng → "
+        "mentioned_only. Chỉ dùng Java hoặc C# → unclear (đã có ở trên).",
+        "Kiểm thử: 'test' chung chung, stress test, testing mindset không phải Unit testing hay Integration testing → missing "
+        "(khả năng khác cùng lĩnh vực).",
+        "Yêu cầu lĩnh vực hoặc loại dự án (thương mại điện tử, trang quản trị, ERP, tài chính): dự án thuộc đúng loại đó → met; "
+        "dự án chỉ gần loại đó (ứng dụng quản lý nhỏ khi JD cần trang quản trị/ERP) → unclear.",
+        "Kỹ năng mềm: chỉ tính khi đúng tên hoặc đồng nghĩa (đã có ở trên). CV ghi kỹ năng đó và có việc làm cụ thể tương ứng "
+        "trong dự án hoặc kinh nghiệm → met. Chỉ có việc làm mà CV không nêu tên kỹ năng ('xử lý logic game' với yêu cầu "
+        "tư duy logic) → missing.",
+        "Tóm lại: met = có bằng chứng sử dụng; mentioned_only = CV nêu đúng yêu cầu nhưng chỉ liệt kê; unclear = CV có thứ "
+        "liên quan nhưng không đủ để khẳng định; missing = không có gì liên quan. Phân vân giữa unclear và missing: CV có "
+        "công nghệ hay việc làm gần với yêu cầu thì chọn unclear và ghi rõ là gì.",
     ])
 
     heading("5. Chấm tiêu chí")
@@ -154,6 +193,8 @@ def guide(path: Path, *, rater: str, round_name: str, workbook_name: str, meta: 
         "C8: tính tỉ lệ = (số met + 0,5 × số mentioned_only) / số yêu cầu bắt buộc, không tính các dòng unclear. Làm đúng "
         "theo khoảng: dưới 0,2 → 0; 0,2 đến dưới 0,4 → 1; 0,4 đến dưới 0,6 → 2; 0,6 đến dưới 0,8 → 3; từ 0,8 → 4 "
         "(cần thêm vài yêu cầu ưu tiên). Ví dụ 0,59 → 2.",
+        "C8 phải đúng bằng mức tính từ chính các trạng thái bạn chọn ở YEU_CAU_JD. Ở vòng thử, C8 nhiều lần không khớp với "
+        "các trạng thái đó. Khi lập nhãn cuối cùng, C8 được tính lại từ trạng thái yêu cầu sau phân xử.",
     ])
 
     heading("Cách chọn mức điểm (bổ sung sau vòng chấm thử)", 11.5)
