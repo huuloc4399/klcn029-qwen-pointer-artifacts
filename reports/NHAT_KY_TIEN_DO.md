@@ -82,6 +82,7 @@ Cập nhật lần cuối: 17/10/2026, 15:45.
 | 13:56 | Sổ quyết định và minh chứng (40 quyết định, trang Docs); phân tích độ nhạy trọng số và luật C8 | `sensitivity.py`, `reports/PHAN_TICH_DO_NHAY_RUBRIC_DEV.md`, `34feafd` |
 | 14:00–14:30 | Thư mục minh chứng: lý do chọn model (I01), trạng thái model trên Groq, cách lập danh sách từ (P06); script `model_snapshot`; danh mục tài liệu | `reports/minh_chung/`, `a632c2a`, `5feeba6` |
 | 14:51 | Áp luật đăng ký trước: `COVERAGE_MIN` = 0,90. Dev đủ cho việc khóa cấu hình; không chạy biến thể P và 8 cặp M4/b0 còn lại trên dev | `8b9eb87`, `DANG_KY_TRUOC.md` §8 |
+| 21:55 | Phân tích cách TechJobs chấm trên CV của Lộc (16 kiểm tra, 4 nhóm, tổng 53, điểm = tổng / 53); đối chiếu rubric; đặc tả giao diện kết quả mới cho demo | `minh_chung/SO_SANH_TECHJOBS.md` |
 | 21:40 | Xem TechJobs.vn (công cụ chấm CV tương tự): ghi vào danh mục tài liệu; đề xuất các ý áp dụng được (giao diện web, chỉ số H2, chương 2) | `TAI_LIEU_THAM_KHAO.md` |
 | 15:45 | Hoàn tác `1c45168`, đưa lại `233b615`; chuyển 10 kết quả `p_grounded` test sang file riêng để chạy lại có cache | `DANG_KY_TRUOC.md` §7 |
 | 15:04 | Đề xuất kiểm chứng H1/H2; kiểm thư mục 9 tài liệu trên arXiv; cảnh báo bài Baral (tạp chí dược); trang hướng dẫn Khải kiểm nguồn | `minh_chung/M08_*`, `TAI_LIEU_THAM_KHAO.md`, `931719c`, `f173692` |
@@ -121,7 +122,7 @@ Cập nhật lần cuối: 17/10/2026, 15:45.
 - [ ] Đo độ lặp (`--repeats 3` trên 4 cặp dev) nếu còn hạn mức
 - [ ] Tạo `RUBRIC_CHANGELOG`
 - [ ] Gom `reports/minh_chung/` và các báo cáo thành báo cáo cuối
-- [ ] Ý từ TechJobs cho web demo (chờ Lộc chọn): ghi chú "không phải điểm ATS", điểm có thể tăng cho từng gợi ý, đi tới chỗ cần sửa, "không áp dụng cho tôi", đếm định lượng
+- [ ] Giao diện kết quả mới cho demo theo `minh_chung/SO_SANH_TECHJOBS.md` §3 (chờ Lộc duyệt đặc tả)
 
 **Nhóm làm**
 - [ ] Đối chiếu nội dung các tài liệu thống kê (Cohen, Landis–Koch, Efron, BM25) và các bài "Đã kiểm thư mục" khi trích

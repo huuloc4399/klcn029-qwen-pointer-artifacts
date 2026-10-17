@@ -16,6 +16,7 @@ Quy ước:
 | I01 | [I01_TRANG_THAI_MODEL_GROQ.md](I01_TRANG_THAI_MODEL_GROQ.md) | Trạng thái model trên Groq theo từng ngày chạy, và cách ghi vào ngày chạy test | Thiết lập thực nghiệm; phụ lục |
 | P05, P06 | [P06_CACH_LAP_DANH_SACH_TU.md](P06_CACH_LAP_DANH_SACH_TU.md) | Nguồn và nguyên tắc lập 4 danh sách từ; phạm vi tác động; kiểm soát việc chỉnh theo dữ liệu | Phương pháp P; hạn chế |
 | M08 | [M08_DE_XUAT_KIEM_CHUNG_H1_H2.md](M08_DE_XUAT_KIEM_CHUNG_H1_H2.md) | Đề xuất cách kiểm chứng H1 và H2, chờ chốt với giảng viên | Phương pháp: thiết kế thực nghiệm |
+| — | [SO_SANH_TECHJOBS.md](SO_SANH_TECHJOBS.md) | Cách TechJobs.vn chấm CV (suy ra từ kết quả), đối chiếu với rubric, ý áp dụng cho giao diện demo | Chương 2; thảo luận; hướng phát triển |
 | R02, R04 | [../PHAN_TICH_DO_NHAY_RUBRIC_DEV.md](../PHAN_TICH_DO_NHAY_RUBRIC_DEV.md) | Độ nhạy của trọng số rubric và luật C8 trên nhãn dev | Rubric; thảo luận |
 | D01–D10 | [../MO_TA_QUY_TRINH_GAN_NHAN_CV_JD.md](../MO_TA_QUY_TRINH_GAN_NHAN_CV_JD.md) | Quy trình gán nhãn, độ đồng thuận, phân xử | Phương pháp: tập nhãn chuẩn |
 | P01, M05, M06 | [../../downstream/eval/DANG_KY_TRUOC.md](../../downstream/eval/DANG_KY_TRUOC.md) | Đăng ký trước: cấu hình cố định, luật chọn `COVERAGE_MIN`, so sánh chính | Phương pháp: thiết kế thực nghiệm |
