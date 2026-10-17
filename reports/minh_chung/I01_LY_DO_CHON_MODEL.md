@@ -37,7 +37,9 @@ Cấu hình được ghi tự động trong `run_config.json` của mỗi lần 
 - **Hạn mức gói miễn phí.** `dev_v1` phải chạy tiếp 8 lần, `dev_v2` 9 lần; có 17 lượt lỗi do vượt hạn mức hoặc dịch vụ quá tải. Các lượt lỗi không tạo kết quả sai, chỉ phải chạy lại. Cách xử lý:
   - bộ chạy ghi kết quả từng cặp và tiếp tục từ chỗ dừng;
   - chờ theo `retry-after` khi bị giới hạn theo phút, dừng hẳn khi hết hạn mức ngày (`--max-wait`).
-- **Model ở trạng thái Preview** (theo ghi chú trong kế hoạch nghiên cứu), nên có thể bị thay đổi hoặc ngừng. Mỗi kết quả đều ghi tên model và thời điểm gọi (`scored_at`): các lần chạy dev diễn ra ngày 16–17/10/2026. **[Nhóm kiểm tra trạng thái model trên trang Groq vào ngày chạy tập test và ghi lại.]**
+- **Model ở trạng thái Preview** (đã kiểm trên trang Groq ngày 17/10/2026), nên có thể bị thay đổi hoặc ngừng. Mỗi kết quả đều ghi tên model và thời điểm gọi (`scored_at`): các lần chạy dev diễn ra ngày 16–17/10/2026. Bản ghi trạng thái theo ngày và cách ghi vào ngày chạy test: `I01_TRANG_THAI_MODEL_GROQ.md`.
+- **Groq phục vụ bản lượng tử hóa** (TruePoint Numerics), không hoàn toàn giống trọng số gốc BF16. Báo cáo ghi "Qwen3.8-27B do Groq phục vụ".
+- **Nhiệt độ 0 khác khuyến nghị 0,7 của Groq cho chế độ instruct.** Đề tài chọn 0 để kết quả lặp lại được khi đánh giá; chất lượng ở nhiệt độ 0,7 chưa được đo.
 - **Nhiệt độ 0 không bảo đảm tất định trên dịch vụ.** Các lần chạy dev chỉ chạy 1 lần mỗi cặp (`repeats = 1`), nên độ dao động giữa các lần chạy chưa được đo. Nếu còn hạn mức: chạy lặp 3 lần trên một nhóm nhỏ cặp dev bằng `--repeats 3`; nếu không, ghi là hạn chế.
 - **Dữ liệu cá nhân gửi ra dịch vụ ngoài.** Trước khi gửi:
   - email, số điện thoại và dòng tên ứng viên được che (`baseline_extraction/privacy.py`, `redact_text`);
@@ -48,5 +50,5 @@ Cấu hình được ghi tự động trong `run_config.json` của mỗi lần 
 
 ## Việc còn lại
 
-- Thêm tài liệu kỹ thuật của Qwen3 vào `reports/TAI_LIEU_THAM_KHAO.md` và đối chiếu.
+- Tài liệu: đã thêm `qwen38` (trích dẫn chính thức của Qwen3.8), model card và trang Groq vào `TAI_LIEU_THAM_KHAO.md` (17/10/2026); còn phải mở bài blog của Qwen để đối chiếu nội dung.
 - Ghi trạng thái model trên trang Groq vào ngày chạy tập test.
