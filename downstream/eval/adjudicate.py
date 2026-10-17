@@ -32,6 +32,7 @@ from typing import Any
 from downstream.eval import iaa
 
 REQ_STATUSES = ("met", "mentioned_only", "missing", "unclear")
+ALIASES = {"mention_only": "mentioned_only", "mentioned only": "mentioned_only"}  # unambiguous typos seen in decisions
 JD_INDEPENDENT = ("C1_structure", "C2_it_content", "C3_skills", "C6_certs_activities", "C7_ats")
 
 
@@ -80,14 +81,19 @@ def _key(row: dict[str, str]) -> tuple[str, str]:
     return row["pair_id"], row["item"].split(" · ")[0].strip()
 
 
-def read_decisions(paths: list[Path]) -> tuple[dict[tuple[str, str], dict[str, str]], list[str]]:
-    """Filled decisions by key, later files overriding earlier ones, and the errors found."""
-    decisions, errors = {}, []
+def read_decisions(paths: list[Path]) -> tuple[dict[tuple[str, str], dict[str, str]], list[str], list[str]]:
+    """Filled decisions by key (later files override earlier ones), the errors found, and typos read as aliases."""
+    decisions, errors, notes = {}, [], []
     for path in paths:
         for line, row in enumerate(read_csv(path), start=2):
             value = row["decision"].strip()
             if not value:
                 continue
+            if value in ALIASES:
+                errors_fixed = f"{path.name}: '{value}' đọc là '{ALIASES[value]}'"
+                if errors_fixed not in notes:
+                    notes.append(errors_fixed)
+                value = ALIASES[value]
             key = _key(row)
             if key[1] == "overall_fit":
                 ok = value in {"1", "2", "3", "4", "5"}
@@ -99,7 +105,7 @@ def read_decisions(paths: list[Path]) -> tuple[dict[tuple[str, str], dict[str, s
                 errors.append(f"{path.name} dòng {line} ({key[0]}, {key[1]}): quyết định '{value}' không hợp lệ")
                 continue
             decisions[key] = {**row, "decision": value, "source_file": path.name}
-    return decisions, errors
+    return decisions, errors, notes
 
 
 def _number(value: str) -> int:
@@ -220,7 +226,9 @@ def main() -> int:
             kinds[row["kind"]] = kinds.get(row["kind"], 0) + 1
         print(f"{args.out}: {len(rows)} dòng cần phân xử " + json.dumps(kinds, ensure_ascii=False))
         return 0
-    decisions, errors = read_decisions(args.decisions)
+    decisions, errors, notes = read_decisions(args.decisions)
+    for note in notes:
+        print(f"Ghi chú: {note}")
     records, missing, warnings = final_records(aligned, decisions, _c8_band())
     for warning in warnings:
         print(f"Cảnh báo: {warning}")

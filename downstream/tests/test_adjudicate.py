@@ -84,10 +84,13 @@ class AdjudicateTests(unittest.TestCase):
             path = Path(folder) / "d.csv"
             adjudicate.write_csv(path, [{"pair_id": "P1", "item": "C1_structure", "decision": "5"},
                                         {"pair_id": "P1", "item": "R1 · Java", "decision": "met "},
-                                        {"pair_id": "P1", "item": "overall_fit", "decision": "2"}])
-            decisions, errors = adjudicate.read_decisions([path])
+                                        {"pair_id": "P1", "item": "overall_fit", "decision": "2"},
+                                        {"pair_id": "P1", "item": "R2 · Git", "decision": "mention_only"}])
+            decisions, errors, notes = adjudicate.read_decisions([path])
         self.assertEqual(len(errors), 1)
-        self.assertEqual(set(decisions), {("P1", "R1"), ("P1", "overall_fit")})
+        self.assertEqual(set(decisions), {("P1", "R1"), ("P1", "overall_fit"), ("P1", "R2")})
+        self.assertEqual(decisions[("P1", "R2")]["decision"], "mentioned_only")
+        self.assertEqual(len(notes), 1)
 
     def test_half_point_scale_for_kappa(self):
         self.assertEqual(iaa.score_levels([1, 2], [3]), iaa.SCORES)
