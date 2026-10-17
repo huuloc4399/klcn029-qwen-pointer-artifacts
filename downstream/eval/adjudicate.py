@@ -11,8 +11,9 @@ left without a decision. The third rater fills `decision` (the final value) and 
 - a criterion score or overall fit 1 apart → the mean (x.5), as is usual for two raters;
 - missing_in_cv against scored with both 0 → missing_in_cv, score 0;
 - anything else without a decision is an error, so no FINAL is written with holes.
-It also warns when a JD-independent criterion differs between two pairs of the same CV, and when C8
-differs from the band its final requirement statuses give.
+By default C8 is then replaced by the rubric band of the final requirement statuses (C8 is defined
+from them); --no-c8-from-requirements keeps the merged C8 and only warns where the two differ. It also
+warns when a JD-independent criterion differs between two pairs of the same CV.
 
     python -m downstream.eval.adjudicate round2 A.jsonl B.jsonl --round1 disagreements.csv --out round2.csv
     python -m downstream.eval.adjudicate final A.jsonl B.jsonl --decisions round1.csv round2.csv --out FINAL.jsonl
@@ -133,8 +134,12 @@ def _criterion(pair_id: str, cid: str, va: dict, vb: dict, decided: dict | None)
 
 
 def final_records(aligned: list[tuple[dict, dict]], decisions: dict[tuple[str, str], dict[str, str]],
-                  c8_band=None) -> tuple[list[dict[str, Any]], list[str], list[str]]:
-    """(FINAL records, errors, warnings)."""
+                  c8_band=None, c8_from_requirements: bool = False) -> tuple[list[dict[str, Any]], list[str], list[str]]:
+    """(FINAL records, errors, warnings).
+
+    c8_from_requirements: C8 is the band of the final requirement statuses, as the rubric defines it; the
+    raters' own C8 stays in their files for agreement. Without a band (too many unclear) the merged C8 stays.
+    """
     records, errors, warnings = [], [], []
     for ra, rb in aligned:
         pid = ra["pair_id"]
@@ -189,9 +194,14 @@ def final_records(aligned: list[tuple[dict, dict]], decisions: dict[tuple[str, s
                 warnings.append(f"{cv_id} {cid} khác nhau giữa các cặp: {values}")
     if c8_band is not None:
         for record in records:
-            band, _ = c8_band(list(record["requirements"].values()))
+            band, why = c8_band(list(record["requirements"].values()))
             c8 = (record["criteria"].get("C8_jd_fit") or {}).get("score")
-            if band is not None and c8 is not None and band != c8:
+            if c8_from_requirements and band is not None and "C8_jd_fit" in record["criteria"]:
+                item = record["criteria"]["C8_jd_fit"]
+                record["criteria"]["C8_jd_fit"] = {**item, "status": "scored", "score": band,
+                                                   "note": f"tính từ yêu cầu sau phân xử: {why} (trước đó {c8})"}
+                record["final_source"]["C8_jd_fit"] = "from_requirements"
+            elif band is not None and c8 is not None and band != c8:
                 warnings.append(f"{record['pair_id']} C8 = {c8} nhưng các yêu cầu sau phân xử cho mức {band} "
                                 f"({record['final_source'].get('C8_jd_fit')})")
     return records, errors, warnings
@@ -215,6 +225,8 @@ def main() -> int:
     fin.add_argument("b", type=Path)
     fin.add_argument("--decisions", type=Path, nargs="+", required=True, help="round 1 first, later rounds after")
     fin.add_argument("--out", type=Path, required=True)
+    fin.add_argument("--c8-from-requirements", action=argparse.BooleanOptionalAction, default=True,
+                     help="C8 = the rubric band of the final requirement statuses (default)")
     args = parser.parse_args()
     sys.stdout.reconfigure(encoding="utf-8")
     aligned = _aligned(args.a, args.b)
@@ -229,7 +241,7 @@ def main() -> int:
     decisions, errors, notes = read_decisions(args.decisions)
     for note in notes:
         print(f"Ghi chú: {note}")
-    records, missing, warnings = final_records(aligned, decisions, _c8_band())
+    records, missing, warnings = final_records(aligned, decisions, _c8_band(), args.c8_from_requirements)
     for warning in warnings:
         print(f"Cảnh báo: {warning}")
     if errors or missing:

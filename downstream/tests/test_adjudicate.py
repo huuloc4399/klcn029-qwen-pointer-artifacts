@@ -79,6 +79,13 @@ class AdjudicateTests(unittest.TestCase):
         # 1 of 2 must requirements met → 50% → band 2, as labelled: no C8 warning.
         self.assertFalse(any("C8" in w for w in warnings))
 
+    def test_c8_follows_the_final_requirements(self):
+        a = record(scores={"C1_structure": 2, "C8_jd_fit": 4})
+        b = record(scores={"C1_structure": 2, "C8_jd_fit": 4})
+        records, _, _ = adjudicate.final_records([(a, b)], {}, adjudicate._c8_band(), c8_from_requirements=True)
+        self.assertEqual(records[0]["criteria"]["C8_jd_fit"]["score"], 2)  # 1 of 2 must met → 50% → 2
+        self.assertEqual(records[0]["final_source"]["C8_jd_fit"], "from_requirements")
+
     def test_decision_values_are_checked(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "d.csv"
