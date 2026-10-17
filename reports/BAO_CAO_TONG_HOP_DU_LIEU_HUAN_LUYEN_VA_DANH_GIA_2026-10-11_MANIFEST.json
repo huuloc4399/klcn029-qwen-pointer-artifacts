@@ -1,0 +1,127 @@
+{
+  "date": "2026-10-11",
+  "docx_visual_qa": "NOT_VERIFIED; packaged renderer cannot locate LibreOffice soffice.exe",
+  "sources": {
+    "training/evaluation/results/gold40_b0_b1_p0_p1_v1/RESULT_MANIFEST.json": {
+      "sha256": "d0c044e901683ca915d326fa236673296ba0b334aa4d5561d905a61573e13030",
+      "bytes": 1256
+    },
+    "training/final_adapter-full_1.zip": {
+      "sha256": "bb9dc701b0a898de0a0e890bb540144b93321c31bba791b707ec45d5b68e00f5",
+      "bytes": 124394829
+    },
+    "training/qwen3_4b_cvschema2_pointer_stage2_smoke_v1_final_adapter.zip": {
+      "sha256": "5e41b29a75f1faadc5ff1fb1ebdad86a73f229304cae52634c976f80924ff52c",
+      "bytes": 124164503
+    },
+    "training/qwen3_4b_cvschema2_pointer_stage2_full_v1_final_adapter.zip": {
+      "sha256": "274aeb95e78f5717b04af9fd0045e5215fd247533bd9572c73c73e8242f86b4b",
+      "bytes": 124440500
+    },
+    "training/data/resume_parsing_vision_cvschema_v2/manifest.json": {
+      "sha256": "74f09cbe3c4572cb04d31b807382a983492681ca62c35d5117ba00d665ae375c",
+      "bytes": 1266
+    },
+    "training/data/resume_parsing_vision_cvschema_v2/conversion_report.json": {
+      "sha256": "9a1c3563bbd2e7462c2a2ccf246b3218d111f1b6930b366629a507e3f7a31181",
+      "bytes": 1019
+    },
+    "training/data/resume_parsing_vision_cvschema_v2_pointer_v1/conversion_report.json": {
+      "sha256": "fc83b77f27a8d3d37c7b8c593994a57a423eaeb79f74ba6dff5944b99e2acb44",
+      "bytes": 1587
+    },
+    "training/audits/gold40_generalization_2026-10-11_v2/diagnostics.json": {
+      "sha256": "492027c6d490c71e5d9abb1b649ce6a1e20bd0a5f2da3e92b26af71a81b58e2b",
+      "bytes": 105298
+    },
+    "training/evaluation/results/gold40_b0_b1_p0_p1_v1/summary.json": {
+      "sha256": "badbfead8503a298ac408f842a741293ba8aadd56d30dce7951af4dd82e276ef",
+      "bytes": 127752
+    },
+    "training/evaluation/results/pointer_real80_p0_v1/evaluation_summary.json": {
+      "sha256": "7cbf68d498b63f2d24068b26c76b2c3b145201fe86f10aafcdbdaf236e6ec32e",
+      "bytes": 14091
+    },
+    "training/evaluation/results/pointer_real80_selective_retry_p1_v1/evaluation_summary.json": {
+      "sha256": "5938acf4c83ded90c05585aececcffa032bdc601cf1a3d9f4bf41e3c5bcf4ef7",
+      "bytes": 5351
+    },
+    "experiments/ocr/paddleocr_pilot_v1/summary.json": {
+      "sha256": "5af7252ed8361cf6482e22196aed31572dfac1263b80dd02102a38e7debe72b9",
+      "bytes": 2260
+    },
+    "experiments/ocr/paddleocr_pilot_v3_rec_v1/summary.json": {
+      "sha256": "655029bccb1202bcc2914b437eb53c41d8825981c150c3586f5ee5485f80fd26",
+      "bytes": 2147
+    },
+    "experiments/ocr/vietocr_hybrid_pilot_v1/comparison_summary.json": {
+      "sha256": "e56f8563e97ef0dc7dd76a72f6f874d25965612c632cae090b83c910c831a422",
+      "bytes": 3033
+    },
+    "training/audits/gold40_generalization_2026-10-11_v2/MANIFEST.json": {
+      "sha256": "1404283d636f77c429e58b966a4cecdbf1b86fd8f8f5bd9590ceba6ad082d341",
+      "bytes": 224
+    },
+    "training/evaluation/results/validation_base_vs_adapter_v1/comparison_summary.json": {
+      "sha256": "0df654f73539f8533ce9e487cedee52838b912c69eb9ecae40fad489cbbe50e4",
+      "bytes": 24974
+    },
+    "training/evaluation/results/pointer_stage2_validation_p0_v1/evaluation_summary.json": {
+      "sha256": "28d899755559c8e21eb8b9d0d3a4ff7fb17b29f993bffcc7d2ddf6a05e997217",
+      "bytes": 8932
+    },
+    "training/validation-27-09-2026_greedy_v1.zip": {
+      "sha256": "cf9896dc91ca64a6cabadee0d0264e7da2282cf644a762142330b5190b65eef6",
+      "bytes": 75005
+    },
+    "training/validation-27-09-2026.zip": {
+      "sha256": "338e1b1e9693a16dda7c1b2fce0eb7f79b6e147e94fa705b23532656f637243e",
+      "bytes": 86532
+    },
+    "training/evaluation/results/locked_test_base_vs_adapter_v1/comparison_summary.json": {
+      "sha256": "a0b83598827841a7cbcb2601cf23e344743da47a3dd963bab8cb7af855678224",
+      "bytes": 23070
+    },
+    "training/evaluation/results/pointer_stage2_locked_test_p0_v1/evaluation_summary.json": {
+      "sha256": "e62399d3417d43ae02cd72253566d4ba4ec004658bb582cc1fb325eef04c8ff4",
+      "bytes": 9735
+    },
+    "training/qwen3_4b_base_cvschema2_test_raw_greedy_v1.zip": {
+      "sha256": "eb36b662c18f46c83f43bc09f644806ab21f75047616a10b25996374f9a07a2e",
+      "bytes": 244193
+    },
+    "training/qwen3_4b_adapter_cvschema2_test_raw_greedy_v1.zip": {
+      "sha256": "16c193cb80eef6d3598f0cd44265086e4881cfcfc61f335918eceab0c5c1b03c",
+      "bytes": 236890
+    },
+    "annotation/audits/gold40_final_2026-10-10_complete/gold40_manifest.json": {
+      "sha256": "659a323db2a763b71e3036906cd213857aaa4bb8d80f6afa659b90a5dc21c3ee",
+      "bytes": 13415
+    },
+    "experiments/baseline80/real_cv_pointer_inputs_v1/all_80_pointer_inputs.jsonl": {
+      "sha256": "b5d85d7ed831e309b6d9bdbbc71532af50c420a9efa5cdfeda8d128236844a15",
+      "bytes": 1155406
+    },
+    "baseline_extraction/data/input_audit.csv": {
+      "sha256": "4f549963b318b4d6532d098c116a5ddc3235cbab9fd9dd8463eb3e3090134eb1",
+      "bytes": 6772
+    },
+    "training/data/resume_parsing_vision_cvschema_v2/train.jsonl": {
+      "sha256": "ba0813ee6ba222db2c1ce933c962c09f4ac4c98b5300b347c4f178020bdc4712",
+      "bytes": 13952625
+    },
+    "training/data/resume_parsing_vision_cvschema_v2/validation.jsonl": {
+      "sha256": "9a8bb9b6242b4ba842a46869457dfa0053301891ad5844188849d3ca84afdeaa",
+      "bytes": 1224936
+    },
+    "training/data/resume_parsing_vision_cvschema_v2/test.jsonl": {
+      "sha256": "1d6f250b7d5a457d5195ad9f61c316a3fdee20a6f4a349dcbbc6e8e03b44e80f",
+      "bytes": 1251441
+    }
+  },
+  "outputs": {
+    ".md": "795cf2de5ae1db98d619eb264d0ee0d3c76971fba6f8092341f22945c685de37",
+    ".docx": "539b25e0ef0850e6755a1b7803bc399cd6ccee0b729754cab18611e7bc340b16",
+    ".json": "8e39a0006a8411ebbe4e8a16e4346c488eb3973db5af33dc9053b83c287fd3ea"
+  }
+}
