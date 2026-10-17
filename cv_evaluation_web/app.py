@@ -23,7 +23,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from baseline_extraction.privacy import redact_text
 from baseline_extraction.schema import CVSchema
-from services import grounded_scoring, rubric_scoring
+from services import grounded_scoring, result_view, rubric_scoring
 from services.evaluator import evaluate
 from services.rule_rubric import score_rules
 from services.job_store import JobStore
@@ -250,6 +250,7 @@ def create_app(test_config: dict | None = None) -> Flask:
             jd_text = job_store.jd_text(token)
             # The rule-based rubric v2 result is the baseline strategy and the fallback when M1–M4 or P fail.
             result = score_rules(cv_schema=cv_schema, jd_text=jd_text, document=public_document)
+            result["cv_counts"] = result_view.cv_counts(cv_schema)
             extraction = {
                 **document.public_dict(),
                 "cv_schema": cv_schema,
@@ -347,6 +348,7 @@ def create_app(test_config: dict | None = None) -> Flask:
                 result = {**data["baseline"], "scoring_note": (
                     f"Chưa chấm được bằng {WEB_STRATEGIES[strategy]}: {reason} "
                     f"Kết quả dưới đây dùng {WEB_STRATEGIES[rubric_scoring.BASELINE].lower()}.")}
+            result = {**result, "cv_counts": result_view.cv_counts(data["cv_schema"])}
             with finalize_lock:
                 if job_store.result(token) is None:
                     store_result(token, job, result, data["extraction"], data["pipeline"])
@@ -658,9 +660,11 @@ def create_app(test_config: dict | None = None) -> Flask:
         if payload is None:
             return redirect(url_for("job_page", token=token), code=303)
         job = job_store.load(token) or {}
+        result = payload["result"]
         return render_template(
             "result.html",
-            result=payload["result"],
+            result=result,
+            view=result_view.build(result) if result.get("result_type") == "rubric_v2" else None,
             research_receipt=payload.get("research_receipt"),
             research_consent=payload.get("research_consent", False),
             pipeline=payload.get("pipeline"),

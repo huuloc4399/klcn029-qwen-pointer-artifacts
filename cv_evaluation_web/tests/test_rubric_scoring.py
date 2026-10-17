@@ -125,7 +125,16 @@ class StrategyFlowTests(unittest.TestCase):
         # text, which the ATS rule scores 1/4. Weights 10,10,15,15,10,5,10,25.
         self.assertIn("Lớp chữ của PDF thiếu hoặc quá ít", page)
         expected = 10 * 3 / 4 + 10 + 15 * 3 / 4 + 15 + 10 * 2 / 4 + 0 + 10 * 1 / 4 + 25 * 3 / 4
-        self.assertIn(f"<strong>{round(expected)}</strong>", page)
+        self.assertIn(f'<strong id="totalScore">{round(expected)}</strong>', page)
+        # The result page: two scores, the to-do list ranked by the points a fix could add, counts from the CV.
+        self.assertIn("Chất lượng CV", page)
+        self.assertIn("Phù hợp với JD", page)
+        self.assertIn("không phải điểm ATS", page)
+        self.assertIn("Việc nên làm (", page)
+        self.assertIn("+7.5 điểm", page)  # C7 1/4: 10 x 3 / (4 x 100) x 100, the largest gain
+        self.assertIn("Không áp dụng cho tôi", page)  # C5, C6, C7 may not apply
+        self.assertIn("Số đếm từ CV", page)
+        self.assertIn('id="scoreData"', page)
 
     def test_without_llm_consent_falls_back_to_rules_with_a_note(self):
         client = self.client()
@@ -203,6 +212,7 @@ class StrategyFlowTests(unittest.TestCase):
         self.assertIn("Chưa thấy trong CV", page)  # Docker's quote is not in the CV
         self.assertIn("tính từ từng yêu cầu của JD", page)
         self.assertIn("trích dẫn tìm thấy đúng trong CV", page)
+        self.assertIn("Cần xác minh (1)", page)  # C4's invented quote: P abstains instead of guessing
         sent = json.dumps(fake.calls[0]["messages"], ensure_ascii=False)
         self.assertNotIn("dev.person@example.com", sent)
         self.assertIn("Tự tách JD thành các yêu cầu", sent)

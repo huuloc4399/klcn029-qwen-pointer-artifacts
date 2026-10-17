@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Kết quả đánh giá · CV Insight{% endblock %}
-{% block scripts %}<script src="{{ url_for('static', filename='feedback.js') }}" defer></script>{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='feedback.js') }}" defer></script><script src="{{ url_for('static', filename='result_view.js') }}" defer></script>{% endblock %}
 {% block content %}
 {% if result.result_type == 'rubric_v2' %}
 <section class="result-hero">
@@ -9,16 +9,23 @@
 
 <section class="result-section">
   <div class="container result-grid">
-    <aside class="score-panel">
+    <aside class="score-panel" id="scorePanel">
       {% if result.total_shown is sameas false %}<div class="score-circle pending"><strong>–</strong><span>/100</span></div>
       <h2>{{ result.verdict }}</h2>
       <p>Chỉ {{ (result.coverage * 100)|round|int }}% trọng số chấm được có căn cứ, nên hệ thống chưa hiện điểm tổng. Hãy kiểm tra các tiêu chí ghi "cần xác minh".</p>
-      {% else %}<div class="score-circle"><strong>{{ result.total_score|round|int }}</strong><span>/100</span></div>
-      <h2>{{ result.verdict }}</h2>{% endif %}
+      {% else %}<div class="score-circle"><strong id="totalScore">{{ result.total_score|round|int }}</strong><span>/100</span></div>
+      <h2 id="totalVerdict">{{ result.verdict }}</h2>
+      {% if view %}<p class="good-enough">100 điểm không phải mục tiêu; từ mức "{{ view.good_enough }}" là đủ để gửi.</p>{% endif %}
+      <p class="na-note" id="naNote" hidden>Đã bỏ <span id="naCount">0</span> tiêu chí bạn đánh dấu không áp dụng. Điểm gốc: {{ result.total_score|round|int }}.</p>{% endif %}
+      {% if view %}<div class="score-split">
+        <div><span>Chất lượng CV</span><strong>{{ view.cv_quality|round|int if view.cv_quality is not none else '–' }}</strong><small>C1–C7</small></div>
+        <div><span>Phù hợp với JD</span><strong>{{ view.jd_fit|round|int if view.jd_fit is not none else '–' }}</strong><small>{% if view.must_counts %}{{ view.must_counts.met + view.must_counts.mentioned_only }}/{{ view.must_total }} yêu cầu bắt buộc có trong CV{% else %}C8{% endif %}</small></div>
+      </div>{% endif %}
       <p>{% if result.provider == 'rules' %}Chấm theo quy tắc trên máy chủ của nhóm{% else %}{{ result.calls }} lượt gọi {{ result.model }} · {{ result.latency_seconds }} giây{% endif %}</p>
       <div class="score-breakdown">
-        {% for item in result.criteria %}<label><span><b>{{ item.name }}</b><small>{% if item.score is none %}cần xác minh · {{ item.weight }}đ{% else %}{{ item.score }}/4 · {{ item.weighted }}/{{ item.weight }}đ{% endif %}</small></span><progress value="{{ item.score or 0 }}" max="4"></progress></label>{% endfor %}
+        {% for item in result.criteria %}<label><span><b>{{ item.name }}</b><small>{% if item.score is none %}cần xác minh · {{ item.weight }}đ{% else %}{{ item.weighted }}/{{ item.weight }}đ{% endif %}</small></span><progress value="{{ item.score or 0 }}" max="4"></progress></label>{% endfor %}
       </div>
+      <p class="score-disclaimer">Điểm tham khảo theo rubric của đề tài, không phải điểm ATS của nhà tuyển dụng và không dự đoán khả năng được gọi phỏng vấn.</p>
     </aside>
 
     <div class="result-content">
@@ -26,10 +33,37 @@
       {% if pipeline %}<section class="result-card compact-card pipeline-proof"><div><h2>Pipeline đã xác minh</h2><p>{{ pipeline.model }} · {{ pipeline.parser }} · CVSchema {{ pipeline.cv_schema_version }}</p>{% if pipeline.extraction_method %}<p>Trích xuất: {{ pipeline.extraction_method }}</p>{% endif %}{% if pipeline.model_runtime_seconds is not none %}<p>{{ pipeline.input_tokens }} token đầu vào · {{ pipeline.generated_tokens }} token sinh · {{ pipeline.model_runtime_seconds }} giây chạy model{% if pipeline.document_route %} · tuyến {{ pipeline.document_route }}{% endif %}</p>{% endif %}{% if pipeline.ocr_quality_warning %}<p class="warning-text">CV tiếng Việt đã đi qua OCR dự phòng; nên kiểm tra lại nội dung bị nhận dạng sai.</p>{% endif %}</div></section>{% endif %}
       {% if result.overall_comment %}<section class="result-card"><div class="card-title"><span class="title-icon">✎</span><div><h2>Nhận xét tổng thể</h2><p>Do tác tử phản biện của M4 viết sau khi rà soát điểm.</p></div></div><p>{{ result.overall_comment }}</p></section>{% endif %}
 
+      {% if result.strengths %}<section class="result-card"><div class="card-title"><span class="title-icon good">✓</span><div><h2>Điểm mạnh đang thể hiện</h2><p>Các tiêu chí đạt từ 3/4 trở lên.</p></div></div><ul class="insight-list good-list">{% for item in result.strengths %}<li>{{ item }}</li>{% endfor %}</ul></section>{% endif %}
+
+      {% if view %}
+      <section class="result-card" id="todoCard"><div class="card-title"><span class="title-icon improve">↗</span><div><h2>Việc nên làm ({{ view.todos|length }})</h2><p>Sắp theo số điểm tổng có thể tăng nếu tiêu chí đạt mức tối đa. Chỉ sửa khi bạn có thông tin thật.</p></div></div>
+        {% if view.todos %}<ol class="todo-list">{% for todo in view.todos %}<li class="todo {{ todo.severity }}{% if loop.index > 3 %} extra{% endif %}" data-criterion="{{ todo.id }}"{% if loop.index > 3 %} hidden{% endif %}>
+          <div class="todo-head"><span class="severity">{{ todo.severity_label }}</span><h3>{{ todo.name }} <small>{{ todo.score }}/4{% if todo.missing_in_cv %} · CV chưa có nội dung{% endif %}</small></h3><span class="gain">+{{ todo.gain }} điểm</span></div>
+          {% if todo.suggestion %}<p>{{ todo.suggestion }}</p>{% endif %}
+          {% if todo.evidence and not todo.missing_in_cv %}<p class="todo-evidence"><b>Căn cứ hiện tại:</b> {{ todo.evidence }}</p>{% endif %}
+          <div class="todo-actions"><a class="text-button" href="#crit-{{ todo.id }}">Xem chi tiết tiêu chí</a>{% if todo.may_not_apply and view.total_shown %}<label class="inline-check"><input type="checkbox" class="na-toggle" value="{{ todo.id }}"> Không áp dụng cho tôi</label>{% endif %}</div>
+        </li>{% endfor %}</ol>
+        {% if view.todos|length > 3 %}<button type="button" class="text-button todo-more" id="todoMore" data-more="Xem tất cả {{ view.todos|length }} việc" data-less="Chỉ hiện 3 việc đầu">Xem tất cả {{ view.todos|length }} việc</button>{% endif %}
+        {% else %}<ol class="improvement-list"><li><span>✓</span><p>Không còn tiêu chí nào dưới mức tối đa.</p></li></ol>{% endif %}
+      </section>
+
+      {% if view.needs_verification %}<section class="result-card"><div class="card-title"><span class="title-icon">?</span><div><h2>Cần xác minh ({{ view.needs_verification|length }})</h2><p>Hệ thống không tìm được căn cứ trong CV đủ chắc để chấm, nên không cho điểm thay vì đoán. Hãy mở PDF kiểm tra các mục này.</p></div></div>
+        <ul class="insight-list check-list">{% for item in view.needs_verification %}<li><a href="#crit-{{ item.id }}"><b>{{ item.name }}</b></a>{% if item.reason %}<br><small>{{ item.reason }}</small>{% endif %}</li>{% endfor %}</ul></section>{% endif %}
+
+      {% if view.nice_missing or view.unclear %}<details class="result-card more-card"><summary><span class="title-icon">+</span><span><b>Gợi ý thêm, không ảnh hưởng điểm ({{ (view.nice_missing|length) + (view.unclear|length) }})</b><small>Yêu cầu ưu tiên của JD và yêu cầu chưa xác định được từ CV.</small></span></summary>
+        {% if view.nice_missing %}<h3>Yêu cầu ưu tiên chưa thấy trong CV</h3><ul class="tag-list">{% for text in view.nice_missing %}<li class="tag missing">{{ text }}</li>{% endfor %}</ul>{% endif %}
+        {% if view.unclear %}<h3>Chưa xác định được (CV có nội dung liên quan nhưng chưa nêu rõ)</h3><ul class="tag-list">{% for text in view.unclear %}<li class="tag">{{ text }}</li>{% endfor %}</ul>{% endif %}
+        <p class="method-note">Chỉ thêm vào CV những gì bạn thực sự đã làm.</p></details>{% endif %}
+
+      {% if result.cv_counts %}<section class="result-card"><div class="card-title"><span class="title-icon">#</span><div><h2>Số đếm từ CV</h2><p>Đếm tự động trên nội dung đã trích xuất, chỉ để tham khảo, không cộng vào điểm.</p></div></div>
+        <ul class="count-list">{% for item in result.cv_counts %}<li><strong>{{ item.value }}/{{ item.total }}</strong><span>{{ item.label }}</span></li>{% endfor %}</ul></section>{% endif %}
+      <script type="application/json" id="scoreData">{{ {'criteria': view.score_data, 'verdicts': view.verdicts}|tojson }}</script>
+      {% else %}
       <section class="result-card"><div class="card-title"><span class="title-icon improve">↗</span><div><h2>Ưu tiên cải thiện</h2><p>Sắp theo số điểm có thể tăng thêm; chỉ sửa khi bạn có thông tin thật.</p></div></div><ol class="improvement-list">{% for item in result.improvements %}<li><span>{{ loop.index }}</span><p>{{ item }}</p></li>{% else %}<li><span>✓</span><p>Không còn tiêu chí nào dưới mức tối đa.</p></li>{% endfor %}</ol></section>
+      {% endif %}
 
       <section class="result-card"><div class="card-title"><span class="title-icon">≋</span><div><h2>Chi tiết 8 tiêu chí</h2><p>Bằng chứng trích từ CV và gợi ý cho từng tiêu chí.</p></div></div>
-        <ul class="criteria-list">{% for item in result.criteria %}<li><h3>{{ item.name }} <small>{% if item.status == 'needs_verification' %}cần xác minh{% else %}{{ item.score }}/4 · {{ item.weighted }}/{{ item.weight }}đ{% endif %}{% if item.status == 'missing_in_cv' %} · CV chưa có nội dung{% endif %}{% if item.scored_by == 'pdf' %} · chấm từ phân tích PDF{% elif item.scored_by == 'rule' %} · chấm theo quy tắc{% elif item.scored_by == 'requirements' %} · tính từ từng yêu cầu của JD{% elif item.scored_by == 'llm_verified' %} · trích dẫn đã đối chiếu với CV{% if item.rescored %}, đã chấm lại{% endif %}{% elif item.initial_score is not none and item.initial_score != item.score %} · phản biện đổi từ {{ item.initial_score }}/4{% endif %}</small></h3>{% if item.evidence %}<p><b>Bằng chứng:</b> {{ item.evidence }}</p>{% endif %}{% if item.suggestion %}<p><b>Gợi ý:</b> {{ item.suggestion }}</p>{% endif %}</li>{% endfor %}</ul>
+        <ul class="criteria-list">{% for item in result.criteria %}<li id="crit-{{ item.id }}"><h3>{{ item.name }} <small>{% if item.status == 'needs_verification' %}cần xác minh{% else %}{{ item.score }}/4 · {{ item.weighted }}/{{ item.weight }}đ{% endif %}{% if item.status == 'missing_in_cv' %} · CV chưa có nội dung{% endif %}{% if item.scored_by == 'pdf' %} · chấm từ phân tích PDF{% elif item.scored_by == 'rule' %} · chấm theo quy tắc{% elif item.scored_by == 'requirements' %} · tính từ từng yêu cầu của JD{% elif item.scored_by == 'llm_verified' %} · trích dẫn đã đối chiếu với CV{% if item.rescored %}, đã chấm lại{% endif %}{% elif item.initial_score is not none and item.initial_score != item.score %} · phản biện đổi từ {{ item.initial_score }}/4{% endif %}</small></h3>{% if item.evidence %}<p><b>Bằng chứng:</b> {{ item.evidence }}</p>{% endif %}{% if item.suggestion %}<p><b>Gợi ý:</b> {{ item.suggestion }}</p>{% endif %}</li>{% endfor %}</ul>
       </section>
 
       {% if result.requirements %}{% set req_labels = {'met': 'Có bằng chứng sử dụng', 'mentioned_only': 'Chỉ liệt kê', 'missing': 'Chưa thấy trong CV', 'unclear': 'Chưa xác định'} %}
@@ -38,8 +72,6 @@
       </section>{% endif %}
 
       {% if result.verification %}<section class="result-card compact-card"><div><h2>Kiểm chứng bằng chứng</h2><p>{{ result.verification.evidence_valid }}/{{ result.verification.evidence_total }} trích dẫn tìm thấy đúng trong CV{% if result.verification.rescored %} · chấm lại {{ result.verification.rescored|length }} tiêu chí thiếu bằng chứng{% endif %}{% if result.verification.abstained %} · {{ result.verification.abstained|length }} tiêu chí cần xác minh{% endif %}{% if result.content_flags %} · trích xuất có thể đã mất nội dung so với PDF{% endif %}.</p></div></section>{% endif %}
-
-      {% if result.strengths %}<section class="result-card"><div class="card-title"><span class="title-icon good">✓</span><div><h2>Điểm mạnh đang thể hiện</h2><p>Các tiêu chí đạt từ 3/4 trở lên.</p></div></div><ul class="insight-list good-list">{% for item in result.strengths %}<li>{{ item }}</li>{% endfor %}</ul></section>{% endif %}
 
       {% if result.retrieval %}<section class="result-card compact-card"><div><h2>Tri thức tham khảo đã dùng</h2><p>Truy xuất: {{ result.retrieval.backend }}. Đây là tài liệu nội bộ của nhóm dùng để viết gợi ý, không phải bằng chứng về ứng viên.</p><ul class="insight-list">{% for chunk in result.retrieval.chunks %}<li>{{ chunk.title }}</li>{% endfor %}</ul></div></section>{% endif %}
 
