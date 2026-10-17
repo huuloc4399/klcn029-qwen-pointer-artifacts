@@ -611,7 +611,12 @@ class ExtractionClientTests(unittest.TestCase):
 
     def test_requires_https_and_key(self):
         with self.assertRaises(ValueError):
-            self.module.ExtractionAPIClient("http://insecure", "key")
+            self.module.ExtractionAPIClient("http://api.example.com", "key")  # plain http over the Internet
+        with self.assertRaises(ValueError):
+            self.module.ExtractionAPIClient("https://team-api.hf.space", "")
+        # On one VPS the web reaches the API by its Docker Compose service name, never leaving the host.
+        self.assertEqual(self.module.ExtractionAPIClient("http://api:7860/", "key").base_url, "http://api:7860")
+        self.module.ExtractionAPIClient("http://127.0.0.1:7860", "key")
 
 if __name__ == "__main__":
     unittest.main()

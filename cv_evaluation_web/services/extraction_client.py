@@ -8,6 +8,7 @@ finalizes results with the same code path. Messages are user-facing Vietnamese t
 from __future__ import annotations
 
 from dataclasses import dataclass
+from urllib.parse import urlparse
 from typing import Any
 
 import requests
@@ -17,6 +18,13 @@ from services.runpod_client import RemoteJobError
 
 class ExtractionAPIError(RemoteJobError):
     """The Space is asleep, rebuilding, misconfigured or overloaded."""
+
+
+def _internal_http(url: str) -> bool:
+    """Plain http only to a Docker Compose service name or the same machine; the Internet needs https."""
+    parsed = urlparse(url)
+    host = parsed.hostname or ""
+    return parsed.scheme == "http" and (host in ("localhost", "127.0.0.1") or (bool(host) and "." not in host))
 
 
 @dataclass(slots=True)
@@ -30,8 +38,9 @@ class ExtractionAPIClient:
         self.base_url = self.base_url.strip().rstrip("/")
         self.api_key = self.api_key.strip()
         self.hf_token = self.hf_token.strip()
-        if not self.base_url.startswith("https://") or not self.api_key:
-            raise ValueError("EXTRACTION_API_URL (https) and EXTRACTION_API_KEY are required")
+        if not self.api_key or not (self.base_url.startswith("https://") or _internal_http(self.base_url)):
+            raise ValueError("EXTRACTION_API_URL (https, or http to a service on the same host) and "
+                             "EXTRACTION_API_KEY are required")
 
     @property
     def headers(self) -> dict[str, str]:

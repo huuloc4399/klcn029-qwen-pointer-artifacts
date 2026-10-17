@@ -1,0 +1,10 @@
+# Caddy obtains and renews the Let's Encrypt certificate for DOMAIN automatically.
+# Without a domain of your own, use <public-ip-with-dashes>.sslip.io (e.g. 103-20-30-40.sslip.io).
+{$DOMAIN} {
+	encode gzip
+	# The web accepts PDFs up to 8 MB (CV_WEB_MAX_UPLOAD_MB).
+	request_body {
+		max_size 10MB
+	}
+	reverse_proxy web:10000
+}

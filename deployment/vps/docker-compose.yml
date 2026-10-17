@@ -1,0 +1,74 @@
+# Whole demo on one Ubuntu VPS (x86_64, 2–4 vCPU, 8 GB RAM): web, extraction API and Caddy (HTTPS).
+# Guide: deployment/DEPLOY_VPS.md. Secrets live in .env next to this file (never commit it).
+# Only Caddy is published (80/443). The web reaches the API inside the Compose network at http://api:7860,
+# so the extraction API is not exposed to the Internet; rubric scoring still calls Groq.
+services:
+  api:
+    build:
+      context: ./api
+      args:
+        WITH_OCR: "${WITH_OCR:-1}"
+    image: klcn029-cv-api:vps
+    env_file: .env
+    environment:
+      LLAMA_THREADS: "${LLAMA_THREADS:-2}"
+    volumes:
+      - api_cache:/data
+    expose:
+      - "7860"
+    # The model needs ~4 GB and OCR up to ~3 GB more; the setup script adds swap so peaks do not kill it.
+    mem_limit: 6500m
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+
+  web:
+    build:
+      context: ./web
+      dockerfile: cv_evaluation_web/Dockerfile
+    image: klcn029-cv-web:vps
+    depends_on: [api]
+    environment:
+      PORT: "10000"
+      CV_PIPELINE_MODE: hf_space
+      EXTRACTION_API_URL: http://api:7860
+      EXTRACTION_API_KEY: "${API_KEY:?set API_KEY in .env}"
+      GROQ_API_KEY: "${GROQ_API_KEY:-}"
+      CV_WEB_SECRET_KEY: "${CV_WEB_SECRET_KEY:?set CV_WEB_SECRET_KEY in .env}"
+      CV_WEB_ADMIN_KEY: "${CV_WEB_ADMIN_KEY:-}"
+      CV_WEB_DATA_DIR: /data/cv-web
+      CV_WEB_RESEARCH_ENABLED: "${CV_WEB_RESEARCH_ENABLED:-0}"
+      CV_WEB_MAX_UPLOAD_MB: "8"
+      CV_WEB_MAX_PDF_PAGES: "12"
+      CV_WEB_RATE_LIMIT_PER_HOUR: "${CV_WEB_RATE_LIMIT_PER_HOUR:-10}"
+      CV_WEB_INFRA_NOTE: "${CV_WEB_INFRA_NOTE:-Web, OCR và model trích xuất chạy trên một VPS của nhóm; phần chấm điểm theo rubric gọi Groq.}"
+    volumes:
+      - web_data:/data/cv-web
+    expose:
+      - "10000"
+    mem_limit: 768m
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+
+  caddy:
+    image: caddy:2.10.2
+    depends_on: [web]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: "${DOMAIN:?set DOMAIN in .env}"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+
+volumes:
+  api_cache:
+  web_data:
+  caddy_data:
+  caddy_config:

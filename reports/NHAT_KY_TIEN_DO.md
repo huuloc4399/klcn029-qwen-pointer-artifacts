@@ -89,6 +89,13 @@ Cập nhật lần cuối: 17/10/2026, 23:00.
 | 15:45 | Hoàn tác `1c45168`, đưa lại `233b615`; chuyển 10 kết quả `p_grounded` test sang file riêng để chạy lại có cache | `DANG_KY_TRUOC.md` §7 |
 | 15:04 | Đề xuất kiểm chứng H1/H2; kiểm thư mục 9 tài liệu trên arXiv; cảnh báo bài Baral (tạp chí dược); trang hướng dẫn Khải kiểm nguồn | `minh_chung/M08_*`, `TAI_LIEU_THAM_KHAO.md`, `931719c`, `f173692` |
 
+### 18/10
+
+| Giờ | Việc | Ở đâu |
+|---|---|---|
+| sáng | Giảng viên yêu cầu triển khai lên VPS. Azure for Students và Google Cloud đều không đăng ký được (từ chối gói sinh viên; thẻ bị từ chối). Chọn VPS Việt Nam: 2 vCPU, 8 GB, 40 GB NVMe, FPT TP.HCM, 180.000 đ/tháng, Ubuntu 24.04 | — |
+| trưa | Bộ triển khai một máy: Docker Compose gồm web, API trích xuất (llama.cpp + Pointer GGUF + PaddleOCR) và Caddy (HTTPS qua sslip.io); API chỉ trong mạng nội bộ; swap 6 GB, ufw. Client trích xuất cho phép http chỉ tới tên dịch vụ nội bộ. Script đóng gói chặn file khóa (đã bắt được `.secrets/`). Hướng dẫn tiếng Việt | `deployment/vps/`, `deployment/DEPLOY_VPS.md` |
+
 ## 5. Kết quả chính đến nay (dev, chỉ tham khảo)
 
 - Độ đồng thuận hai người chấm, vòng thử:

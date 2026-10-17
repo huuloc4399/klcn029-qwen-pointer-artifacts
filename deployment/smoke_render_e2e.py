@@ -1,4 +1,6 @@
-"""Exercise the public Render form through RunPod with a synthetic PDF."""
+"""Exercise the public upload form end to end (Render + RunPod, or the single VPS) with a synthetic PDF.
+
+Prints how long the job took, for the deployment section of the report."""
 
 from __future__ import annotations
 
@@ -45,7 +47,7 @@ Bachelor of Software Engineering - Example University - 2023
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("base_url", help="Render URL, for example https://cv-insight.onrender.com")
+    parser.add_argument("base_url", help="Web URL, e.g. https://cv-insight.onrender.com or https://103-20-30-40.sslip.io")
     parser.add_argument("--timeout", type=int, default=900)
     args = parser.parse_args()
     base_url = args.base_url.rstrip("/")
@@ -72,7 +74,8 @@ def main() -> None:
         raise SystemExit(f"Upload failed: HTTP {submitted.status_code}: {submitted.text[:500]}")
     processing_url = requests.compat.urljoin(base_url, submitted.headers["Location"])
     token = processing_url.rstrip("/").rsplit("/", 1)[-1]
-    deadline = time.monotonic() + args.timeout
+    started = time.monotonic()
+    deadline = started + args.timeout
     last_status = None
     while time.monotonic() < deadline:
         status_response = session.get(f"{base_url}/api/jobs/{token}", timeout=30)
@@ -80,7 +83,7 @@ def main() -> None:
         payload = status_response.json()
         status = str(payload.get("status", "UNKNOWN")).upper()
         if status != last_status:
-            print(f"Render job {token}: {status}")
+            print(f"Job {token[:8]}…: {status} after {time.monotonic() - started:.0f} s")
             last_status = status
         if status == "COMPLETED":
             result_url = requests.compat.urljoin(base_url, payload["result_url"])
@@ -90,7 +93,7 @@ def main() -> None:
             missing = [value for value in required if value not in result.text]
             if missing:
                 raise SystemExit(f"Result page is missing evidence: {missing}")
-            print("Render + RunPod end-to-end smoke test: PASSED")
+            print(f"End-to-end smoke test: PASSED in {time.monotonic() - started:.0f} s")
             return
         if status in {"FAILED", "TIMED_OUT", "CANCELLED", "NOT_FOUND"}:
             raise SystemExit(f"End-to-end job failed: {payload}")
