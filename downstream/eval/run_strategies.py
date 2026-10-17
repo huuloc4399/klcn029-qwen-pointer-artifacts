@@ -46,7 +46,7 @@ JD_TEXT = ROOT / "downstream/data/jd_v1"
 WEB = ROOT / "cv_evaluation_web"
 JD_GOLD = ROOT / "downstream/data/jd_gold_v1"
 SCORER_FILES = (WEB / "services/rubric_scoring.py", WEB / "services/rule_rubric.py", WEB / "services/evaluator.py",
-                WEB / "services/grounded_scoring.py", WEB / "services/requirement_rules.py")
+                WEB / "services/grounded_scoring.py")
 INPUTS = cv_inputs.SOURCES
 
 
@@ -133,40 +133,6 @@ def throttled(call: Callable, min_interval: float, sleep: Callable[[float], None
     return wrapped
 
 
-class LLMCache:
-    """Answers an identical request (same pair, input, repeat, model, messages, schema) from the run's own log.
-
-    P's ablations send P's own prompts and differ only in what code does with the answers, so they reuse
-    p_grounded's answers: no new calls, and the ablation compares the components alone, not two samples of
-    the LLM. The pair, input and repeat are in the key, so only strategies scoring the same pair share answers
-    and repeats stay independent. Stored in llm_cache.jsonl of the run.
-    """
-
-    def __init__(self, path: Path, model: str, call: Callable):
-        self.path, self.model, self.call = path, model, call
-        self.scope: tuple = ()
-        self.hits, self.misses = 0, 0
-        self.store = {r["key"]: (r["answer"], r["used"]) for r in _read_jsonl(path)}
-
-    def _key(self, messages, schema, max_tokens) -> str:
-        blob = json.dumps([self.model, *self.scope, messages, schema, max_tokens], ensure_ascii=False, sort_keys=True)
-        return hashlib.sha256(blob.encode("utf-8")).hexdigest()
-
-    def __call__(self, messages, schema, max_tokens):
-        key = self._key(messages, schema, max_tokens)
-        if key in self.store:
-            self.hits += 1
-            answer, used = self.store[key]
-            return json.loads(json.dumps(answer)), dict(used)  # the method's own cost, though nothing is sent
-        answer, used = self.call(messages, schema, max_tokens)
-        used = {k: used.get(k, 0) for k in ("input_tokens", "output_tokens")}
-        self.misses += 1
-        self.store[key] = (answer, used)
-        with self.path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps({"key": key, "answer": answer, "used": used}, ensure_ascii=False) + "\n")
-        return answer, used
-
-
 # ---------- run ----------
 
 def conditions(*, model: str, retriever: str, split: str, inputs_root: Path, pairs_path: Path) -> dict[str, Any]:
@@ -222,13 +188,12 @@ class QuotaExhausted(RuntimeError):
 
 
 def strategy_files(strategy: str) -> tuple[str, ...]:
-    """Scorer files whose code decides a strategy's output: M1–M4 live in rubric_scoring.py, with the JD
-    requirement rules of their prompts in requirement_rules.py."""
+    """Scorer files whose code decides a strategy's output: M1–M4 live in rubric_scoring.py alone."""
     rubric_scoring, _ = _web()
     if strategy == rubric_scoring.BASELINE:
-        return "rubric_scoring.py", "rule_rubric.py", "evaluator.py", "requirement_rules.py"
+        return "rubric_scoring.py", "rule_rubric.py", "evaluator.py"
     if strategy in rubric_scoring.STRATEGIES:
-        return "rubric_scoring.py", "requirement_rules.py"
+        return ("rubric_scoring.py",)
     return tuple(p.name for p in SCORER_FILES)
 
 
@@ -306,8 +271,6 @@ def run(*, run_dir: Path, pairs: list[dict[str, str]], strategies: list[str], in
     counts = {"ok": 0, "skipped": 0, "extraction_invalid": 0, "error": 0}
     calls_used = 0
     rubric = rubric_scoring.load_rubric()
-    if call is not None:
-        call = LLMCache(run_dir / "llm_cache.jsonl", config["model"], call)
     with out.open("a", encoding="utf-8") as handle:
         for strategy in strategies:
             for source in inputs:
@@ -333,7 +296,6 @@ def run(*, run_dir: Path, pairs: list[dict[str, str]], strategies: list[str], in
                             if max_calls is not None and calls_used >= max_calls:
                                 log(f"Dừng sau {calls_used} lần gọi (--max-calls). Chạy lại cùng lệnh để tiếp tục.")
                                 return counts
-                            call.scope, hits, misses = (source, pair["pair_id"], repeat), call.hits, call.misses
                             try:
                                 common = dict(cv_schema=cv_schema, jd_text=jd_text(pair["jd_id"]),
                                               document=load_document(pair["cv_id"]), call=call, retrieve=retrieve,
@@ -350,10 +312,8 @@ def run(*, run_dir: Path, pairs: list[dict[str, str]], strategies: list[str], in
                                 if "hạn mức" in str(exc) or "quá tải" in str(exc):
                                     raise QuotaExhausted(str(exc)) from exc
                                 continue
-                            calls_used += call.misses - misses
+                            calls_used += result.get("calls", 0)
                             record.update(status="ok", **_compact(result))
-                            # Tokens and calls actually sent; answers taken from the cache cost nothing.
-                            record.update(api_calls=call.misses - misses, cached_calls=call.hits - hits)
                         handle.write(json.dumps(record, ensure_ascii=False) + "\n")
                         handle.flush()
                         counts[record["status"]] += 1
@@ -439,7 +399,7 @@ def agreement(rows: list[tuple[dict, dict]], weights: dict[str, float]) -> dict[
     totals = [(h, m) for h, m in totals if h is not None]
     fit = [(label["overall_fit"], pred["total_score"]) for label, pred in rows if label.get("overall_fit")]
     return {
-        "qwk": iaa.kappa(human, model, iaa.SCORES, weighted=True),
+        "qwk": iaa.kappa(human, model, iaa.score_levels(human, model), weighted=True),
         "mae": iaa._mean(abs(h - m) for h, m in zip(human, model)),
         "spearman_fit": iaa.spearman([h for h, _ in fit], [m for _, m in fit]),
         "spearman_total": iaa.spearman([h for h, _ in totals], [m for _, m in totals]),
@@ -533,7 +493,8 @@ def report(run_dir: Path, labels_path: Path, *, reference: str | None = "m3_rag"
                 "errors": sum(r["status"] == "error" for r in recs),
                 "extraction_invalid": len({r["pair_id"] for r in recs if r["status"] == "extraction_invalid"}),
                 **agreement(rows, weights),
-                "per_criterion_qwk": {c: iaa.kappa(*_criterion_pairs(rows, c), iaa.SCORES, weighted=True) for c in criteria},
+                "per_criterion_qwk": {c: iaa.kappa(*pair, iaa.score_levels(*pair), weighted=True)
+                                      for c in criteria for pair in [_criterion_pairs(rows, c)]},
                 "per_criterion_mae": {c: iaa._mean(abs(h - m) for h, m in zip(*_criterion_pairs(rows, c))) for c in criteria},
                 "mean_total": iaa._mean(r["total_score"] for r in ok),
                 "total_shown_rate": iaa._mean(r.get("total_shown", True) for r in ok),

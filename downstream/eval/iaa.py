@@ -34,6 +34,12 @@ from downstream.data import ratings_io
 from downstream.data.build_rating_workbook import RUBRIC
 
 SCORES = [0, 1, 2, 3, 4]
+HALF_SCORES = [x / 2 for x in range(9)]  # FINAL labels average a 1-point gap between raters
+
+
+def score_levels(*series) -> list:
+    """SCORES, or the half-point scale when any value is not a whole number."""
+    return HALF_SCORES if any(v != int(v) for values in series for v in values) else SCORES
 FIT_LEVELS = [1, 2, 3, 4, 5]
 SCORED = ("scored", "missing_in_cv")  # statuses that carry a number (missing_in_cv counts as 0)
 REQ_RANK = {"missing": 0, "mentioned_only": 1, "met": 2}  # unclear is outside the order
@@ -285,6 +291,13 @@ DISAGREEMENT_COLUMNS = ["pair_id", "cv_id", "jd_id", "item", "kind", "value_A", 
                         "decision", "adjudicator_note"]
 
 
+def requirement_row(base: dict[str, Any], req_id: str, va: dict, vb: dict, kind: str) -> dict[str, Any]:
+    return {**base, "item": f"{req_id} · {va['text']}", "kind": kind,
+            "value_A": va["status"], "value_B": vb["status"], "status_A": va["status"],
+            "status_B": vb["status"], "section_A": va["evidence_section"], "section_B": vb["evidence_section"],
+            "quote_A": va["quote"], "quote_B": vb["quote"], "reason_A": va["note"], "reason_B": vb["note"]}
+
+
 def disagreements(aligned: list[tuple[dict, dict]]) -> list[dict[str, Any]]:
     """Cases for the third rater: score gaps ≥ 2, one rater scoring where the other could not,
     met against missing, and overall fit gaps ≥ 2."""
@@ -314,10 +327,7 @@ def disagreements(aligned: list[tuple[dict, dict]]) -> list[dict[str, Any]]:
                 continue
             if abs(REQ_RANK[va["status"]] - REQ_RANK[vb["status"]]) < ADJUDICATE_GAP:
                 continue
-            rows.append({**base, "item": f"{req_id} · {va['text']}", "kind": "yêu cầu: met so với missing",
-                         "value_A": va["status"], "value_B": vb["status"], "status_A": va["status"],
-                         "status_B": vb["status"], "section_A": va["evidence_section"], "section_B": vb["evidence_section"],
-                         "quote_A": va["quote"], "quote_B": vb["quote"], "reason_A": va["note"], "reason_B": vb["note"]})
+            rows.append(requirement_row(base, req_id, va, vb, "yêu cầu: met so với missing"))
         if ra["overall_fit"] and rb["overall_fit"] and abs(ra["overall_fit"] - rb["overall_fit"]) >= ADJUDICATE_GAP:
             rows.append({**base, "item": "overall_fit", "kind": f"mức phù hợp lệch {abs(ra['overall_fit'] - rb['overall_fit'])}",
                          "value_A": ra["overall_fit"], "value_B": rb["overall_fit"], "status_A": "", "status_B": "",
