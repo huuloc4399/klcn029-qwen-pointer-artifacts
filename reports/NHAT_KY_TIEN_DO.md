@@ -2,7 +2,7 @@
 
 **Đọc file này đầu tiên khi bắt đầu phiên mới hoặc sau khi compact.** Cập nhật sau khi xong mỗi phần: thêm một dòng vào mục 4, sửa mục 2, 5, 6, 7. Ghi đủ ngày, file và commit, để không phải nhớ lại từ cuộc trò chuyện.
 
-Cập nhật lần cuối: 17/10/2026, 22:40.
+Cập nhật lần cuối: 17/10/2026, 23:00.
 
 ## 1. Mục tiêu và hạn
 
@@ -82,6 +82,7 @@ Cập nhật lần cuối: 17/10/2026, 22:40.
 | 13:56 | Sổ quyết định và minh chứng (40 quyết định, trang Docs); phân tích độ nhạy trọng số và luật C8 | `sensitivity.py`, `reports/PHAN_TICH_DO_NHAY_RUBRIC_DEV.md`, `34feafd` |
 | 14:00–14:30 | Thư mục minh chứng: lý do chọn model (I01), trạng thái model trên Groq, cách lập danh sách từ (P06); script `model_snapshot`; danh mục tài liệu | `reports/minh_chung/`, `a632c2a`, `5feeba6` |
 | 14:51 | Áp luật đăng ký trước: `COVERAGE_MIN` = 0,90. Dev đủ cho việc khóa cấu hình; không chạy biến thể P và 8 cặp M4/b0 còn lại trên dev | `8b9eb87`, `DANG_KY_TRUOC.md` §8 |
+| 23:00 | Phát hiện bản đăng ký trước bỏ sót đầu vào P1 cho P (quyết định 15/10): ghi bổ sung §7. Soạn tóm tắt 8 trang cho buổi họp với giảng viên 18/10 (6 câu cần chốt, tiến độ kèm minh chứng, rủi ro, kế hoạch, câu hội đồng có thể hỏi) | `reports/TOM_TAT_HOP_GVHD_2026-10-18.md/.docx`, `155afa7` |
 | 22:40 | Giao diện kết quả mới cho demo (giữ style cũ): hai điểm Chất lượng CV / Phù hợp JD, ghi chú không phải điểm ATS, "Việc nên làm" sắp theo điểm có thể tăng (Quan trọng ≥ 5, Nên sửa ≥ 1, Gợi ý nhỏ), "Không áp dụng cho tôi" cho C5, C6, C7 (tính lại điểm ngay trên trang), "Cần xác minh", gợi ý không tính điểm, số đếm từ CV. Không đổi code chấm; `test_v1` không bị ảnh hưởng | `services/result_view.py`, `templates/result.html`, `static/result_view.js`, 58 test web đạt |
 | 21:55 | Phân tích cách TechJobs chấm trên CV của Lộc (16 kiểm tra, 4 nhóm, tổng 53, điểm = tổng / 53); đối chiếu rubric; đặc tả giao diện kết quả mới cho demo | `minh_chung/SO_SANH_TECHJOBS.md` |
 | 21:40 | Xem TechJobs.vn (công cụ chấm CV tương tự): ghi vào danh mục tài liệu; đề xuất các ý áp dụng được (giao diện web, chỉ số H2, chương 2) | `TAI_LIEU_THAM_KHAO.md` |
@@ -107,7 +108,7 @@ Cập nhật lần cuối: 17/10/2026, 22:40.
 ## 6. Còn thiếu
 
 **Đang chạy hoặc chờ người khác**
-- [ ] Tập test `test_v1` (Lộc chạy theo thứ tự ưu tiên; chạy `model_snapshot` mỗi ngày chạy)
+- [ ] Tập test `test_v1` (Lộc chạy theo thứ tự ưu tiên; chạy `model_snapshot` mỗi ngày chạy). **Thêm đầu vào `p1` cho `p_grounded` (và `m3_rag` nếu còn hạn mức)**
 - [ ] Phép thử H3 có LLM: `python -m downstream.eval.perturb_h3 run --run-id h3_v1`, rồi `report`
 - [ ] Nhãn vòng chính của A và B (hạn 20/10) → kiểm lỗi, đo độ đồng thuận chính thức, phân xử, `FINAL_test.jsonl`
 - [ ] Chốt H1 và H2 với giảng viên → ghi vào `DANG_KY_TRUOC.md` §7 **trước khi xem kết quả test**
