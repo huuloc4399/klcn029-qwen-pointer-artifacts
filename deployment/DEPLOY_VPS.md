@@ -65,7 +65,7 @@ nano .env
 ```
 
 - `DOMAIN`: nếu không có tên miền, dùng IP đổi dấu chấm thành gạch ngang, thêm `.sslip.io`. Ví dụ IP `103.20.30.40` thì ghi `103-20-30-40.sslip.io`.
-- `HF_TOKEN`, `GROQ_API_KEY`: dán token và khóa của nhóm.
+- `HF_TOKEN`, `GROQ_API_KEY`: dán token và khóa của nhóm. `GGUF_*` đã điền sẵn đúng bản model đang chạy trên laptop (cùng hash), không cần sửa.
 - `LLAMA_THREADS`: bằng số vCPU của VPS (gói 2 nhân thì để 2).
 - `WITH_OCR=1` nếu muốn nhận PDF dạng ảnh. Nếu bị thiếu RAM ở bước 5, đổi thành 0.
 
