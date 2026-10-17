@@ -1,6 +1,6 @@
 # I01 · Lý do chọn model chấm điểm
 
-Cập nhật 17/10/2026. Mã I01 trong Sổ quyết định và minh chứng. Số liệu lấy từ hai lần chạy `dev_v1` và `dev_v2` (16–17/10/2026).
+Cập nhật 17/10/2026 (đã có xác nhận của nhóm về ngân sách). Mã I01 trong Sổ quyết định và minh chứng. Số liệu lấy từ hai lần chạy `dev_v1` và `dev_v2` (16–17/10/2026).
 
 ## Quyết định
 
@@ -16,7 +16,7 @@ Cấu hình được ghi tự động trong `run_config.json` của mỗi lần 
 |---|---|---|
 | 1 | Mọi chiến lược dùng cùng một model và tham số, nên chênh lệch giữa M1–M4 và P đến từ phương pháp, không từ model | `run_config.json` của `dev_v2`: một bộ điều kiện chung cho mọi chiến lược |
 | 2 | Đầu ra phải đúng cấu trúc để code kiểm điểm và trích dẫn; Groq hỗ trợ JSON Schema strict | Tỉ lệ tuân thủ rubric 100% ở mọi chiến lược LLM trong báo cáo `dev_v2` |
-| 3 | Chi phí: đề tài dùng gói miễn phí của Groq **[nhóm xác nhận: không có ngân sách API trả phí]** | Chi phí đo được ở bảng dưới |
+| 3 | Chi phí: nhóm không có ngân sách cho API trả phí (nhóm xác nhận ngày 17/10/2026), nên dùng gói miễn phí của Groq | Xác nhận của nhóm; chi phí đo được ở bảng dưới |
 | 4 | Cùng model đã dùng làm baseline trích xuất, nên hạ tầng gọi API, che dữ liệu cá nhân và xử lý lỗi đã được kiểm thử | `Ke_hoach_nghien_cuu_KLCN029.md` (baseline trích xuất: Qwen trên Groq, `qwen/qwen3.8-27b`, JSON Schema strict); `baseline_extraction/` |
 | 5 | Model Qwen3-4B được huấn luyện cho trích xuất CVSchema, không được huấn luyện cho chấm theo rubric, nên khâu chấm dùng model lớn qua prompt | Kế hoạch nghiên cứu: thành phần huấn luyện là Qwen 4B cho Resume Parsing (SFT/QLoRA) |
 | 6 | Nhiệt độ 0 và seed cố định để kết quả lặp lại được ở mức dịch vụ cho phép | `rubric_scoring.py` `groq_caller` |
@@ -49,4 +49,4 @@ Cấu hình được ghi tự động trong `run_config.json` của mỗi lần 
 ## Việc còn lại
 
 - Thêm tài liệu kỹ thuật của Qwen3 vào `reports/TAI_LIEU_THAM_KHAO.md` và đối chiếu.
-- Nhóm xác nhận lý do 3 (không có ngân sách API trả phí) và ghi trạng thái model vào ngày chạy tập test.
+- Ghi trạng thái model trên trang Groq vào ngày chạy tập test.
