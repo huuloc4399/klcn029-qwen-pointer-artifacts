@@ -133,6 +133,40 @@ def throttled(call: Callable, min_interval: float, sleep: Callable[[float], None
     return wrapped
 
 
+class LLMCache:
+    """Answers an identical request (same pair, input, repeat, model, messages, schema) from the run's own log.
+
+    P's ablations send P's own prompts and differ only in what code does with the answers, so they reuse
+    p_grounded's answers: no new calls, and the ablation compares the components alone, not two samples of
+    the LLM. The pair, input and repeat are in the key, so only strategies scoring the same pair share answers
+    and repeats stay independent. Stored in llm_cache.jsonl of the run.
+    """
+
+    def __init__(self, path: Path, model: str, call: Callable):
+        self.path, self.model, self.call = path, model, call
+        self.scope: tuple = ()
+        self.hits, self.misses = 0, 0
+        self.store = {r["key"]: (r["answer"], r["used"]) for r in _read_jsonl(path)}
+
+    def _key(self, messages, schema, max_tokens) -> str:
+        blob = json.dumps([self.model, *self.scope, messages, schema, max_tokens], ensure_ascii=False, sort_keys=True)
+        return hashlib.sha256(blob.encode("utf-8")).hexdigest()
+
+    def __call__(self, messages, schema, max_tokens):
+        key = self._key(messages, schema, max_tokens)
+        if key in self.store:
+            self.hits += 1
+            answer, used = self.store[key]
+            return json.loads(json.dumps(answer)), dict(used)  # the method's own cost, though nothing is sent
+        answer, used = self.call(messages, schema, max_tokens)
+        used = {k: used.get(k, 0) for k in ("input_tokens", "output_tokens")}
+        self.misses += 1
+        self.store[key] = (answer, used)
+        with self.path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps({"key": key, "answer": answer, "used": used}, ensure_ascii=False) + "\n")
+        return answer, used
+
+
 # ---------- run ----------
 
 def conditions(*, model: str, retriever: str, split: str, inputs_root: Path, pairs_path: Path) -> dict[str, Any]:
@@ -271,6 +305,8 @@ def run(*, run_dir: Path, pairs: list[dict[str, str]], strategies: list[str], in
     counts = {"ok": 0, "skipped": 0, "extraction_invalid": 0, "error": 0}
     calls_used = 0
     rubric = rubric_scoring.load_rubric()
+    if call is not None:
+        call = LLMCache(run_dir / "llm_cache.jsonl", config["model"], call)
     with out.open("a", encoding="utf-8") as handle:
         for strategy in strategies:
             for source in inputs:
@@ -296,6 +332,7 @@ def run(*, run_dir: Path, pairs: list[dict[str, str]], strategies: list[str], in
                             if max_calls is not None and calls_used >= max_calls:
                                 log(f"Dừng sau {calls_used} lần gọi (--max-calls). Chạy lại cùng lệnh để tiếp tục.")
                                 return counts
+                            call.scope, hits, misses = (source, pair["pair_id"], repeat), call.hits, call.misses
                             try:
                                 common = dict(cv_schema=cv_schema, jd_text=jd_text(pair["jd_id"]),
                                               document=load_document(pair["cv_id"]), call=call, retrieve=retrieve,
@@ -312,8 +349,10 @@ def run(*, run_dir: Path, pairs: list[dict[str, str]], strategies: list[str], in
                                 if "hạn mức" in str(exc) or "quá tải" in str(exc):
                                     raise QuotaExhausted(str(exc)) from exc
                                 continue
-                            calls_used += result.get("calls", 0)
+                            calls_used += call.misses - misses
                             record.update(status="ok", **_compact(result))
+                            # Tokens and calls actually sent; answers taken from the cache cost nothing.
+                            record.update(api_calls=call.misses - misses, cached_calls=call.hits - hits)
                         handle.write(json.dumps(record, ensure_ascii=False) + "\n")
                         handle.flush()
                         counts[record["status"]] += 1

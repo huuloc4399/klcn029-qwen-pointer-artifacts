@@ -59,7 +59,8 @@ Chênh lệch kèm KTC 95% bootstrap theo CV (2000 lần, seed 42). Chỉ kết 
 
 ## 7. Thay đổi sau đăng ký
 
-(chưa có thay đổi nào với luật hay cấu hình)
+- **17/10/2026, 15:45 — làm rõ code của cấu hình đã khóa (không đổi cấu hình).** Sáng 17/10 một phiên khác commit `1c45168` (gom quy tắc yêu cầu vào `requirement_rules.py`, đổi prompt của M1–M4 và P) rồi hoàn tác trong thư mục làm việc mà không commit; `dev_v2` và `test_v1` đều chạy bằng bản đã hoàn tác (hash trong `run_config.json` khớp `dev_v2`). Commit hoàn tác ghi lại đúng code đã chạy: `evaluator.py`, `rubric_scoring.py` như `dev_v2`, bỏ `requirement_rules.py`. Ý tưởng của `1c45168` để lại sau khi chạy xong tập test.
+- **17/10/2026, 15:45 — biến thể P dùng lại câu trả lời của `p_grounded` (commit `233b615`, đưa lại vào `run_strategies.py`).** Các biến thể gửi đúng prompt của P và chỉ khác ở phần code xử lý câu trả lời, nên dùng chung câu trả lời: không tốn lượt gọi, và mỗi biến thể tách đúng một thành phần thay vì so hai lần lấy mẫu của LLM. Không đổi code chấm (hash không đổi). Để mọi cặp test có câu trả lời được lưu, 10 kết quả `p_grounded` (gold) đã chạy trước đó mà không lưu câu trả lời được chuyển sang `downstream/results/test_v1/predictions_superseded_2026-10-17.jsonl` và chạy lại. Việc này làm **trước khi tính bất kỳ chỉ số nào** trên tập test; kết quả chạy lại được dùng, bất kể tốt hay xấu hơn.
 
 ## 8. Kết quả áp luật
 

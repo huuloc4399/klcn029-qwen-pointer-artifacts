@@ -26,7 +26,6 @@ from typing import Any, Callable
 import requests
 
 from baseline_extraction.privacy import redact_text
-from services import requirement_rules
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -147,8 +146,16 @@ def ats_from_pdf(facts: dict[str, Any]) -> dict[str, Any]:
 
 # ---- prompts and calls ------------------------------------------------------------------------
 
-# The same rule list as the rater guide (services/requirement_rules.py), so prompts and labels cannot differ.
-REQUIREMENT_GUIDE = requirement_rules.prompt_text()
+REQUIREMENT_GUIDE = """Quy tắc xét từng yêu cầu của JD (giống hướng dẫn cho người chấm):
+- Bỏ qua mức độ: JD ghi 'thành thạo Java', CV chỉ liệt kê Java ở mục kỹ năng → mentioned_only.
+- Yêu cầu có lựa chọn thay thế ('React hoặc Vue') → CV có một trong các lựa chọn là đủ.
+- Bao hàm trực tiếp được tính như có kỹ năng: Spring Boot → Java; Laravel → PHP; Django, FastAPI, Flask → Python; Express, NestJS → Node.js; React, Vue, Angular → JavaScript; ASP.NET → C#; dựng backend/API bằng FastAPI, Express, Spring Boot, Django → REST API.
+- Liên quan lỏng (Docker → Linux; MySQL → thiết kế hay tối ưu CSDL; Git → CI/CD; React → TypeScript; Java, C# → OOP khi CV không nêu OOP, class, kế thừa, design pattern) → unclear.
+- Câu tự nhận kinh nghiệm ở mục kỹ năng hoặc giới thiệu, không gắn dự án → mentioned_only.
+- Ngoại ngữ, kỹ năng mềm: có chứng chỉ hoặc việc làm cụ thể → met; chỉ tự ghi → mentioned_only; CV viết bằng tiếng Anh không phải bằng chứng về tiếng Anh → unclear.
+- Kỹ năng mềm chỉ tính khi đúng tên hoặc đồng nghĩa (làm việc nhóm = teamwork, giải quyết vấn đề = problem-solving).
+- Công cụ khác cùng loại (MySQL thay PostgreSQL, GitHub thay GitLab) → missing, trừ khi JD ghi 'hoặc', 'or similar', 'tương đương'.
+- Yêu cầu về lĩnh vực (fintech, tài chính) cần dự án thuộc lĩnh vực đó; chỉ một tính năng liên quan → unclear."""
 
 
 def rubric_text(rubric: dict[str, Any], criteria: tuple[str, ...]) -> str:

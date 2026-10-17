@@ -2,7 +2,7 @@
 
 **Đọc file này đầu tiên khi bắt đầu phiên mới hoặc sau khi compact.** Cập nhật sau khi xong mỗi phần: thêm một dòng vào mục 4, sửa mục 2, 5, 6, 7. Ghi đủ ngày, file và commit, để không phải nhớ lại từ cuộc trò chuyện.
 
-Cập nhật lần cuối: 17/10/2026, 15:30.
+Cập nhật lần cuối: 17/10/2026, 15:45.
 
 ## 1. Mục tiêu và hạn
 
@@ -23,7 +23,6 @@ Cập nhật lần cuối: 17/10/2026, 15:30.
 - Vòng chấm chính (32 cặp test, hướng dẫn bản 3): hai người chấm đang làm, **hạn 20/10**.
 - Chờ chốt với giảng viên hướng dẫn cách kiểm chứng H1 và H2 (`minh_chung/M08_DE_XUAT_KIEM_CHUNG_H1_H2.md`).
 - Khải đang kiểm nguồn cơ sở tri thức (trang "Kiểm nguồn cơ sở tri thức KLCN029").
-- **Vấn đề đang mở:** code trong thư mục làm việc khác HEAD. Xem mục 7.
 
 ## 3. Quy ước bắt buộc
 
@@ -83,6 +82,7 @@ Cập nhật lần cuối: 17/10/2026, 15:30.
 | 13:56 | Sổ quyết định và minh chứng (40 quyết định, trang Docs); phân tích độ nhạy trọng số và luật C8 | `sensitivity.py`, `reports/PHAN_TICH_DO_NHAY_RUBRIC_DEV.md`, `34feafd` |
 | 14:00–14:30 | Thư mục minh chứng: lý do chọn model (I01), trạng thái model trên Groq, cách lập danh sách từ (P06); script `model_snapshot`; danh mục tài liệu | `reports/minh_chung/`, `a632c2a`, `5feeba6` |
 | 14:51 | Áp luật đăng ký trước: `COVERAGE_MIN` = 0,90. Dev đủ cho việc khóa cấu hình; không chạy biến thể P và 8 cặp M4/b0 còn lại trên dev | `8b9eb87`, `DANG_KY_TRUOC.md` §8 |
+| 15:45 | Hoàn tác `1c45168`, đưa lại `233b615`; chuyển 10 kết quả `p_grounded` test sang file riêng để chạy lại có cache | `DANG_KY_TRUOC.md` §7 |
 | 15:04 | Đề xuất kiểm chứng H1/H2; kiểm thư mục 9 tài liệu trên arXiv; cảnh báo bài Baral (tạp chí dược); trang hướng dẫn Khải kiểm nguồn | `minh_chung/M08_*`, `TAI_LIEU_THAM_KHAO.md`, `931719c`, `f173692` |
 
 ## 5. Kết quả chính đến nay (dev, chỉ tham khảo)
@@ -112,7 +112,7 @@ Cập nhật lần cuối: 17/10/2026, 15:30.
 - [ ] Đắc viết chương 1–2
 
 **Claude làm khi có đầu vào**
-- [ ] Giải quyết vấn đề ở mục 7 (cần Lộc quyết định)
+- [x] Giải quyết code lệch HEAD (17/10, mục 7)
 - [ ] Script đo H1 (tách nhiều đoạn bằng chứng của M1–M4) và phiếu so sánh cặp mù cho H2, sau khi chốt
 - [ ] Báo cáo tập test: so sánh chính, các biến thể, tách EN/VI, chạy lại phân tích độ nhạy trên nhãn test
 - [ ] P07: số lần hỏi lại và số điểm được cứu của P
@@ -129,15 +129,9 @@ Cập nhật lần cuối: 17/10/2026, 15:30.
 
 ## 7. Vấn đề đang mở
 
-**Code trong thư mục làm việc khác HEAD (phát hiện 17/10, 15:20).**
-- **Chuyện gì đã xảy ra:**
-  - Lúc 06:49–06:57, một phiên khác commit `1c45168` và `233b615`.
-  - Lúc 06:59, ba file được đưa về bản cũ trong thư mục làm việc mà không commit: `evaluator.py`, `rubric_scoring.py`, `test_run_strategies.py`; file `requirement_rules.py` bị xóa.
-  - Các commit sau đó của phiên này đã đưa bản cũ của `run_strategies.py`, `package_rater.py` và vài file test vào HEAD.
-- **Hệ quả:**
-  - Code thực sự chạy `dev_v2` (và sẽ chạy `test_v1`) là bản trong thư mục làm việc. Hash trong `run_config.json` khớp đúng bản này, nên kết quả không bị ảnh hưởng.
-  - Nhưng HEAD đang lẫn hai phiên bản: một bản checkout mới từ git sẽ không tái tạo được đúng cấu hình đã chạy.
-- **Đề xuất:** commit trạng thái hiện tại thành một lần hoàn tác rõ ràng của `1c45168` và `233b615` (giữ đúng cấu hình đã đăng ký). Ghi vào `DANG_KY_TRUOC.md` §7. Các ý hay của `1c45168` (quy tắc dùng chung, ghi chú bắt buộc cho người chấm) để lại sau khi chạy xong tập test. **Chờ Lộc đồng ý.**
+(không có)
+
+**Đã giải quyết 17/10, 15:45 — code thư mục làm việc khác HEAD.** Lộc chọn: hoàn tác `1c45168` (giữ đúng prompt và code chấm của `dev_v2`), giữ `233b615` (biến thể P dùng lại câu trả lời của `p_grounded`, file `llm_cache.jsonl` trong thư mục run). 10 kết quả `p_grounded` gold của `test_v1` chạy trước khi có cache được chuyển sang `predictions_superseded_2026-10-17.jsonl` để chạy lại; chưa tính chỉ số nào. Ghi ở `DANG_KY_TRUOC.md` §7. Các ý của `1c45168` (quy tắc dùng chung, ghi chú bắt buộc cho người chấm) xem lại sau khi chạy xong tập test.
 
 ## 8. File và trang quan trọng
 
