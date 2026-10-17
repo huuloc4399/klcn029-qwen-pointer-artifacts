@@ -26,6 +26,12 @@ Trạng thái (hai bước: đúng thông tin thư mục, rồi đúng nội dun
 | qwen3technicalreport | Qwen Team (2025). *Qwen3 Technical Report*. arXiv:2505.09388 | Model trích xuất Qwen3-4B-Instruct-2507 (huấn luyện QLoRA). Đây là trích dẫn chính thức trên model card của bản 4B. **Không** dùng cho Qwen3.8 (thế hệ khác, kiến trúc khác) | Đã kiểm thư mục (arXiv, 17/10/2026) | https://arxiv.org/abs/2505.09388 |
 | baral2026analyzer | Baral R., Samantaray S. (2026). AI Resume Analyzer: A Survey and Implementation Report on Intelligent Resume Evaluation Using Large Language Models. *International Journal of Pharmacy with Medical Sciences*, 6(2(1)), 60–66. doi:10.64751/ijpams.2026.v6.n2(1).178 | Do nhóm cung cấp ngày 16/10 khi rà báo cáo | Đã kiểm thư mục (17/10/2026). **Cảnh báo:** bài về AI đăng trên tạp chí dược, dấu hiệu tạp chí kém chất lượng; chỉ dùng nếu không có nguồn thay thế, và không dùng làm căn cứ chính | https://ijpams.com/journal/index.php/ijpams/article/view/178 |
 
+## Hệ thống thực tế để so sánh (nguồn web)
+
+| Khóa | Tài liệu | Dùng cho | Trạng thái | Link |
+|---|---|---|---|---|
+| techjobs2026 | TechJobs.vn. Chấm CV, khớp CV với JD, CV builder (trang chủ và công cụ "Kiểm tra" của CV builder). Truy cập 17/10/2026 | Chương 2 (hệ thống tương tự trong nước): chấm theo checklist kèm ghi chú "không phải điểm ATS"; khớp CV–JD theo 6 chỉ số (kỹ năng, chức vụ, cấp bậc, ngoại ngữ, học vấn, độ mới JD); chặn gợi ý bịa số liệu hay kỹ năng; chấm sâu bằng AI tách riêng vì tốn lượt gọi | Đã xem trang chủ 17/10/2026 (Claude) và ảnh chụp công cụ "Kiểm tra" do Lộc cung cấp; là trang sản phẩm, không phải công bố khoa học | https://techjobs.vn |
+
 ## Tài liệu ứng viên đã kiểm thư mục (17/10/2026)
 
 Claude đã mở trang arXiv của từng bài, kiểm tên, tác giả đầu, ngày đăng. Chưa đối chiếu nội dung: người viết đọc đoạn liên quan trước khi trích.
