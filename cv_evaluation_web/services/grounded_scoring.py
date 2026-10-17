@@ -46,7 +46,9 @@ STRATEGIES = {
 LLM_CRITERIA = ("C1_structure", "C2_it_content", "C3_skills", "C4_projects", "C5_experience", "C6_certs_activities")
 REQUIREMENT_CRITERION = "C8_jd_fit"
 REQUIRED_FOR_TOTAL = (("C3_skills",), ("C4_projects", "C5_experience"), ("C8_jd_fit",))
-COVERAGE_MIN = 0.80          # lock on dev before the test run
+# Locked 17/10/2026 by the pre-registered, label-free rule (downstream/eval/DANG_KY_TRUOC.md §3): the highest
+# candidate that still shows a total for ≥ 80% of dev results; on dev_v2 every candidate showed 100%.
+COVERAGE_MIN = 0.90
 # Extracted CV text / PDF text-layer characters below this → content may have been lost. Chosen on the dev
 # CVs without labels: about 0.75 x the lowest ratio of the gold CVSchemas (0.34), so gold is never flagged.
 LOW_TEXT_RATIO = 0.25

@@ -59,4 +59,10 @@ Chênh lệch kèm KTC 95% bootstrap theo CV (2000 lần, seed 42). Chỉ kết 
 
 ## 7. Thay đổi sau đăng ký
 
-(chưa có)
+(chưa có thay đổi nào với luật hay cấu hình)
+
+## 8. Kết quả áp luật
+
+- 17/10/2026, `python -m downstream.eval.lock_config --run-id dev_v2`: 32/32 kết quả `p_grounded`. Mọi ứng viên từ 0,50 đến 0,90 đều hiện điểm tổng cho 100% kết quả (gold và b0), nên luật chọn **`COVERAGE_MIN` = 0,90**. Kết quả lưu ở `downstream/results/dev_v2/coverage_rule.json`; giá trị đã ghi vào `grounded_scoring.py`.
+- Nhận xét: trên dev, P gần như không từ chối chấm tiêu chí nào, nên ngưỡng này chưa được thử thách. Tác dụng của việc từ chối chấm cần được đánh giá bằng phép thử H3 và trên tập test.
+- Biến thể bỏ bớt thành phần (`p_no_concept_check`, `p_no_verify`, `p_no_abstain`) không dùng để chọn cấu hình (§2), nên không bắt buộc chạy trên dev; chúng được chạy và báo cáo trên tập test.

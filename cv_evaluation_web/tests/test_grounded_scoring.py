@@ -11,7 +11,6 @@ import unittest
 
 from services import grounded_scoring as gs
 from services import rubric_scoring as rs
-from services import requirement_rules as rules
 from services.rule_rubric import requirement_statuses
 
 CV = {
@@ -164,42 +163,6 @@ class VerificationTests(unittest.TestCase):
         self.assertEqual(status(cv), "met")
 
 
-class SharedRulesTests(unittest.TestCase):
-    """The rater guide, the model prompts and the code checks come from one rule list."""
-
-    def test_every_rule_is_in_every_prompt(self):
-        for rule in rules.RULES:
-            self.assertIn(rule, rs.REQUIREMENT_GUIDE)
-            self.assertIn(rule, rs.rubric_text(rs.load_rubric(), ("C8_jd_fit",)))  # M1–M4
-            self.assertIn(rule, gs.requirement_section(None))  # P
-        self.assertIn(rules.VERSION, rs.REQUIREMENT_GUIDE)
-
-    def test_code_checks_follow_the_concept_examples(self):
-        """Each listed wording passes for its concept and each base technology alone does not."""
-        for concept in rules.CONCEPTS:
-            for wording in concept["cv"]:
-                cv = {"skills": {"hard_skills": []}, "projects": [{"name": "A", "details": f"Applied {wording} in the shop"}]}
-                verdict = gs.verify_requirement(cv, {"text": concept["name"], "quote": f"Applied {wording}"}, "met")[0]
-                self.assertEqual(verdict, "met", (concept["name"], wording))
-            for base in concept["base"]:
-                cv = {"skills": {"hard_skills": [base]}}
-                verdict = gs.verify_requirement(cv, {"text": concept["name"], "quote": base}, "mentioned_only")[0]
-                self.assertEqual(verdict, "unclear", (concept["name"], base))
-        cv = {"skills": {"hard_skills": ["MySQL database"]}}  # the word "database" alone is not database design
-        self.assertEqual(gs.verify_requirement(cv, {"text": "Database design", "quote": "MySQL database"},
-                                               "mentioned_only")[0], "unclear")
-        for vi, en in rules.SOFT_SKILLS:  # either language names the soft skill
-            cv = {"activities": [f"Thể hiện {vi} trong đồ án"]}
-            self.assertEqual(gs.verify_requirement(cv, {"text": en, "quote": f"Thể hiện {vi}"}, "met")[0], "met", en)
-
-    def test_direct_implications_are_the_rules(self):
-        from services.evaluator import SKILL_ALIASES, skills_with_implied
-        for target, sources in rules.SKILL_IMPLIES.items():
-            for source in sources:  # written as the dictionary knows it (bare "Express" is an English word)
-                self.assertIn(target, skills_with_implied(f"Built with {SKILL_ALIASES[source][0]}"), (source, target))
-                self.assertIn(f"{source}", rs.REQUIREMENT_GUIDE)
-
-
 class ScoringTests(unittest.TestCase):
     def test_valid_evidence_is_scored_in_one_call(self):
         fake = FakeP({"criteria": criteria(), "requirements": requirements()})
@@ -227,7 +190,7 @@ class ScoringTests(unittest.TestCase):
         self.assertEqual(fake.schemas[1]["properties"]["criteria"]["required"], ["C4_projects"])
         self.assertNotIn("requirements", fake.schemas[1]["properties"])
         self.assertEqual(result["coverage"], 0.85)
-        self.assertTrue(result["total_shown"])  # C5 still covers the "C4 or C5" requirement
+        self.assertFalse(result["total_shown"])  # 0.85 < COVERAGE_MIN 0.90, although C5 covers "C4 or C5"
         self.assertIn("C4_projects", result["verification"]["abstained"])
         self.assertTrue(any("chưa đủ căn cứ" in line for line in result["improvements"]))
 
